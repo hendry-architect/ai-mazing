@@ -1,0 +1,28 @@
+# ── Web framework ─────────────────────────────────────────────────────────────
+streamlit==1.58.0
+
+# ── Data / numerics ───────────────────────────────────────────────────────────
+pandas==3.0.3
+numpy==2.4.6
+
+# ── Visualisation ─────────────────────────────────────────────────────────────
+matplotlib==3.10.9
+plotly==6.8.0
+
+# ── PDF export ────────────────────────────────────────────────────────────────
+reportlab==4.5.1
+
+# ── HTTP (Amplitude API) ──────────────────────────────────────────────────────
+requests==2.34.2
+
+# ── Image handling (chart embedding) ──────────────────────────────────────────
+Pillow==12.2.0
+
+# ── File format support: .xlsx and .parquet ───────────────────────────────────
+openpyxl==3.1.5
+pyarrow==24.0.0
+
+# ── AI / code-execution engine (feature-flagged; requires ENABLE_CODE_EXEC=1) ─
+# anthropic is imported lazily inside analyze_with_code_execution() so the app
+# starts and runs the local pipeline even if this package is not installed.
+anthropic>=0.40.0

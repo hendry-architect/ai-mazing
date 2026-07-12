@@ -1,0 +1,27 @@
+# .streamlit/config.toml
+# Streamlit server + theme configuration for AI-mazing Analyst.
+# Committed to version control — contains NO secrets.
+# Put secrets in .streamlit/secrets.toml (gitignored) or as env vars.
+
+# ── Theme ──────────────────────────────────────────────────────────────────────
+[theme]
+primaryColor       = "#4361EE"   # indigo — buttons, sliders, active tabs
+backgroundColor    = "#f4f4f8"   # off-white page background
+secondaryBackgroundColor = "#ffffff"   # card / sidebar panels
+textColor          = "#1a1a2e"   # near-black body text
+font               = "sans serif"
+
+# ── Server ─────────────────────────────────────────────────────────────────────
+[server]
+headless            = true    # required for Docker / cloud deployments
+enableXsrfProtection = true   # CSRF protection (default); do NOT set enableCORS=false
+                               # alongside this — Streamlit overrides it anyway.
+maxUploadSize       = 50      # MB — max CSV upload size
+
+# ── Browser ────────────────────────────────────────────────────────────────────
+[browser]
+gatherUsageStats = false   # opt out of Streamlit telemetry
+
+# ── Logger ─────────────────────────────────────────────────────────────────────
+[logger]
+level = "warning"   # suppress INFO noise in production; use "debug" locally
