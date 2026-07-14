@@ -39,7 +39,7 @@ ai-mazing/
 
 ```bash
 # 1. Clone (or unzip) the repo
-git clone https://github.com/YOUR_USERNAME/ai-mazing.git
+git clone https://github.com/hendry-architect/ai-mazing.git
 cd ai-mazing
 
 # 2. Create and activate a virtual environment
@@ -77,7 +77,7 @@ Streamlit Community Cloud is the easiest zero-config host for Streamlit apps.
 ```bash
 git init && git add -A
 git commit -m "Initial commit"
-git remote add origin https://github.com/YOUR_USERNAME/ai-mazing.git
+git remote add origin https://github.com/hendry-architect/ai-mazing.git
 git push -u origin main
 ```
 
