@@ -165,7 +165,7 @@ with st.sidebar:
     st.markdown("### 📂 Data Source")
     data_source = st.radio(
         "Choose input",
-        ["Upload CSV", "Sample Dataset", "📡 Amplitude (live)"],
+        ["Upload File", "Sample Dataset", "📡 Amplitude (live)"],
         label_visibility="collapsed",
     )
 
@@ -174,12 +174,20 @@ with st.sidebar:
     amp_days       = 7
     amp_metric     = "totals"
 
-    if data_source == "Upload CSV":
+    if data_source == "Upload File":
         uploaded_file = st.file_uploader(
-            "Drop a CSV file here",
-            type=["csv"],
-            help="UTF-8 encoded CSV. Max ~50 MB.",
+            "Drop a CSV or Excel file here",
+            type=["csv", "xlsx", "xls"],
+            help="CSV or Excel (.xlsx/.xls). Max ~50 MB.",
         )
+        excel_sheet = None
+        if uploaded_file is not None and uploaded_file.name.lower().endswith((".xlsx", ".xls")):
+            try:
+                _xls = pd.ExcelFile(uploaded_file)
+                excel_sheet = st.selectbox("Excel sheet", options=_xls.sheet_names)
+                uploaded_file.seek(0)  # reset pointer after peeking
+            except Exception as _e:
+                st.error(f"Could not read Excel sheets: {_e}")
 
     elif data_source == "Sample Dataset":
         sample_name = st.selectbox(
@@ -347,12 +355,18 @@ fallback_used = False  # True when Amplitude is empty and we fell back to sample
 with st.spinner("📥 Loading data…"):
 
     # ── CSV upload ────────────────────────────────────────────────────────────
-    if data_source == "Upload CSV":
+    if data_source == "Upload File":
         if uploaded_file is None:
-            st.error("⚠️  Please upload a CSV file first.")
+            st.error("⚠️  Please upload a CSV or Excel file first.")
             st.stop()
-        df_input     = uploaded_file       # analyst._load handles file-like objects
-        source_label = uploaded_file.name
+        _fname = uploaded_file.name.lower()
+        if _fname.endswith((".xlsx", ".xls")):
+            uploaded_file.seek(0)
+            df_input     = pd.read_excel(uploaded_file, sheet_name=excel_sheet)
+            source_label = f"{uploaded_file.name} · sheet: {excel_sheet}"
+        else:
+            df_input     = uploaded_file   # analyst._load handles CSV file-like objects
+            source_label = uploaded_file.name
 
     # ── Sample dataset ────────────────────────────────────────────────────────
     elif data_source == "Sample Dataset":
