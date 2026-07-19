@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-100 |
 | Series | 100 — Governance (02-Governance) |
-| Version | 0.1.0 |
-| Status | DRAFT — awaiting Founder ratification |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 |
 | Custodian | Founder (Dr. Hendry Pascual) |
 | Supersedes | None |
 | Superseded by | None |
@@ -111,4 +111,4 @@ increment and registry update.
 
 | Act | Name | Role | Date | Evidence |
 |---|---|---|---|---|
-| Ratification | | Founder | | PR #___ merged to `main` |
+| Ratification | Dr. Hendry Pascual | Founder | 2026-07-19 | Written Founder approval; ratified via merge of PR #2 to `main` |

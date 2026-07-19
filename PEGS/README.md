@@ -73,16 +73,16 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | ID | Title | Location | Version | Status | Custodian |
 |---|---|---|---|---|---|
 | PEGS-000 | The Pascual Enterprise Constitution | 01-Constitution | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
-| PEGS-100 | Enterprise Structure & Entity Map | 02-Governance | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-101 | Stewardship Council Charter | 02-Governance | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-100 | Enterprise Structure & Entity Map | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-101 | Stewardship Council Charter | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
 
 ## Phase roadmap
 
 | Phase | Deliverable | Folders | Status |
 |---|---|---|---|
 | **1** | Enterprise Constitution | 01 | ✅ RATIFIED 2026-07-19 (PR #1) |
-| **2** | Governance structure + repository architecture | 02, full 01–15 tree, 12 | 🔄 In review |
-| **3** | Executive leadership: delegation matrix, role charters | 03 | Blocked on Phase 2 |
+| **2** | Governance structure + repository architecture | 02, full 01–15 tree, 12 | ✅ RATIFIED 2026-07-19 (PR #2) |
+| **3** | Executive leadership: delegation matrix, role charters | 03 | Awaiting Founder command |
 | **4** | Operations: company charters, SOPs, policies, meeting rhythm | 08, 09, 10, 11 | Blocked on Phase 3 |
 | **5** | Structure & legacy: advisory council, foundation, trust, holdings | 04, 05, 06, 07 | Blocked on Phase 4 |
 | **6** | Scale systems: automation build-out, knowledge base | 13, 14 | Backlog live; build after Phase 2 |
