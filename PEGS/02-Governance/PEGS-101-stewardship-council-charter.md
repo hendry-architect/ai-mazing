@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | PEGS-101 |
-| Series | 100 — Governance structure |
+| Series | 100 — Governance (02-Governance) |
 | Version | 0.1.0 |
 | Status | DRAFT — awaiting Founder ratification |
 | Custodian | Founder (Dr. Hendry Pascual) |
@@ -29,7 +29,7 @@ that succession is a documented transition rather than a crisis.
 
 Governs constitutional authority only. The Council does not manage entities,
 approve budgets, or make Class 2/3 decisions — those belong to the roles
-defined in the 200-series and to entity leadership.
+defined in `03-Executive-Leadership` and to entity leadership.
 
 ## Provisions
 
@@ -47,7 +47,7 @@ The Council activates upon the first of:
 1. **Written delegation** — the Founder transfers Class 1 authority, in whole
    or in part, by written instrument;
 2. **Incapacity** — the Founder is medically unable to exercise judgment, as
-   determined under the process in the 500-series succession documents;
+   determined under the incapacity process filed in `06-Trust`;
 3. **Death of the Founder.**
 
 Activation is recorded in the PEGS registry. It is irreversible except by the
@@ -62,8 +62,8 @@ Founder's own written revocation under trigger 1.
   earned, never inherited (PEGS-000 Art. III §7, Art. VI §6).
 - **Clinical seat:** while the Enterprise operates any Class A (clinical)
   entity, at least one steward must be a licensed physician.
-- **Initial roster:** named by the Founder in a sealed 500-series document,
-  amendable by the Founder at any time before activation.
+- **Initial roster:** named by the Founder in a sealed instrument filed in
+  `06-Trust`, amendable by the Founder at any time before activation.
 - **Vacancies after activation:** filled by vote of the remaining stewards
   under §5, against the qualification criteria above.
 
@@ -72,8 +72,8 @@ Founder's own written revocation under trigger 1.
 1. Exercise Class 1 (constitutional) decisions under PEGS-000 Art. V §1;
 2. Ratify amendments to PEGS-000 under Art. VIII §3 — the Immutable Core
    (Art. VIII §2) remains beyond its reach, permanently;
-3. Hold custodianship of the 000-series and appoint custodians for all other
-   series;
+3. Hold custodianship of `01-Constitution` and appoint custodians for all
+   other folders of the canon;
 4. Confirm or replace the chief executive of each entity — its sole
    operational power, exercised as stewardship, not management.
 

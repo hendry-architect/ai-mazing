@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | PEGS-100 |
-| Series | 100 — Governance structure |
+| Series | 100 — Governance (02-Governance) |
 | Version | 0.1.0 |
 | Status | DRAFT — awaiting Founder ratification |
 | Custodian | Founder (Dr. Hendry Pascual) |
@@ -24,21 +24,21 @@ Define the structural map of the Enterprise: the classes of entities it
 contains, the entities that exist today, how brands map to entities under the
 firewalls, and the rules by which entities are created, acquired, and closed.
 This is the governance identity of the structure — not legal or tax advice;
-legal formalization is tracked in the 400-series.
+legal formalization is tracked in `07-Holdings`.
 
 ## Scope
 
 Binds every current and future entity, brand, and venture of the Enterprise as
 defined in the PEGS-000 Preamble. Does not define individual roles or decision
-rights (200-series) or operating procedures (300-series).
+rights (`03-Executive-Leadership`) or operating procedures (`09-SOP`).
 
 ## Provisions
 
 ### §1. Entity classes
 
 Every entity in the Enterprise belongs to exactly one class. The class
-determines which playbook series governs it and which firewalls bind it most
-directly.
+determines which playbooks govern it (`09-SOP`, `10-Policies`) and which
+firewalls bind it most directly.
 
 | Class | Domain | Firewall emphasis |
 |---|---|---|
@@ -67,7 +67,7 @@ An entity not on this map is not part of the Enterprise; this map is amended
 ### §3. Brand–entity mapping rule
 
 Every brand belongs to exactly one entity, and every entity speaks only
-through its ratified brand canon (700-series). The Brand Firewall (PEGS-000
+through its ratified brand canon (kept in its `08-Companies` folder). The Brand Firewall (PEGS-000
 Art. VI §4.2) applies structurally: the Founder's personal brand never sells;
 commercial brands never impersonate the Founder's personal voice; no brand
 borrows another's channel.
@@ -78,7 +78,8 @@ Creating, acquiring, restructuring, or closing an entity is a **Class 2
 decision** (PEGS-000 Art. V §1): written decision memo, Five Gates, Founder
 ratification. On its first day, every new entity receives:
 
-1. A written charter in the 100-series, from the PEGS template;
+1. A written charter in its `08-Companies` folder, from the PEGS template
+   (`12-Templates`);
 2. A named custodian accountable for it;
 3. Its class assignment and firewall mapping under §1 and §3;
 4. An entry on the §2 entity map and in the PEGS registry.
@@ -95,8 +96,8 @@ acquisition unwilling to adopt PEGS-000 is not acquired, whatever the price.
 
 - Confirms entity lifecycle decisions (§4, §5) as Class 2 — Founder decides on
   written memo.
-- Assigns custodianship of the entity map to the Founder until the 200-series
-  delegates it.
+- Assigns custodianship of the entity map to the Founder until a ratified
+  `03-Executive-Leadership` charter delegates it.
 
 ## Amendment
 

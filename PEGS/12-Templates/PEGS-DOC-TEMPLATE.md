@@ -3,13 +3,13 @@
 | Field | Value |
 |---|---|
 | Document ID | PEGS-nnn |
-| Series | <nnn-series — domain> |
+| Location | <folder, e.g. 02-Governance> |
 | Version | 0.1.0 |
 | Status | DRAFT |
 | Custodian | <accountable role, not a task-doer — see PEGS-000 Art. VI §3> |
 | Supersedes | <document ID or "None"> |
 | Superseded by | None |
-| References | PEGS-000 <plus any same-or-higher-series documents> |
+| References | PEGS-000 <plus any higher-layer documents> |
 | Review cadence | <e.g., Annual / Quarterly> |
 
 > **Constitutional anchor (required).** This document derives its authority
