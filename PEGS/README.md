@@ -119,7 +119,7 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | PEGS-100 | Enterprise Structure & Entity Map | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 · amendment pending (entity roster, Phase 3.5) | Founder |
 | PEGS-101 | Stewardship Council Charter | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
 | PEGS-150.001 | Enterprise Architecture Overview | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.002 | Enterprise Ecosystem Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.002 | Enterprise Ecosystem Blueprint (complete asset ecosystem) | 02-Governance/PEGS-150 | 0.2.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-150.003 | Enterprise Organizational Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-150.004 | Governance Relationship Matrix | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-150.005 | Enterprise Cash Flow Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
@@ -127,6 +127,8 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | PEGS-150.007 | Five-Year Enterprise Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-150.008 | PEGS Enterprise Playbook (TOC) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-150.009 | Governance Maturity Roadmap | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-151 | Enterprise Asset Registry (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-152 | Enterprise Ownership Philosophy (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 
 ## Phase roadmap
 

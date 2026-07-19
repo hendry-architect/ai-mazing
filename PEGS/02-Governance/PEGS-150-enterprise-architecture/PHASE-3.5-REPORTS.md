@@ -13,9 +13,14 @@ date: 2026-07-19
 
 ## 1. Executive Summary
 
-Phase 3.5 inserted the Enterprise Architecture layer (PEGS-150) between
-the ratified Constitution and all future work. Nine blueprints now fix in
-place: the organizing philosophy and domain-placement rule (150.001), the
+Phase 3.5 inserted the Enterprise Architecture layer between the ratified
+Constitution and all future work — nine blueprints plus two Founder-
+directed companions: **PEGS-151 (Enterprise Asset Registry — every present
+and future asset, classes A–H, current vs. target holders)** and
+**PEGS-152 (Enterprise Ownership Philosophy — ownership doctrine per
+class, the never-sell list, time horizons, and the migration path)**.
+PEGS-150.002 was regenerated (v0.2.0) as the complete asset ecosystem.
+The nine blueprints fix in place: the organizing philosophy and domain-placement rule (150.001), the
 full entity ecosystem with typed relationships (150.002), the
 living-organism model (150.003), per-entity governance rows (150.004), the
 conceptual cash-flow map (150.005), a 26-domain decision authority matrix
@@ -35,6 +40,8 @@ Enterprise), freshly entered.**
 | Every 150-doc cross-references prior canon | ✅ References row in each control block |
 | Version numbers, revision history, governance notes, implementation recs, future dependencies present | ✅ All nine documents |
 | Internal consistency: ecosystem (150.002) ↔ matrix (150.004) ↔ cash flow (150.005) entity sets | ✅ Identical rosters and ✅/🔶/🔮 markings |
+| Companions consistent: 150.002 v0.2.0 ↔ 151 asset IDs ↔ 152 target holders | ✅ Asset IDs (A–H) and target states match across all three; personal carve-out (B-03) identical everywhere |
+| PEGS-151/152 contain no legal drafting or tax advice | ✅ Explicit boundaries in both control blocks |
 | Decision matrix (150.006) nests within PEGS-000 Art. V classes | ✅ Every row carries its class; memo rule never waived |
 | Maturity gates (150.009) ↔ horizons (150.007) alignment | ✅ L3=24mo, L4=5y, L5=10y |
 | Domain placement of PEGS-150 itself | ✅ 100-series (governance structure), shelved 02-Governance — ruling recorded in 150.001 §4 |
@@ -68,6 +75,8 @@ Enterprise), freshly entered.**
 | 8 | **Thresholds** — preliminary $ levels for: contract signing tiers, capex escalation, acquisition memo floor, grant board-level floor | 150.006 rule 3; L02 matrices |
 | 9 | **Second site / international first market** — any already-known intentions to encode in 150.007, or leave directional? | 150.007 precision |
 | 10 | **Existing legal/tax advisors** — named counsel to receive the Phase 6 briefing set? | Dependency 5 |
+| 11 | **Clinic premises (18706 NW 67th Ave)** — owned or leased? If owned, by whom today? | PEGS-151 E-01; RE doctrine (152 §2.3) |
+| 12 | **Payer contracts & credentialing inventory** — which contracts exist, held by which entity? | PEGS-151 G-05 |
 
 ## 5. Recommendations before Phase 4
 
