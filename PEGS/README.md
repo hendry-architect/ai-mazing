@@ -64,13 +64,15 @@ git workflow. No parallel approval system, no document floating in inboxes.
 | ID | Title | Series | Version | Status | Custodian |
 |---|---|---|---|---|---|
 | PEGS-000 | The Pascual Enterprise Constitution | 000 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-100 | Enterprise Structure & Entity Map | 100 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-101 | Stewardship Council Charter | 100 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 
 ## Phase roadmap
 
 | Phase | Deliverable | Depends on | Status |
 |---|---|---|---|
 | **1** | PEGS-000 Constitution | — | ✅ RATIFIED 2026-07-19 (PR #1) |
-| **2** | Governance structure (100-series): entity map, Stewardship Council charter | Phase 1 ratified | Not started |
+| **2** | Governance structure (100-series): entity map, Stewardship Council charter | Phase 1 ratified | 🔄 Drafted — in review |
 | **3** | Roles & decision rights (200-series): delegation matrix, role charters, escalation triggers | Phase 2 | Not started |
 | **4** | Operating systems (300/700-series): brand canons, clinic ops, publishing & media playbooks | Phase 3 | Not started |
 | **5** | Capital, people, technology (400/500/600-series) | Phase 4 | Not started |
