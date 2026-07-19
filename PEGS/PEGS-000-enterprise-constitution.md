@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-000 |
 | Series | 000 — Constitutional |
-| Version | 0.1.0 |
-| Status | DRAFT — awaiting Founder ratification |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 |
 | Custodian | Founder (Dr. Hendry Pascual) |
 | Supersedes | None — founding document |
 | Superseded by | None |
@@ -343,9 +343,9 @@ This Constitution enters force upon written ratification by the Founder,
 recorded below and in the PEGS registry. Until ratified, it is a draft with no
 authority.
 
-| Act | Name | Role | Date | Signature |
+| Act | Name | Role | Date | Record |
 |---|---|---|---|---|
-| Ratification | Dr. Hendry Pascual | Founder | ____________ | ____________ |
+| Ratification | Dr. Hendry Pascual | Founder | 2026-07-19 | Written Founder confirmation; ratified via merge of PR #1 to `main` |
 
 Upon ratification: Status changes to RATIFIED, version becomes 1.0.0, and the
 PEGS registry is updated. Every subsequent PEGS document begins with a
