@@ -44,11 +44,21 @@
 
 ## 2. Doctrine by asset class
 
+> **The canonical doctrine statement (Founder's words):** *The intended
+> long-term ownership doctrine of the Pascual Enterprise is that
+> controlling interests shall ultimately reside within the approved
+> enterprise ownership structure, as determined by the Founder and
+> implemented with qualified legal and tax counsel.* Everything in this
+> section details that sentence; where counsel's implementation refines
+> the specifics below, the doctrine statement governs and this document
+> is amended to match.
+
 ### 2.1 Companies (Class A)
 
-- **Target chain:** Ascendencia Trust 🔮 → Atemporal Holdings 🔮 →
-  operating companies. The Founder's direct holdings migrate up this
-  chain at Phase 6, on counsel's design.
+- **Target chain (current intended implementation):** Ascendencia Trust
+  🔮 → Atemporal Holdings 🔮 → operating companies. The Founder's direct
+  holdings migrate up this chain at Phase 6, on counsel's design under
+  the doctrine statement above.
 - **Control equity never leaves the chain.** Operators, partners, and
   investors may hold economic participation (profit interests, bonuses,
   venture-specific equity) but never control of the clinical root or of

@@ -16,10 +16,13 @@ date: 2026-07-19
 Phase 3.5 inserted the Enterprise Architecture layer between the ratified
 Constitution and all future work — nine blueprints plus two Founder-
 directed companions: **PEGS-151 (Enterprise Asset Registry — every present
-and future asset, classes A–H, current vs. target holders)** and
-**PEGS-152 (Enterprise Ownership Philosophy — ownership doctrine per
-class, the never-sell list, time horizons, and the migration path)**.
-PEGS-150.002 was regenerated (v0.2.0) as the complete asset ecosystem.
+and future asset, classes A–H, current vs. target holders)** **PEGS-152 (Enterprise Ownership Philosophy — the canonical ownership
+doctrine statement in the Founder's words, doctrine per class, the
+never-sell list, time horizons, and the migration path)**, and
+**PEGS-153 (Enterprise Design Principles — the eleven principles that are
+the physics of the Enterprise, each with a test any decision memo can
+answer)**. PEGS-150.002 was regenerated (v0.2.0) as the complete asset
+ecosystem.
 The nine blueprints fix in place: the organizing philosophy and domain-placement rule (150.001), the
 full entity ecosystem with typed relationships (150.002), the
 living-organism model (150.003), per-entity governance rows (150.004), the
@@ -41,7 +44,8 @@ Enterprise), freshly entered.**
 | Version numbers, revision history, governance notes, implementation recs, future dependencies present | ✅ All nine documents |
 | Internal consistency: ecosystem (150.002) ↔ matrix (150.004) ↔ cash flow (150.005) entity sets | ✅ Identical rosters and ✅/🔶/🔮 markings |
 | Companions consistent: 150.002 v0.2.0 ↔ 151 asset IDs ↔ 152 target holders | ✅ Asset IDs (A–H) and target states match across all three; personal carve-out (B-03) identical everywhere |
-| PEGS-151/152 contain no legal drafting or tax advice | ✅ Explicit boundaries in both control blocks |
+| PEGS-151/152/153 contain no legal drafting or tax advice | ✅ Explicit boundaries in all three |
+| PEGS-153 principles consistent with PEGS-000 and the suite | ✅ Each principle cites its constitutional source; ownership-doctrine statement identical verbatim in 152 §2 and 153 |
 | Decision matrix (150.006) nests within PEGS-000 Art. V classes | ✅ Every row carries its class; memo rule never waived |
 | Maturity gates (150.009) ↔ horizons (150.007) alignment | ✅ L3=24mo, L4=5y, L5=10y |
 | Domain placement of PEGS-150 itself | ✅ 100-series (governance structure), shelved 02-Governance — ruling recorded in 150.001 §4 |

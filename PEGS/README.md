@@ -129,6 +129,7 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | PEGS-150.009 | Governance Maturity Roadmap | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-151 | Enterprise Asset Registry (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-152 | Enterprise Ownership Philosophy (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-153 | Enterprise Design Principles (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 
 ## Phase roadmap
 

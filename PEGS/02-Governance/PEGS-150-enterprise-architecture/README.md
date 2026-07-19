@@ -17,7 +17,8 @@ without amending it first.**
 | [PEGS-150.008](PEGS-150.008-pegs-enterprise-playbook.md) | Enterprise Playbook (TOC) | The owner's-manual structure; every canon doc maps to a chapter |
 | [PEGS-150.009](PEGS-150.009-governance-maturity-roadmap.md) | Governance Maturity Roadmap | Levels 1–5, gate criteria, how PEGS evolves through each |
 | [PEGS-151](PEGS-151-enterprise-asset-registry.md) | **Enterprise Asset Registry** (companion) | Every present & future asset, classes A–H, current vs. target holders |
-| [PEGS-152](PEGS-152-enterprise-ownership-philosophy.md) | **Enterprise Ownership Philosophy** (companion) | Ownership doctrine per class, never-sell list, time horizons, migration path |
+| [PEGS-152](PEGS-152-enterprise-ownership-philosophy.md) | **Enterprise Ownership Philosophy** (companion) | Canonical ownership doctrine statement, doctrine per class, never-sell list, time horizons, migration path |
+| [PEGS-153](PEGS-153-enterprise-design-principles.md) | **Enterprise Design Principles** (companion) | The eleven principles — the physics of the Enterprise; every decision testable against them |
 | [PHASE-3.5-REPORTS.md](PHASE-3.5-REPORTS.md) | Phase 3.5 close-out reports | Executive summary, validation, dependencies, missing info, recommendations |
 
 **Suite note:** PEGS-151/152 are companion blueprints with sibling IDs in
