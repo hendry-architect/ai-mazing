@@ -54,6 +54,7 @@ Apple Reminders/Calendar).
 
 | # | Library | Location |
 |---|---|---|
+| L-EA | **Enterprise Architecture (PEGS-150)** — the master blueprint every artifact obeys | `02-Governance/PEGS-150-enterprise-architecture/` |
 | L01 | Enterprise Constitution (charter, alignment checklist, annual review) | `01-Constitution/` |
 | L02 | Executive Leadership System (role charters, authority matrix, succession, reviews, on/offboarding) | `03-Executive-Leadership/` |
 | L03 | Strategic Advisory Council (charter, advisor agreement, quarterly SOP, retreat framework) | `04-Advisory-Council/` |
@@ -72,8 +73,23 @@ Apple Reminders/Calendar).
 - **Governance documents** keep permanent IDs: PEGS-000 (constitutional),
   PEGS-1xx (structural — the "100-series charters" PEGS-000 references). IDs
   never change, even if a document moves shelves.
+- **Sub-series** use dotted numbering: `PEGS-150.NNN` = the Enterprise
+  Architecture blueprints (150-series, inside the structural 100-series,
+  shelved at `02-Governance/PEGS-150-enterprise-architecture/`).
 - **Working documents** are named by convention instead: `SOP-<company>-<topic>`,
   decision memos and minutes by date. Not everything needs a constitutional ID.
+
+## Governance map (precedence & cross-reference)
+
+Conflicts resolve upward through this chain; every document references the
+layer above it:
+
+`PEGS-000 (Constitution) → PEGS-150 (Architecture) → PEGS-100/101
+(Structure & Succession) → plans & policies (L05/L09/10-Policies) → role
+charters & matrices (L02, nested under PEGS-150.006) → SOPs & brand canons
+(09/08) → records (11-Meetings/15-Archives)`
+
+Domain placement rule for every new artifact: PEGS-150.001 §4.
 
 ## Document lifecycle
 
@@ -100,8 +116,17 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | ID | Title | Location | Version | Status | Custodian |
 |---|---|---|---|---|---|
 | PEGS-000 | The Pascual Enterprise Constitution | 01-Constitution | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
-| PEGS-100 | Enterprise Structure & Entity Map | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-100 | Enterprise Structure & Entity Map | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 · amendment pending (entity roster, Phase 3.5) | Founder |
 | PEGS-101 | Stewardship Council Charter | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-150.001 | Enterprise Architecture Overview | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.002 | Enterprise Ecosystem Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.003 | Enterprise Organizational Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.004 | Governance Relationship Matrix | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.005 | Enterprise Cash Flow Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.006 | Decision Authority Matrix | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.007 | Five-Year Enterprise Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.008 | PEGS Enterprise Playbook (TOC) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.009 | Governance Maturity Roadmap | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 
 ## Phase roadmap
 
@@ -111,7 +136,8 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | **2** | Governance structure + repository architecture | 02, full 01–15 tree, 12 | ✅ RATIFIED 2026-07-19 (PR #2) |
 | **3** | Twelve modular libraries (L01–L12): templates, SOPs, checklists, automation hooks | all | ✅ RATIFIED 2026-07-19 (PR #3) |
 | **4** | Template layer completed: 11 gap templates + master index (48 templates total) | 12 + all | ✅ RATIFIED 2026-07-19 (PR #4) |
-| **5** | Instantiation: fill libraries with real names, numbers, and ratified policies (role charters signed, matrices populated, calendars loaded) | 03, 08–11 | Awaiting Founder command |
+| **3.5** | Enterprise Architecture (PEGS-150.001–.009): the master blueprint — inserted by Founder directive; all later phases must conform to it | 02-Governance/PEGS-150 | 🔄 In review — Phase 4/5 HALTED pending ratification + PEGS-100 amendment |
+| **5** | Instantiation: fill libraries with real names, numbers, and ratified policies (role charters signed, matrices populated, calendars loaded) | 03, 08–11 | HALTED — awaiting Phase 3.5 ratification, Missing Info answers, PEGS-100 amendment |
 | **6** | Structure & legacy instruments: council seated, foundation formed, trust executed, holdings chartered | 04, 05, 06, 07 | Awaiting Founder command |
 | **7** | Automation build-out: catalog items AUT-002+ shipped live | 13 | Backlog live in AUTOMATION-CATALOG.md |
 
