@@ -110,9 +110,10 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | **1** | Enterprise Constitution | 01 | ✅ RATIFIED 2026-07-19 (PR #1) |
 | **2** | Governance structure + repository architecture | 02, full 01–15 tree, 12 | ✅ RATIFIED 2026-07-19 (PR #2) |
 | **3** | Twelve modular libraries (L01–L12): templates, SOPs, checklists, automation hooks | all | ✅ RATIFIED 2026-07-19 (PR #3) |
-| **4** | Instantiation: fill libraries with real names, numbers, and ratified policies (role charters signed, matrices populated, calendars loaded) | 03, 08–11 | Awaiting Founder command |
-| **5** | Structure & legacy instruments: council seated, foundation formed, trust executed, holdings chartered | 04, 05, 06, 07 | Awaiting Founder command |
-| **6** | Automation build-out: catalog items AUT-002+ shipped live | 13 | Backlog live in AUTOMATION-CATALOG.md |
+| **4** | Template layer completed: 11 gap templates + master index (48 templates total) | 12 + all | ✅ RATIFIED 2026-07-19 (PR #4) |
+| **5** | Instantiation: fill libraries with real names, numbers, and ratified policies (role charters signed, matrices populated, calendars loaded) | 03, 08–11 | Awaiting Founder command |
+| **6** | Structure & legacy instruments: council seated, foundation formed, trust executed, holdings chartered | 04, 05, 06, 07 | Awaiting Founder command |
+| **7** | Automation build-out: catalog items AUT-002+ shipped live | 13 | Backlog live in AUTOMATION-CATALOG.md |
 
 Phases are sequential on purpose: each layer derives authority from the one
 above it, so building out of order creates documents with no legitimacy chain.
