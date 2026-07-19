@@ -10,7 +10,7 @@ owner: founder
 
 # Master Template Index — every template in the canon
 
-48 templates. Find by task, copy, fill, file. Every one is frontmattered
+49 templates. Find by task, copy, fill, file. Every one is frontmattered
 per the Integration Standard; ⚙ marks those whose tables feed automations.
 
 ## Run a meeting (any meeting)
@@ -69,6 +69,7 @@ per the Integration Standard; ⚙ marks those whose tables feed automations.
 |---|---|
 | Company charter (required to operate) | `08-Companies/TEMPLATE-company-charter.md` |
 | Brand canon | `08-Companies/TEMPLATE-brand-canon.md` |
+| Entity profile (PEGS-210 series) | `12-Templates/TEMPLATE-entity-profile.md` |
 
 ## Council and counsel
 

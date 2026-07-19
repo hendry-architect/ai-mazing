@@ -4,170 +4,156 @@
 |---|---|
 | Document ID | PEGS-150.002 |
 | Series | 150 — Enterprise Architecture (02-Governance) |
-| Version | 0.2.0 |
-| Status | DRAFT — awaiting Founder ratification |
+| Version | 0.3.0 |
+| Status | DRAFT — awaiting Founder ratification (Amendment A1 incorporated) |
 | Custodian | Founder (Chief Enterprise Architect function) |
-| References | PEGS-150.001; **PEGS-151 (asset registry — the ecosystem's inventory)**; **PEGS-152 (ownership doctrine — the ecosystem's target state)**; PEGS-100 §1–§3; PEGS-101; L09 |
+| References | PEGS-100 v1.1.0 (Amendment A1 — verified entities & pillars); PEGS-150.001; PEGS-151; PEGS-152; PEGS-153; PEGS-210.001–.008 (entity profiles); L09 |
 | Review cadence | On any entity or asset-class change + annual |
 
-> **Extends PEGS-100.** The ratified entity map (PEGS-100 §2) remains
-> authoritative for what exists TODAY. This blueprint maps the full
-> intended ecosystem — **legal entities AND the asset layers they hold**
-> (PEGS-151 classes A–H) — with every relationship typed and labeled.
-> Marks: ✅ ratified/confirmed · 🔶 Founder-declared, TO CONFIRM ·
-> 🔮 future/target. A PEGS-100 amendment is required before 🔶 items are
-> treated as canon (Missing Information Report).
+> **Founder-verified (Amendment A1, 2026-07-19).** This blueprint now maps
+> the VERIFIED enterprise structure supplied by the Founder — eight
+> entities in five permanent pillars — plus the asset layers (PEGS-151)
+> and target ownership (PEGS-152). Marks: ✅ verified · 🔸 verified but
+> pre-operational or pending · 🔮 future/architectural. No legal
+> implementation is assumed for 🔮 items; no IP transfers are assumed
+> for Holora Health.
 
 ---
 
-## 1. Master ecosystem diagram (entities + assets)
+## 1. Master ecosystem diagram (five pillars + asset & governance layers)
 
-**Edge legend:**
-
-| Arrow | Relationship |
-|---|---|
-| `==>` thick, **owns** | Ownership (equity / title / beneficial) |
-| `-->` solid, **governs** | Governance (constitutional/board authority) |
-| `-.->` dashed, **manages** | Management (operational direction) |
-| `-.-` dotted line, **advises** | Advisory (counsel, no authority) |
-| `-->` solid, **$** | Cash flow (conceptual — PEGS-150.005) |
-| `-->` solid, **licenses** | IP license (use rights, never title) |
-| `-->` solid, **leases** | Real-estate lease (use, never title) |
-| `-->` solid, **controls** | Control without ownership (trustee powers) |
+**Edge legend:** `==>` **owns** · `-->` **governs** · `-.->` **manages**
+· `-.-` **advises** · `-->|$|` cash flow · `-->|licenses|` IP use ·
+`-->|leases|` RE use · `-->|controls|` control w/o ownership.
 
 ```mermaid
 flowchart TB
-  subgraph LEGACY["LEGACY LAYER (future)"]
-    TRUST["🔮 Ascendencia Trust<br/><i>The Backbone — apex holder (PEGS-152 §2.6)</i>"]
-    LC["🔮 Trustee / Legacy Council"]
-  end
+  FOUNDER["✅ Dr. Hendry Julian Perez Pascual, MD — Founder<br/>Founder-controlled enterprise"]
 
-  subgraph GOV["GOVERNANCE LAYER"]
-    PEGS["✅ PEGS Canon (PEGS-000 supreme)<br/>asset B-06: the system itself"]
-    SC["✅ Stewardship Council (dormant — PEGS-101)"]
+  subgraph GOVL["GOVERNANCE LAYER"]
+    PEGS["✅ PEGS Canon — PEGS-000 supreme"]
+    SC["✅ Stewardship Council (dormant)"]
     SAC["🔮 Strategic Advisory Council"]
   end
 
-  subgraph CAPITAL["CAPITAL LAYER (future)"]
-    HOLD["🔮 Atemporal Holdings LLC<br/><i>The Brain</i>"]
-    INV["🔮 Investment entities<br/>assets F-03"]
-    IPCO["🔮 IP entity<br/>assets B-01,02,04–08 · C-01,04"]
-    RECO["🔮 Real estate entities<br/>assets E-01(if owned),E-04"]
+  subgraph PERSONAL["PERSONAL CARVE-OUT (permanent — PEGS-152 §2.2)"]
+    PMARKS["✅ B-03: Founder's name · likeness · voice<br/>SOSTENGO seal · HP crest — never sold, never absorbed"]
   end
 
-  subgraph PERSONAL["THE PERSONAL CARVE-OUT (permanent — PEGS-152 §2.2)"]
-    FOUNDER["✅ Dr. Hendry Pascual — Founder"]
-    PMARKS["✅ Asset B-03: name · likeness · voice<br/>SOSTENGO seal · HP crest<br/><b>never sold, never absorbed</b>"]
+  subgraph P1["PILLAR 1 — HEALTHCARE SERVICES"]
+    PINC["✅ 001 Pascual Inc.<br/>d/b/a PassQual Health<br/>FL S-Corp · 100% Founder<br/>CEO Founder · COO Dr. Barroso Perez · CMO M. Garcia Miranda APRN"]
+    FCLIN["🔮 Future clinics & specialties"]
   end
 
-  subgraph OPS["OPERATING LAYER (The Hands)"]
-    PINC["🔶 Pascual Inc. d/b/a Pascual Health<br/>A-02"]
-    PQH["✅ PassQual Health (clinic, Miami Gardens)<br/>A-01 · brand B-02 · digital C-01,02,06 · equip E-02"]
-    ALLMED["🔶 AllMed Center — A-03"]
-    IHC["🔶 Impactful Health Care — A-04"]
-    MEDIA["✅ Media & IP ventures — A-05<br/>books B-04 · podcast B-05 · production E-03"]
-    TECH["✅ Technology ventures — A-06<br/>software C-05"]
-    SD["🔶 Sana Diferente™ — mark B-01<br/>(brand/program — nature TO CONFIRM)"]
-    FUT["🔮 Future subsidiaries · int'l · acquisitions — A-07"]
+  subgraph P2["PILLAR 2 — EDUCATION"]
+    WELLNEX["✅ 002 Wellnex Academy LLC<br/>vocational education · MA training · certifications"]
+  end
+
+  subgraph P3["PILLAR 3 — INTELLECTUAL PROPERTY & CONSUMER HEALTH"]
+    HOLORA["✅ 004 Holora Health LLC<br/>IP Holding Co (IPCo)<br/>portfolio under development — no transfers assumed"]
+    SD["🔸 Sana Diferente™ (asset B-01)<br/>current owner TO CONFIRM → intended: Holora"]
+    IPASSETS["🔮 Future: books · podcasts · software<br/>trademarks · licensing"]
+  end
+
+  subgraph P4["PILLAR 4 — REAL ESTATE & INVESTMENTS"]
+    ATEMP["✅ 007 Atemporal Holdings LLC<br/>Wyoming LLC — Enterprise Holding Co<br/>integration under development"]
+    GONSOS["🔸 003 Los Gonsos Royal Estate Corp<br/>ROBS structure · pre-operational"]
+    FINV["🔮 Future investment vehicles"]
+  end
+
+  subgraph P5["PILLAR 5 — PHILANTHROPY & LEGACY"]
+    PFND["🔸 006 Pascual Foundation Inc.<br/>FL nonprofit · EIN obtained<br/>501(c)(3) determination PENDING"]
+    IHC["✅ 005 Impactful Health Care Inc.<br/>FL nonprofit · 501(c)(3)<br/>INDEPENDENT public charity — own board"]
+    TRUST["🔮 008 Ascendencia Trust<br/>architectural concept — no legal implementation assumed"]
   end
 
   subgraph DATAL["DATA LAYER (custodial — firewall)"]
-    PHI["✅ D-01 Patient records<br/><b>held in trust, never an asset to trade</b>"]
-    OPSDATA["✅ D-02 De-identified ops data"]
+    PHI["✅ D-01 Patient records — held in trust, never traded"]
   end
-
-  MISSION["🔶 Pascual Foundation<br/><i>The Heart</i> — endowment held for mission only"]
 
   %% Governance
   FOUNDER -->|"governs (Class 1)"| PEGS
-  PEGS -->|governs| TRUST & HOLD & OPS & MISSION
+  PEGS -->|governs| P1 & P2 & P3 & P4 & P5
   SC -->|"governs (on activation)"| PEGS
   SAC -.-|advises| FOUNDER
-  LC -->|"controls per instrument"| TRUST
+  IHC -->|"governed by its own independent board"| IHC
 
-  %% Ownership — current
-  FOUNDER ==>|"owns (today)"| PINC & PQH & MEDIA & TECH
+  %% Ownership — current (verified)
+  FOUNDER ==>|"owns 100%"| PINC
+  FOUNDER ==>|"controls (% TO CONFIRM)"| WELLNEX & HOLORA & ATEMP
   FOUNDER ==>|"owns personally, permanently"| PMARKS
+  GONSOS -.->|"ownership via ROBS structure — counsel to document"| GONSOS
 
-  %% Ownership — target (PEGS-152 §5 migration)
-  TRUST ==>|"owns (target)"| HOLD
-  HOLD ==>|"owns (target)"| PINC & PQH & ALLMED & IHC & FUT & INV & IPCO & RECO
-  IPCO ==>|"owns (target)"| SD
+  %% Ownership — target (PEGS-152 doctrine)
+  TRUST ==>|"owns (target)"| ATEMP
+  ATEMP ==>|"owns (target)"| PINC & WELLNEX & GONSOS & HOLORA & FINV & FCLIN
+  HOLORA ==>|"owns (intended)"| SD & IPASSETS
 
-  %% Licenses & leases (use, never title)
-  PMARKS -->|"licenses (revocable)"| MEDIA & PQH
-  IPCO -->|licenses| OPS
-  RECO -->|leases| PQH
+  %% Licenses, leases, custody
+  PMARKS -->|"licenses (revocable)"| P3
+  HOLORA -->|"licenses (future)"| PINC & WELLNEX
+  GONSOS -->|"leases (future)"| PINC
+  PINC -->|"custodian of"| PHI
 
-  %% Custody
-  PQH -->|"custodian of"| PHI
-  OPS -->|generates| OPSDATA
-
-  %% Cash (conceptual — detail in 150.005)
-  OPS -->|"$ net cash"| HOLD
-  HOLD -->|"$ philanthropy"| MISSION
-  HOLD -->|"$ distributions"| TRUST
+  %% Cash (conceptual — 150.005)
+  PINC & WELLNEX -->|"$ net cash"| ATEMP
+  ATEMP -->|"$ philanthropy"| PFND
+  ATEMP -->|"$ distributions (target)"| TRUST
+  FOUNDER -->|"$ personal giving"| IHC
 ```
 
 ## 2. Relationship register (every connection, labeled)
 
-### Entities ↔ entities
-
 | From | To | Relationship | Status | Note |
 |---|---|---|---|---|
 | Founder | PEGS canon | governs (Class 1) | ✅ | Until succession (PEGS-101) |
-| PEGS canon | every entity & asset holder | governs | ✅ | Adoption on day one (PEGS-100 §4–§5) |
-| Founder | PassQual Health | owns + manages | ✅ | Migration target: Holdings (PEGS-152 §5.3) |
-| Founder | Pascual Inc. d/b/a Pascual Health | owns | 🔶 | Relation to PassQual TO CONFIRM (MIR #1) |
-| Founder | AllMed Center / Impactful Health Care | TO CONFIRM | 🔶 | MIR #2–3 |
-| Ascendencia Trust | Atemporal Holdings | owns | 🔮 | Apex chain (PEGS-152 §2.1) |
-| Atemporal Holdings | OpCos + INV/IP/RE entities | owns + coordinates | 🔮 | Mgmt agreements (L09) |
-| Trustee/Legacy Council | Ascendencia Trust | controls per instrument | 🔮 | Benefit separated from control |
-| SAC | Founder | advises | 🔮 | L03 charter |
-| Stewardship Council | constitutional authority | governs on activation | ✅ | Dormant (PEGS-101 §1) |
-| Foundation | (no owners) | governed by board per L08 | 🔶 | Formation status MIR #5 |
-
-### Assets ↔ holders (the layer added in v0.2.0)
-
-| Asset (PEGS-151) | Held by (current) | Target holder | Relationship | Status |
-|---|---|---|---|---|
-| B-03 personal marks (name, likeness, SOSTENGO, crest) | Founder personally | Founder personally — permanent | owns; licenses revocably to brands | ✅ |
-| B-01 Sana Diferente™ mark | TO CONFIRM | IP entity | owns → licenses to operator | 🔶 |
-| B-02 PassQual brand system | PassQual/Founder | IP entity, licensed back | owns → licenses | ✅→🔮 |
-| B-04/05 content libraries (books, podcast) | Founder/media | IP entity (per-work carve-outs, PEGS-152 §2.2) | owns → licenses | ✅→🔮 |
-| B-06 PEGS™ canon | Enterprise | Holdings/IP entity | owns; licensable as method, never alienated | ✅ |
-| C-01..06 digital assets | Brand owners | Follow their brand (152 §2.2) | owns | ✅ |
-| D-01 patient records | PassQual as custodian | Always custodial — never transacted | holds in trust | ✅ |
-| E-01 clinic premises | Owned/leased TO CONFIRM | RE entity if owned; arm's-length lease to OpCo | leases | 🔶 |
-| F-01/02 cash, receivables | Each entity, no commingling | Same + Holdings consolidated view | owns | ✅ |
-| F-03 investment portfolios | — | Investment entities via opportunity fund | owns | 🔮 |
-| G-01..05 licenses & credentials | Individuals/entities | Non-transferable — renewal-protected (L12) | holds | ✅/🔶 |
-| H-01 goodwill/review equity | Per brand | Inseparable from brand conduct | accrues | ✅ |
+| PEGS canon | all pillars/entities | governs | ✅ | IHC: influence only — independent board governs (see below) |
+| Founder | Pascual Inc. (PassQual Health) | owns 100% + serves as CEO | ✅ | Verified; officers: COO Dr. Arlenis Barroso Perez, CMO Martha Garcia Miranda APRN |
+| Founder | Wellnex Academy LLC | controls (% TO CONFIRM) | ✅ | Education OpCo |
+| Founder | Holora Health LLC | controls (% TO CONFIRM) | ✅ | IPCo — no IP transfers assumed yet |
+| Founder | Atemporal Holdings LLC | controls (% TO CONFIRM) | ✅ | WY LLC; integration under development |
+| ROBS structure | Los Gonsos Royal Estate Corp | owns per ROBS | 🔸 | Retirement-plan-funded formation; counsel documents specifics |
+| Founder | Impactful Health Care Inc. | co-founder; strategic influence, NO control | ✅ | Independent board governs; not part of ownership structure |
+| Founder (as founder) | Pascual Foundation Inc. | founds/governs pre-Council | 🔸 | Family foundation; tax-exempt status PENDING — never described as exempt until determination |
+| Ascendencia Trust | Atemporal Holdings | owns (target) | 🔮 | Doctrine statement (PEGS-152 §2); no implementation assumed |
+| Atemporal Holdings | OpCos + Holora + Los Gonsos + future vehicles | owns + coordinates (target) | 🔮 | Migration per PEGS-152 §5, counsel-designed |
+| Holora Health | Sana Diferente™ + future IP | owns (intended) | 🔸 | Current mark owner TO CONFIRM; transfer not assumed |
+| Founder personally | B-03 marks (name, likeness, SOSTENGO, crest) | owns permanently; licenses revocably | ✅ | Permanent carve-out — outside every entity incl. Trust |
+| Los Gonsos | Pascual Inc. | leases premises (future model) | 🔮 | If/when it acquires operating real estate |
+| Pascual Inc. | patient records (D-01) | custodian | ✅ | Firewall — custodial, never commercial |
+| OpCos | Atemporal Holdings | $ net cash (target waterfall) | 🔮 | Behavioral waterfall now; papered flows post-integration |
+| Atemporal Holdings | Pascual Foundation | $ philanthropy (target) | 🔮 | Per giving policy once exemption issues |
 
 ## Governance notes
 
-- 🔶 rows enter canon only via the PEGS-100 amendment after Missing
-  Information confirmations (now items 1–12, incl. E-01 premises and G-05
-  payer contracts).
-- The personal carve-out subgraph is architecturally permanent: no future
-  diagram revision may move B-03 inside any entity or trust
-  (PEGS-152 §3.1; PEGS-150.006 rows 17–18).
+- **Impactful Health Care Inc. is architecturally distinct:** an
+  independent public charity with its own board. PEGS does not govern it;
+  the Founder's role is co-founder influence. It appears in Pillar 5 for
+  strategic context only — never in the ownership chain, never
+  consolidated.
+- **Pascual Foundation** is described as "tax-exempt status pending" in
+  every artifact until the IRS determination issues.
+- **Los Gonsos ROBS note:** the ROBS structure has specific ownership and
+  compliance implications — architecture flags it; counsel documents it
+  (no tax advice here).
 
 ## Implementation recommendations
 
-1. After MIR answers: amend PEGS-100 §2 and flip this blueprint's 🔶 set
-   in the same PR (one confirmation act).
-2. Phase 6 briefing set for counsel: this document + PEGS-151 + PEGS-152
-   + 150.004/.005 — the complete architecture-to-instruments handoff.
+1. Ratify with Amendment A1 (PR #6/#5); the 🔸 items carry follow-ups in
+   the entity profiles (PEGS-210 series).
+2. Phase 6 counsel briefing set now includes the ROBS structure and the
+   Wellnex/Holora/Atemporal ownership-percentage confirmations.
 
 ## Future dependencies
 
-PEGS-100 amendment · Phase 6 formations (Trust, Holdings, IP/RE/INV) ·
-per-work IP decisions (B-04) · premises confirmation (E-01).
+IRS determination (Foundation) · Sana Diferente™ ownership confirmation
+and any future assignment to Holora (counsel) · Atemporal integration
+design · Ascendencia formation · Los Gonsos activation.
 
 ## Revision history
 
 | Version | Date | Change | Author |
 |---|---|---|---|
-| 0.1.0 | 2026-07-19 | Initial draft (Phase 3.5) | Chief Enterprise Architect, at Founder direction |
-| 0.2.0 | 2026-07-19 | Regenerated as complete ASSET ecosystem: asset layers from PEGS-151, target-state ownership from PEGS-152, personal carve-out and data-custody subgraphs, asset↔holder register added | Chief Enterprise Architect, at Founder direction |
+| 0.1.0 | 2026-07-19 | Initial draft (Phase 3.5) | Chief Enterprise Architect |
+| 0.2.0 | 2026-07-19 | Regenerated as complete asset ecosystem (PEGS-151/152 layers) | Chief Enterprise Architect |
+| 0.3.0 | 2026-07-19 | **Amendment A1:** Founder-verified 8-entity structure, five permanent pillars, verified officers, IHC independence, Foundation pending status, ROBS note, Holora as IPCo, Atemporal as existing WY LLC | Chief Enterprise Architect, from Founder-supplied data |

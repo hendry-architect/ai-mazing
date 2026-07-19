@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | PEGS-150.004 |
 | Series | 150 — Enterprise Architecture (02-Governance) |
-| Version | 0.1.0 |
+| Version | 0.2.0 (Amendment A1 — Founder-verified entities) |
 | Status | DRAFT — awaiting Founder ratification |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-150.002; PEGS-100; PEGS-101; L02 authority matrix; L03 council charter |
@@ -18,29 +18,33 @@
 
 ---
 
-## 1. Master matrix — current entities
+## 1. Master matrix — verified entities (Amendment A1)
 
-| Entity | Owned by | Governed by | Managed by | Advised by | Funded by | Benefits | Ultimate authority | Review |
-|---|---|---|---|---|---|---|---|---|
-| PassQual Health ✅ | Founder (TARGET: Holdings) | PEGS canon + Founder | Founder + providers/staff | (future SAC) | Own revenue | Patients; Enterprise | Founder | Monthly review; annual plan |
-| Pascual Inc. d/b/a Pascual Health 🔶 | Founder (TO CONFIRM %) | PEGS canon + Founder | TO CONFIRM | (future SAC) | TO CONFIRM | TO CONFIRM | Founder | On confirmation |
-| AllMed Center 🔶 | TO CONFIRM | PEGS canon (on adoption) | TO CONFIRM | — | TO CONFIRM | Patients | Founder (presumed — confirm) | On confirmation |
-| Impactful Health Care 🔶 | TO CONFIRM | PEGS canon (on adoption) | TO CONFIRM | — | TO CONFIRM | TO CONFIRM | Founder (presumed — confirm) | On confirmation |
-| Sana Diferente™ 🔶 | Mark owner TO CONFIRM (TARGET: IP entity) | Brand canon + PEGS | Brand owner TBD | — | Owning entity | Audience; Enterprise | Founder | With brand canon |
-| Media & IP ventures (publishing, podcast, SOSTENGO) ✅ | Founder | PEGS canon + Brand Firewall | Founder | — | Own revenue/Founder | Audience; legacy | Founder (SOSTENGO: never delegated) | Annual |
-| Technology ventures ✅ | Founder | PEGS canon | Founder | — | Founder/Enterprise | Enterprise | Founder | Annual |
-| Pascual Foundation 🔶 | N/A (nonprofit — no owners) | Board (L08 framework); pre-board: Founder | Foundation lead TBD | (future SAC) | Holdings philanthropy $ (TARGET) + gifts | Community served | Board on formation; Founder pre-board | Quarterly oversight (L08) |
+| # | Entity | Owned by | Governed by | Managed by | Advised by | Funded by | Benefits | Ultimate authority | Review |
+|---|---|---|---|---|---|---|---|---|---|
+| 001 | Pascual Inc. d/b/a PassQual Health ✅ | 100% Founder (TARGET: Atemporal) | PEGS canon + Founder | CEO Dr. Hendry Pascual · COO Dr. Arlenis Barroso Perez · CMO Martha Garcia Miranda, APRN | (future SAC) | Own clinical revenue | Patients; Enterprise | Founder (CEO) | Monthly review; annual plan |
+| 002 | Wellnex Academy LLC ✅ | Founder-controlled (% TO CONFIRM; TARGET: Atemporal) | PEGS canon + Founder | Education lead TBD (profile 210.002) | (future SAC) | Tuition/program revenue | Students; healthcare workforce | Founder | Monthly review; annual plan |
+| 003 | Los Gonsos Royal Estate Corp 🔸 | Via ROBS structure — counsel documents | PEGS canon + Founder | Pre-operational — no active management | — | ROBS capitalization | Enterprise (future RE) | Founder | On activation; annual until then |
+| 004 | Holora Health LLC ✅ | Founder-controlled (% TO CONFIRM; TARGET: Atemporal) | PEGS canon + Founder | Founder (IP portfolio development) | — | License fees (future) | Enterprise brand protection | Founder (marks touching his name: always) | Annual + per filing |
+| 005 | Impactful Health Care Inc. ✅ | No owners — independent 501(c)(3) | **Its own independent Board of Directors** — PEGS does NOT govern it | Its board/officers | Founder (co-founder, strategic influence only) | Donations, grants | Community served | Its board — not the Founder | Per its own bylaws |
+| 006 | Pascual Foundation Inc. 🔸 | No owners — FL nonprofit; 501(c)(3) determination PENDING | Founder-governed; future Legacy Council (L08 framework) | Foundation lead TBD | (future SAC) | Gifts; Holdings philanthropy $ (target, post-determination) | Community; family legacy | Founder pre-Council | Quarterly oversight (L08) |
+| 007 | Atemporal Holdings LLC ✅ | Founder-controlled (% TO CONFIRM; TARGET: Ascendencia Trust) | PEGS canon + Founder | Founder (integration under development) | (future SAC) | OpCo cash (target waterfall) | Enterprise → Trust → family + mission | Founder | Quarterly capital review |
+| — | Sana Diferente™ (asset, not entity) 🔸 | Mark owner TO CONFIRM → intended: Holora | Brand canon + PEGS | Brand owner TBD | — | Owning entity | Audience; Enterprise | Founder | With brand canon |
+| — | Media/personal-brand ventures (SOSTENGO, publishing, podcast) ✅ | Founder (B-03 personally, permanently) | PEGS + Brand Firewall | Founder | — | Own revenue | Audience; legacy | Founder — never delegated | Annual |
 
 ## 2. Master matrix — future entities (TARGET state)
 
+*(Amendment A1 note: Atemporal Holdings, the IPCo (Holora), and the RE
+company (Los Gonsos) now EXIST and appear in §1; this table covers what
+remains genuinely future.)*
+
 | Entity | Owned by | Governed by | Managed by | Advised by | Funded by | Benefits | Ultimate authority | Review |
 |---|---|---|---|---|---|---|---|---|
-| Ascendencia Trust 🔮 | N/A (trust) | Trust instrument + PEGS | Trustee(s) | Legacy Council | Settled assets + distributions | Beneficiaries (family, per instrument) | Trustee within instrument; instrument itself supreme in law — drafted to embed PEGS-000 | Annual (with succession roadmap) |
-| Atemporal Holdings LLC 🔮 | Ascendencia Trust | PEGS + operating agreement | Holdings executive (Founder initially) | SAC | OpCo cash + investments | Trust (→ family + mission) | Founder → per succession | Quarterly (capital review) |
-| Investment entities 🔮 | Holdings | PEGS + investment policy | Holdings | SAC | Opportunity fund | Enterprise | Holdings exec per L09 hurdles | Quarterly |
-| IP entities 🔮 | Holdings | PEGS + Brand Firewall | Holdings | — | License fees | Enterprise; brand protection | Founder (marks touching his name: always) | Annual |
-| Real estate entities 🔮 | Holdings | PEGS | Holdings/property mgmt | — | Rents + capital | Enterprise | Holdings exec per L09 | Annual |
-| Domestic/Int'l subsidiaries & acquisitions 🔮 | Holdings | PEGS (adoption at close — PEGS-100 §5) | Their chartered executives | SAC | Own revenue | Per charter | Per authority matrix tier | Per charter |
+| Ascendencia Trust 🔮 | N/A (trust) | Trust instrument + PEGS | Trustee(s) | Legacy Council | Settled assets + distributions | Beneficiaries (family, per instrument) | Trustee within instrument; instrument drafted to embed PEGS-000 | Annual (with succession roadmap) |
+| Future clinics & specialties 🔮 | Atemporal (target) | PEGS (adoption day one) | Chartered executives | SAC | Own revenue | Patients | Per authority matrix tier | Per charter |
+| Future investment vehicles 🔮 | Atemporal | PEGS + investment policy | Holdings function | SAC | Opportunity fund | Enterprise | Per L09 hurdles | Quarterly |
+| Continuing-education platform 🔮 | Wellnex/Atemporal | PEGS | Education lead | — | Program revenue | Learners; workforce | Per charter | Per charter |
+| Int'l subsidiaries & acquisitions 🔮 | Atemporal | PEGS (adoption at close — PEGS-100 §5) | Their chartered executives | SAC | Own revenue | Per charter | Per authority matrix tier | Per charter |
 
 ## 3. Approval levels & voting requirements (by body)
 
@@ -87,3 +91,4 @@ PEGS-100 amendment · entity authority matrices · trust instrument (Phase 6)
 | Version | Date | Change | Author |
 |---|---|---|---|
 | 0.1.0 | 2026-07-19 | Initial draft (Phase 3.5) | Chief Enterprise Architect, at Founder direction |
+| 0.2.0 | 2026-07-19 | Amendment A1: verified 8-entity roster with officers; IHC marked independently governed; Foundation pending status; ROBS note; future table trimmed to genuinely-future entities | Chief Enterprise Architect, from Founder-supplied data |

@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-100 |
 | Series | 100 — Governance (02-Governance) |
-| Version | 1.0.0 |
-| Status | RATIFIED — 2026-07-19 |
+| Version | 1.1.0 — AMENDMENT IN REVIEW (PR #6); v1.0.0 remains in force until ratified |
+| Status | RATIFIED v1.0.0 — 2026-07-19 · Amendment A1 (verified entity structure) pending Founder ratification |
 | Custodian | Founder (Dr. Hendry Pascual) |
 | Supersedes | None |
 | Superseded by | None |
@@ -48,21 +48,47 @@ firewalls bind it most directly.
 | **D — Technology Ventures** | AI systems, software, automation products | Automation Doctrine (PEGS-000 Art. VI §5); Compliance Floor |
 | **E — Holding & Administration** | Future holding structure, shared services, capital | Compliance Floor |
 
-### §2. Current entity map
+### §2. Current entity map (Amendment A1 — Founder-verified, 2026-07-19)
 
-As of this document's ratification, the Enterprise comprises:
+The Enterprise comprises the following verified legal entities:
 
-| Entity / venture | Class | Brand voice | Notes |
+| # | Entity | Legal form | Enterprise domain | Pillar (§2a) | Ownership | Status |
+|---|---|---|---|---|---|---|
+| 001 | **Pascual Inc.** d/b/a **PassQual Health** | Florida S-Corporation | Operating — Healthcare | 1 | 100% Founder | Active — primary healthcare operations (CEO Dr. Hendry Pascual · COO Dr. Arlenis Barroso Perez · CMO Martha Garcia Miranda, APRN) |
+| 002 | **Wellnex Academy LLC** d/b/a Wellnex Academy | LLC (state TO CONFIRM) | Operating — Education | 2 | Founder-controlled (% TO CONFIRM) | Active — healthcare vocational education, MA training, certifications |
+| 003 | **Los Gonsos Royal Estate Corp** | Corporation (ROBS structure) | Operating — Real Estate | 4 | Via ROBS structure — counsel to document | Existing, **pre-operational** |
+| 004 | **Holora Health LLC** | LLC (state TO CONFIRM) | Intellectual Property Holding | 3 | Founder-controlled (% TO CONFIRM) | Active as future IPCo — trademark portfolio under development; **no IP transfers assumed** |
+| 005 | **Impactful Health Care Inc.** | Florida Nonprofit, 501(c)(3) | Independent Public Charity | 5 | No owners — **independent board**; Founder is co-founder with strategic influence | Active — NOT a family foundation |
+| 006 | **Pascual Foundation Inc.** | Florida Nonprofit; EIN obtained; **IRS 501(c)(3) determination PENDING** | Private Family Foundation (pending IRS recognition) | 5 | No owners — Founder-governed; future Legacy Council | Formed — not to be described as tax-exempt until determination issues |
+| 007 | **Atemporal Holdings LLC** | Wyoming LLC | Enterprise Holdings | 4 | Founder-controlled (% TO CONFIRM) | Existing — enterprise integration under development |
+| 008 | **Ascendencia Trust** | — (architectural concept) | Future Enterprise Trust | 5 | — | FUTURE — no legal implementation assumed |
+
+**Non-entity ventures and brands** (SOSTENGO personal brand, publishing,
+podcast, wellness advisory, technology ventures, Sana Diferente™) are
+**assets and programs**, catalogued in PEGS-151 and housed within the
+pillars of §2a — they are not legal entities on this map. The Founder's
+personal brand remains outside every entity permanently (PEGS-152 §2.2).
+
+An entity not on this map is not part of the Enterprise; this map is
+amended (per this document's Amendment section) whenever an entity is
+created, acquired, or closed.
+
+### §2a. The five enterprise pillars (permanent strategic structure)
+
+Entities are organized by strategic function, not merely legal form. Every
+future acquisition or venture takes its natural home in exactly one pillar:
+
+| Pillar | Function | Members today | Future members |
 |---|---|---|---|
-| PassQual Health (Miami Gardens, FL) | A | PassQual Health — commercial, bilingual, Spanish-primary | The clinical root of the Enterprise |
-| Dr. Hendry Pascual personal brand (SOSTENGO) | B | Founder's personal voice — sustains, never sells | Brand Firewall: never commercial |
-| Publishing (books ES/EN, translations) | B | Author imprint under the personal brand | Bilingual parity per PEGS-000 Art. III §6 |
-| Podcast & media production | B | Personal brand and/or show brands | Show-level charters as created |
-| Wellness & executive advisory | C | Founder-led advisory | Distinct from clinical care — no patient relationship implied |
-| Technology ventures (AI systems and applications) | D | Product brands as chartered | Includes internal automation systems |
+| **1 — Healthcare Services** | Care delivery | Pascual Inc. d/b/a PassQual Health | Future clinics, specialties |
+| **2 — Education** | Workforce & knowledge formation | Wellnex Academy LLC | Continuing-education platform |
+| **3 — Intellectual Property & Consumer Health** | Own and license the Enterprise's ideas | Holora Health LLC; Sana Diferente™ (asset) | Books, podcasts, software, trademarks, licensing |
+| **4 — Real Estate & Investments** | Hold and grow capital assets | Los Gonsos Royal Estate Corp; Atemporal Holdings LLC | Investment vehicles |
+| **5 — Philanthropy & Legacy** | Mission, continuity, giving | Pascual Foundation Inc.; Impactful Health Care Inc. (independent); | Ascendencia Trust (once legally established) |
 
-An entity not on this map is not part of the Enterprise; this map is amended
-(Art. VIII §3 process) whenever an entity is created, acquired, or closed.
+Pillars organize strategy, reporting, and future growth; the ownership
+topology (who owns what) remains governed by PEGS-152 and mapped in
+PEGS-150.002 — the two layers are deliberately distinct.
 
 ### §3. Brand–entity mapping rule
 
@@ -111,4 +137,5 @@ increment and registry update.
 
 | Act | Name | Role | Date | Evidence |
 |---|---|---|---|---|
-| Ratification | Dr. Hendry Pascual | Founder | 2026-07-19 | Written Founder approval; ratified via merge of PR #2 to `main` |
+| Ratification (v1.0.0) | Dr. Hendry Pascual | Founder | 2026-07-19 | Written Founder approval; ratified via merge of PR #2 to `main` |
+| Amendment A1 (v1.1.0) — verified entity structure & five pillars | Dr. Hendry Pascual | Founder | pending | Founder-supplied verified data 2026-07-19; ratification via PR #6/#5 merge |

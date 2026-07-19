@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | PEGS-152 |
 | Series | 100 — Governance structure (Enterprise Architecture suite, companion to PEGS-150) |
-| Version | 0.1.0 |
+| Version | 0.2.0 (Amendment A1 — Founder-verified entities) |
 | Status | DRAFT — awaiting Founder ratification (with the PEGS-150 suite) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-000 Art. III §7, Art. VI–VIII; PEGS-150.001/.002/.005/.006; PEGS-151; PEGS-101; L07 wealth stewardship; L09 |
@@ -56,9 +56,13 @@
 ### 2.1 Companies (Class A)
 
 - **Target chain (current intended implementation):** Ascendencia Trust
-  🔮 → Atemporal Holdings 🔮 → operating companies. The Founder's direct
-  holdings migrate up this chain at Phase 6, on counsel's design under
-  the doctrine statement above.
+  🔮 → **Atemporal Holdings LLC (exists — WY LLC, integration under
+  development)** → operating companies (Pascual Inc., Wellnex Academy,
+  Los Gonsos, Holora). The Founder's direct holdings migrate up this
+  chain on counsel's design under the doctrine statement above; entity-
+  specific constraints (S-Corp shareholder rules for Pascual Inc., the
+  ROBS structure at Los Gonsos) are counsel's domain and are flagged,
+  not solved, by this architecture.
 - **Control equity never leaves the chain.** Operators, partners, and
   investors may hold economic participation (profit interests, bonuses,
   venture-specific equity) but never control of the clinical root or of
@@ -73,8 +77,12 @@
 ### 2.2 Intellectual property (Class B)
 
 - **Target:** consolidate registrable IP (marks, filings, content
-  libraries, PEGS™ itself) into a dedicated IP entity 🔮 under Holdings,
-  licensing back to operators at arm's length (L09 §3).
+  libraries, PEGS™ itself) into **Holora Health LLC — the designated
+  IPCo, which exists** — under Holdings, licensing back to operators at
+  arm's length (L09 §3). The portfolio is under development: **no
+  ownership is assumed to have legally transferred** until counsel
+  executes each assignment and the registry row (PEGS-151 Class B)
+  records it.
 - **The personal carve-out — permanent:** the Founder's name, likeness,
   voice, the SOSTENGO seal, and the HP crest are held by the Founder
   **personally**, licensed to the Enterprise revocably, and are never
@@ -89,9 +97,12 @@
 
 ### 2.3 Real estate (Class E)
 
-- **Target:** operating real estate held in separate RE entities 🔮 under
-  Holdings, leased to operators at documented arm's-length terms — the
-  building must survive the tenant's worst lawsuit.
+- **Target:** operating real estate held in **Los Gonsos Royal Estate
+  Corp — the designated RE company, existing but pre-operational** —
+  leased to operators at documented arm's-length terms; the building must
+  survive the tenant's worst lawsuit. Its **ROBS structure** carries
+  ownership and compliance constraints that counsel must document before
+  any property enters it — architecture flags this, nothing more.
 - Buy vs. lease is a capital-allocation decision (L09 hurdles), but once
   bought, operating premises join the century-asset class (§4).
 
@@ -150,18 +161,24 @@ assets):
 | **Decade assets** | Held while gates pass | Operating companies, content libraries, investment positions | Reviewed annually against the Five Gates |
 | **Experiment assets** | 1–3 years to prove | New ventures, pilots, small acquisitions | Kill criteria pre-written (initiative briefs); harvested or graduated |
 
-## 5. Migration path (current → target)
+## 5. Migration path (current → target) — updated for verified structure
 
-Sequenced with Phase 6, on counsel's design — conceptual order only:
+Sequenced with Phase 6, on counsel's design — conceptual order only. The
+vehicles now EXIST; the work is integration, not formation:
 
-1. Confirm the registry (PEGS-151 🔶 rows) — nothing migrates unconfirmed.
-2. Form Holdings 🔮; paper intercompany agreements (L09) before any
-   transfer.
-3. Migrate entity interests (Class A) Founder → Holdings.
-4. Form the IP entity 🔮; assign registrable IP; execute license-backs;
-   record the personal carve-out.
-5. Form/confirm RE entities as premises decisions mature (E-01).
-6. Settle Ascendencia Trust 🔮; Holdings interests move to the Trust; the
+1. Confirm the remaining registry unknowns (PEGS-151 TO CONFIRM cells:
+   ownership %s, Sana Diferente™ current owner, premises, ROBS specifics)
+   — nothing migrates unconfirmed.
+2. **Integrate Atemporal Holdings** (exists): operating agreement aligned
+   to PEGS, intercompany agreements papered (L09) before any transfer.
+3. Migrate entity interests (Class A) Founder → Atemporal, respecting
+   entity-specific constraints (S-Corp rules; ROBS) per counsel.
+4. **Activate Holora as IPCo** (exists): counsel executes IP assignments
+   work-by-work; license-backs signed; the personal carve-out (§2.2)
+   recorded in the same act.
+5. Activate Los Gonsos for real estate as premises decisions mature
+   (E-01), after counsel documents the ROBS constraints.
+6. Settle Ascendencia Trust 🔮; Atemporal interests move to the Trust;
    succession roadmap (06-Trust) and PEGS-101 align to the instrument.
 7. Each step: Class 2 memo + Five Gates + registry update in the same act.
 
@@ -189,4 +206,5 @@ as each migration completes.
 
 | Version | Date | Change | Author |
 |---|---|---|---|
-| 0.1.0 | 2026-07-19 | Initial draft (Phase 3.5 companion) | Chief Enterprise Architect, at Founder direction |
+| 0.1.0 | 2026-07-19 | Initial draft (Phase 3.5 companion); canonical doctrine statement embedded | Chief Enterprise Architect, at Founder direction |
+| 0.2.0 | 2026-07-19 | Amendment A1: Holora named as existing IPCo, Atemporal as existing Holdings, Los Gonsos as RE company with ROBS flag; migration path reframed from formation to integration | Chief Enterprise Architect, from Founder-supplied data |

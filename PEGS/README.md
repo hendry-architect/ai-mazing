@@ -75,7 +75,10 @@ Apple Reminders/Calendar).
   never change, even if a document moves shelves.
 - **Sub-series** use dotted numbering: `PEGS-150.NNN` = the Enterprise
   Architecture blueprints (150-series, inside the structural 100-series,
-  shelved at `02-Governance/PEGS-150-enterprise-architecture/`).
+  shelved at `02-Governance/PEGS-150-enterprise-architecture/`, with
+  companions PEGS-151/152/153); `PEGS-210.NNN` = Enterprise Entity
+  Profiles, one per entity
+  (`02-Governance/PEGS-210-entity-profiles/`).
 - **Working documents** are named by convention instead: `SOP-<company>-<topic>`,
   decision memos and minutes by date. Not everything needs a constitutional ID.
 
@@ -116,10 +119,10 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | ID | Title | Location | Version | Status | Custodian |
 |---|---|---|---|---|---|
 | PEGS-000 | The Pascual Enterprise Constitution | 01-Constitution | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
-| PEGS-100 | Enterprise Structure & Entity Map | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 · amendment pending (entity roster, Phase 3.5) | Founder |
+| PEGS-100 | Enterprise Structure & Entity Map | 02-Governance | 1.1.0 | RATIFIED v1.0.0 · **Amendment A1 in review (PR #6)** — verified 8-entity roster + five pillars | Founder |
 | PEGS-101 | Stewardship Council Charter | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
 | PEGS-150.001 | Enterprise Architecture Overview | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.002 | Enterprise Ecosystem Blueprint (complete asset ecosystem) | 02-Governance/PEGS-150 | 0.2.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.002 | Enterprise Ecosystem Blueprint (complete asset ecosystem) | 02-Governance/PEGS-150 | 0.3.0 | DRAFT — Amendment A1 incorporated | Founder |
 | PEGS-150.003 | Enterprise Organizational Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-150.004 | Governance Relationship Matrix | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-150.005 | Enterprise Cash Flow Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
@@ -130,6 +133,7 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | PEGS-151 | Enterprise Asset Registry (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-152 | Enterprise Ownership Philosophy (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 | PEGS-153 | Enterprise Design Principles (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-210.001–.008 | Enterprise Entity Profiles (verified structure, Amendment A1) | 02-Governance/PEGS-210-entity-profiles | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
 
 ## Phase roadmap
 

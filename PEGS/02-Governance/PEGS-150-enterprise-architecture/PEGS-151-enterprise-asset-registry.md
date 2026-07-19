@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | PEGS-151 |
 | Series | 100 — Governance structure (Enterprise Architecture suite, companion to PEGS-150) |
-| Version | 0.1.0 |
+| Version | 0.2.0 (Amendment A1 — Founder-verified entities) |
 | Status | DRAFT — awaiting Founder ratification (with the PEGS-150 suite) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-150.001 (domains); PEGS-150.002 (ecosystem); PEGS-152 (ownership doctrine per class); PEGS-100; L09; L12 |
@@ -39,30 +39,35 @@
 **Status marks** (consistent with PEGS-150.002): ✅ ratified/confirmed ·
 🔶 declared, TO CONFIRM · 🔮 future/target.
 
-## 2. Class A — Entity interests (equity & beneficial interests)
+## 2. Class A — Entity interests (equity & beneficial interests) — Amendment A1 verified
 
-| ID | Asset | Current holder | Target holder (PEGS-152) | Custodian | Status |
+| ID | Asset | Current owner | Future intended owner (PEGS-152) | Custodian | Status |
 |---|---|---|---|---|---|
-| A-01 | PassQual Health (equity) | Founder | Atemporal Holdings 🔮 | Founder | ✅ |
-| A-02 | Pascual Inc. d/b/a Pascual Health (equity) | Founder (TO CONFIRM %) | Holdings 🔮 | Founder | 🔶 |
-| A-03 | AllMed Center (interest TO CONFIRM) | TO CONFIRM | Holdings 🔮 | Founder | 🔶 |
-| A-04 | Impactful Health Care (interest TO CONFIRM) | TO CONFIRM | Holdings 🔮 | Founder | 🔶 |
-| A-05 | Media/publishing venture interests | Founder | Holdings 🔮 (economics) — see PEGS-152 §2.2 for the personal-brand carve-out | Founder | ✅ |
-| A-06 | Technology venture interests | Founder | Holdings 🔮 | Founder | ✅ |
-| A-07 | Future subsidiaries / acquisitions | — | Holdings 🔮 | per charter | 🔮 |
+| A-01 | Pascual Inc. d/b/a PassQual Health — 100% of shares (FL S-Corp) | Founder — 100% | Atemporal Holdings LLC (counsel to design; S-Corp shareholder constraints are counsel's domain) | Founder | ✅ |
+| A-02 | Wellnex Academy LLC — membership interests | Founder-controlled (% TO CONFIRM) | Atemporal Holdings LLC | Founder | ✅ |
+| A-03 | Los Gonsos Royal Estate Corp — shares | **Via ROBS structure** (retirement-plan ownership — counsel documents specifics; no assumption recorded) | Per counsel's ROBS-exit/geo design — TO BE DETERMINED with qualified counsel | Founder | 🔸 |
+| A-04 | Holora Health LLC — membership interests | Founder-controlled (% TO CONFIRM) | Atemporal Holdings LLC | Founder | ✅ |
+| A-05 | Atemporal Holdings LLC — membership interests (WY LLC) | Founder-controlled (% TO CONFIRM) | Ascendencia Trust 🔮 (doctrine statement) | Founder | ✅ |
+| A-06 | Media/publishing venture interests | Founder | Holdings (economics) — personal-brand carve-out excluded permanently (PEGS-152 §2.2) | Founder | ✅ |
+| A-07 | Future subsidiaries / acquisitions / investment vehicles | — | Atemporal Holdings LLC | per charter | 🔮 |
+
+*Nonprofits have no owners:* Impactful Health Care Inc. (independent
+public charity — outside the Enterprise's ownership entirely) and Pascual
+Foundation Inc. (family foundation, IRS determination pending) appear in
+the governance matrix (150.004), never in this ownership class.
 
 ## 3. Class B — Intellectual property
 
 | ID | Asset | Current holder | Target holder | Custodian | Status |
 |---|---|---|---|---|---|
-| B-01 | "Sana Diferente™" mark | TO CONFIRM (registration status TO CONFIRM) | IP entity 🔮 | Founder | 🔶 |
-| B-02 | PassQual Health name & brand system | PassQual/Founder | IP entity 🔮, licensed back | Brand owner | ✅ |
+| B-01 | "Sana Diferente™" mark | Current owner TO CONFIRM — **no legal transfer assumed** (Founder-verified note) | **Holora Health LLC** (intended; portfolio under development) | Founder | 🔸 |
+| B-02 | PassQual Health name & brand system | Pascual Inc./Founder | Holora Health LLC, licensed back | Brand owner | ✅ |
 | B-03 | Dr. Hendry Pascual name, likeness, voice, SOSTENGO seal & HP crest | Founder — personally | **Founder personally, permanently** — licensed revocably, never assigned (PEGS-152 §2.2; L09 §3) | Founder | ✅ |
-| B-04 | Book copyrights (ES/EN editions, translations) | Founder/author | IP entity 🔮 or personal per work — decided per PEGS-152 §2.2 | Founder | ✅ |
-| B-05 | Podcast & media content library | Founder/media venture | IP entity 🔮 | Media lead | ✅ |
-| B-06 | PEGS™ — the governance system itself (canon, methods, playbook) | Enterprise | Holdings/IP entity 🔮 | Founder | ✅ |
-| B-07 | Clinical program frameworks & course materials | TO CONFIRM per work | IP entity 🔮 | Founder | 🔶 |
-| B-08 | Future marks, filings, licenses & royalty contracts | — | IP entity 🔮 | per charter | 🔮 |
+| B-04 | Book copyrights (ES/EN editions, translations) | Founder/author | Holora or personal per work — decided per PEGS-152 §2.2 | Founder | ✅ |
+| B-05 | Podcast & media content library | Founder/media venture | Holora Health LLC | Media lead | ✅ |
+| B-06 | PEGS™ — the governance system itself (canon, methods, playbook) | Enterprise | Holora/Holdings (counsel to place) | Founder | ✅ |
+| B-07 | Educational content & curricula (incl. Wellnex course materials) | Wellnex/Founder — TO CONFIRM per work | Holora Health LLC, licensed to Wellnex | Founder | 🔸 |
+| B-08 | Future marks, filings, licenses, royalty contracts & patents | — | Holora Health LLC | per charter | 🔮 |
 
 ## 4. Class C — Digital assets & platforms
 
@@ -87,10 +92,10 @@
 
 | ID | Asset | Current holder | Target holder | Custodian | Status |
 |---|---|---|---|---|---|
-| E-01 | Clinic premises, 18706 NW 67th Ave, Miami Gardens | **Owned or leased TO CONFIRM** | RE entity 🔮 (if owned), leased to OpCo at arm's length | Ops lead | 🔶 |
+| E-01 | Clinic premises, 18706 NW 67th Ave, Miami Gardens | **Owned or leased TO CONFIRM** | Los Gonsos Royal Estate Corp (if/when owned), leased to Pascual Inc. at arm's length | Ops lead | 🔶 |
 | E-02 | Clinical & office equipment | Operating entities | Stay with operators | Ops lead | ✅ |
 | E-03 | Production equipment (media) | Founder/media | Media venture | Media lead | ✅ |
-| E-04 | Future real estate | — | RE entities 🔮 under Holdings | per charter | 🔮 |
+| E-04 | Future real estate | — | Los Gonsos Royal Estate Corp (pre-operational; ROBS constraints per counsel) | per charter | 🔮 |
 
 ## 7. Class F — Financial assets
 
@@ -146,3 +151,4 @@ sequencing (152 §2.2) · RE decision on E-01 confirmation.
 | Version | Date | Change | Author |
 |---|---|---|---|
 | 0.1.0 | 2026-07-19 | Initial draft (Phase 3.5 companion) | Chief Enterprise Architect, at Founder direction |
+| 0.2.0 | 2026-07-19 | Amendment A1: Class A rebuilt on verified entities (Current owner / Future intended owner fields); Holora named as IPCo target across Class B; Los Gonsos as RE target; nonprofits noted as unowned; AllMed removed | Chief Enterprise Architect, from Founder-supplied data |
