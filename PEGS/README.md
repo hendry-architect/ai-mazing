@@ -75,7 +75,10 @@ Apple Reminders/Calendar).
   never change, even if a document moves shelves.
 - **Sub-series** use dotted numbering: `PEGS-150.NNN` = the Enterprise
   Architecture blueprints (150-series, inside the structural 100-series,
-  shelved at `02-Governance/PEGS-150-enterprise-architecture/`).
+  shelved at `02-Governance/PEGS-150-enterprise-architecture/`, with
+  companions PEGS-151/152/153); `PEGS-210.NNN` = Enterprise Entity
+  Profiles, one per entity
+  (`02-Governance/PEGS-210-entity-profiles/`).
 - **Working documents** are named by convention instead: `SOP-<company>-<topic>`,
   decision memos and minutes by date. Not everything needs a constitutional ID.
 
@@ -116,20 +119,21 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | ID | Title | Location | Version | Status | Custodian |
 |---|---|---|---|---|---|
 | PEGS-000 | The Pascual Enterprise Constitution | 01-Constitution | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
-| PEGS-100 | Enterprise Structure & Entity Map | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 · amendment pending (entity roster, Phase 3.5) | Founder |
+| PEGS-100 | Enterprise Structure & Entity Map | 02-Governance | 1.1.0 | RATIFIED — 2026-07-19 (Amendment A1: verified 9-entity roster + five pillars) | Founder |
 | PEGS-101 | Stewardship Council Charter | 02-Governance | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
-| PEGS-150.001 | Enterprise Architecture Overview | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.002 | Enterprise Ecosystem Blueprint (complete asset ecosystem) | 02-Governance/PEGS-150 | 0.2.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.003 | Enterprise Organizational Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.004 | Governance Relationship Matrix | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.005 | Enterprise Cash Flow Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.006 | Decision Authority Matrix | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.007 | Five-Year Enterprise Blueprint | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.008 | PEGS Enterprise Playbook (TOC) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-150.009 | Governance Maturity Roadmap | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-151 | Enterprise Asset Registry (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-152 | Enterprise Ownership Philosophy (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
-| PEGS-153 | Enterprise Design Principles (companion blueprint) | 02-Governance/PEGS-150 | 0.1.0 | DRAFT — awaiting Founder ratification | Founder |
+| PEGS-150.001 | Enterprise Architecture Overview | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-150.002 | Enterprise Ecosystem Blueprint (complete asset ecosystem) | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 (Amendment A1) | Founder |
+| PEGS-150.003 | Enterprise Organizational Blueprint | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-150.004 | Governance Relationship Matrix | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-150.005 | Enterprise Cash Flow Blueprint | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-150.006 | Decision Authority Matrix | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-150.007 | Five-Year Enterprise Blueprint | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-150.008 | PEGS Enterprise Playbook (TOC) | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-150.009 | Governance Maturity Roadmap | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-151 | Enterprise Asset Registry (companion blueprint) | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-152 | Enterprise Ownership Philosophy (companion blueprint) | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-153 | Enterprise Design Principles (companion blueprint) | 02-Governance/PEGS-150 | 1.0.0 | RATIFIED — 2026-07-19 | Founder |
+| PEGS-210.001–.009 | Enterprise Entity Profiles (verified structure, Amendment A1) | 02-Governance/PEGS-210-entity-profiles | 1.0.0 | RATIFIED — 2026-07-19 (living documents) | Founder |
 
 ## Phase roadmap
 
@@ -139,8 +143,8 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | **2** | Governance structure + repository architecture | 02, full 01–15 tree, 12 | ✅ RATIFIED 2026-07-19 (PR #2) |
 | **3** | Twelve modular libraries (L01–L12): templates, SOPs, checklists, automation hooks | all | ✅ RATIFIED 2026-07-19 (PR #3) |
 | **4** | Template layer completed: 11 gap templates + master index (48 templates total) | 12 + all | ✅ RATIFIED 2026-07-19 (PR #4) |
-| **3.5** | Enterprise Architecture (PEGS-150.001–.009): the master blueprint — inserted by Founder directive; all later phases must conform to it | 02-Governance/PEGS-150 | 🔄 In review — Phase 4/5 HALTED pending ratification + PEGS-100 amendment |
-| **5** | Instantiation: fill libraries with real names, numbers, and ratified policies (role charters signed, matrices populated, calendars loaded) | 03, 08–11 | HALTED — awaiting Phase 3.5 ratification, Missing Info answers, PEGS-100 amendment |
+| **3.5** | Enterprise Architecture (PEGS-150.001–.009 + companions 151/152/153 + Amendment A1 + entity profiles 210.001–.009) | 02-Governance/PEGS-150 + PEGS-210 | ✅ RATIFIED 2026-07-19 (PR #5 + PR #6) |
+| **5** | Instantiation: fill libraries with real names, numbers, and ratified policies (role charters signed, matrices populated, calendars loaded) | 03, 08–11 | Awaiting Founder command — remaining unknowns tracked in AMENDMENT-A1-REPORTS |
 | **6** | Structure & legacy instruments: council seated, foundation formed, trust executed, holdings chartered | 04, 05, 06, 07 | Awaiting Founder command |
 | **7** | Automation build-out: catalog items AUT-002+ shipped live | 13 | Backlog live in AUTOMATION-CATALOG.md |
 

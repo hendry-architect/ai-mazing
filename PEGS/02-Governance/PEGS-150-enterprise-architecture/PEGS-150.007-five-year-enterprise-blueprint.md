@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-150.007 |
 | Series | 150 — Enterprise Architecture (02-Governance) |
-| Version | 0.1.0 |
-| Status | DRAFT — awaiting Founder ratification |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 (PR #5 + PR #6, Founder written ratification) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-150.001–.006, .009; L05 planning system; 06-Trust succession roadmap |
 | Review cadence | Annual, at the retreat (feeds the annual plan) |
