@@ -79,6 +79,9 @@ Apple Reminders/Calendar).
   companions PEGS-151/152/153); `PEGS-210.NNN` = Enterprise Entity
   Profiles, one per entity
   (`02-Governance/PEGS-210-entity-profiles/`).
+- **The 900-series** (`PEGS-900.YYYY-MM`) is reserved for the Chairman's
+  Office private instruments (the Chairman's Book editions —
+  `03-Executive-Leadership/chairmans-office/`).
 - **Working documents** are named by convention instead: `SOP-<company>-<topic>`,
   decision memos and minutes by date. Not everything needs a constitutional ID.
 
@@ -148,6 +151,7 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | **5b** | Instantiation — Wave 2: role charters signed, authority matrices populated with thresholds, KPI registers, company charters | 03, 08–10 | Awaiting Founder command |
 | **6** | Structure & legacy instruments: council seated, foundation formed, trust executed, holdings chartered | 04, 05, 06, 07 | Awaiting Founder command |
 | **7** | Automation build-out: catalog items AUT-002+ shipped live | 13 | Backlog live in AUTOMATION-CATALOG.md |
+| **8** | Operational deployment & Chairman's Office: CGO role, template catalog audit, dashboard/briefs/PEGS-900/scorecard/ops center, execution grid, Summit master plan (Monte-Carlo, Dec 27–Jan 2) | 03/chairmans-office, 11, 12 | 🔄 In review (PR #8) |
 
 Phases are sequential on purpose: each layer derives authority from the one
 above it, so building out of order creates documents with no legitimacy chain.

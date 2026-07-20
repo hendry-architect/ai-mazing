@@ -33,7 +33,7 @@ owner: founder
 | **Sep 2026** | KPI registers drafted per entity (Pascual Inc., Wellnex, AllMed) · SOP capture begins (target: 2/week into 09-SOP) · Q3 quarterly report prepared | Monthly review (Sep 7) · **Q3 close + Quarterly Retreat #1 (local, week of Sep 28)** — Q4 plan locked |
 | **Oct 2026** | **Annual KPI review opens** (PROCESS-annual-kpi-review) — data gathering · Summit T-60: agenda frame + invitations · entity profile TO CONFIRM sweep #1 | Monthly review (Oct 5) · Summit planning session |
 | **Nov 2026** | KPI review sessions per entity · 2027 annual plan drafted (TEMPLATE-annual-plan) · Summit T-30: logistics locked, packet build begins (T-14 send) | Monthly review (Nov 2) · KPI review sessions |
-| **Dec 2026** | **STRATEGIC ENTERPRISE SUMMIT — ITALY** (framework: retreats-travel/summit-italy-2026/) · summit report T+72h · 2027 plan v0.9 out of the summit | The Summit (also serves as Q4 retreat + annual planning session) |
+| **Dec 2026** | **FIRST ANNUAL STRATEGIC ENTERPRISE SUMMIT — Hotel Hermitage Monte-Carlo, Dec 27–Jan 2** (framework: retreats-travel/summit-italy-2026/) · Annual Declaration signed Jan 1 · summit report ≤Jan 5 · 2027 plan v0.9 | The Summit (serves as Q4 retreat + annual planning session; spans New Year deliberately) |
 | **Jan 2027** | **2027 annual plan + entity budgets ratified by Jan 15** · Q1-2027 plan locked (2nd week) · 2027 governance calendar issued · Q4-2026 archive closed ⚙ | Monthly review (Jan 4) · plan ratification |
 | **Feb 2027** | Automation wave: AUT-005/006/007 (agenda pre-fill, follow-up→tasks, calendar ICS) built and inspected · BCP tabletop #1 (one scenario card, 90 min) | Monthly review (Feb 1) · tabletop |
 | **Mar 2027** | Q1 close: quarterly report + **Retreat #2** · maturity gate check (L3 progress against 150.009) | Monthly review (Mar 1) · Q1 retreat (week of Mar 29) |
@@ -71,3 +71,4 @@ constitutional review held with full attendance.
 | Version | Date | Change | Author |
 |---|---|---|---|
 | 0.1.0 | 2026-07-20 | Initial deployment plan (operational phase) | Chief Enterprise Architect, at Founder direction |
+| 1.0.1 | 2026-07-20 | CGO maintenance: Summit dates/venue updated per Founder (Monte-Carlo, Dec 27–Jan 2) | CGO |

@@ -3,6 +3,10 @@
 Roles and decision rights: the layer that moves decisions off the Founder's
 desk without moving accountability off the map.
 
+**[chairmans-office/](chairmans-office/)** — the Founder's permanent
+governance cockpit: dashboard, briefs, PEGS-900 Chairman's Book,
+governance scorecard, operations center (Phase 8).
+
 **Belongs here** (Phase 3 deliverables)
 
 - The delegation matrix: every recurring decision classified (Class 2/3 per
