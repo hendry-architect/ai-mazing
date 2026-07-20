@@ -18,9 +18,14 @@ owner: founder
 > Summit"; the tradition now carries the Ascendencia name permanently.
 > **Purpose:** executive governance · enterprise strategy · capital
 > allocation · innovation · annual planning · decision sessions · legacy
-> planning · relationship building · reflection. By summit week, PEGS
+> planning · relationship building · reflection — and, by Founder
+> expansion, **the birthplace of the 2027 Enterprise Strategy**: the
+> Summit is where the year's documented decisions, tested workflows, and
+> proven governance rhythm become next year's plan. By summit week, PEGS
 > will have run live for five months; the Summit is the culmination of a
-> governed year, not the system's debut.
+> governed year, not the system's debut. Execution runs as
+> **[Mission-001](MISSION-001/MISSION-001-DOSSIER.md)** — the
+> Enterprise's first live operational mission.
 > *(Mark note: "Ascendencia Summit™" is a Holora Health candidate mark —
 > registry row B-08; filing via counsel — tracker A-11.)*
 
@@ -105,3 +110,4 @@ Companion: [PREPARATION-WORKBOOK.md](PREPARATION-WORKBOOK.md) ·
 | 1.0.0 | 2026-07-20 | Ratified with PR #7 | — |
 | 1.1.0 | 2026-07-20 | Founder re-parameterization: Hotel Hermitage Monte-Carlo, 7 days Dec 27–Jan 2, Founder's daily themes, Annual Declaration instrument, updated gates | CGO, at Founder direction |
 | 1.2.0 | 2026-07-20 | Chairman's Directive No. 001: branded **Ascendencia Summit™**; Monaco HQ formalized; purpose list codified; Cultural Reflection Days structured (Ventimiglia, Dolceacqua, Sanremo, Liguria, Menton) with governance-separation rule; Annual Declarations expanded to five instruments (see ANNUAL-DECLARATIONS.md) | CGO |
+| 1.2.1 | 2026-07-20 | Purpose expanded per Founder: birthplace of the 2027 Enterprise Strategy; execution designated Mission-001 (dossier linked) | CGO |

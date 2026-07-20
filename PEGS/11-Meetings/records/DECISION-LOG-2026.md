@@ -25,6 +25,8 @@ owner: founder
 | D-20260720-1 | 2026-07-20 | Operational deployment ratified: 12-month plan, official calendar, cadence, Italy Summit Dec 2026 — cadence launch Aug 3, 2026 | 2 | Founder | none | PR #7 | in force |
 | D-20260720-2 | 2026-07-20 | Phase 8 ratified: CGO role permanent; Office of the Chairman created; Summit re-parameterized (Hotel Hermitage Monte-Carlo, 7 days, Dec 27–Jan 2) | 2 | Founder | none | PR #8 | in force |
 | D-20260720-3 | 2026-07-20 | Chairman's Directive No. 001: Office of the Chairman naming; nine-office Executive Architecture; OSI + PEGS-910 (12 initiatives); five Annual Declarations tradition (Jan 1); **Ascendencia Summit™** branding + Cultural Reflection Days; Annual Stewardship Reading ceremony; permanent CGO operating directive | 2 | Founder | none | Directive 001 + PR #8 | in force |
+| D-20260720-4 | 2026-07-20 | Mission-001 initiated: the Summit as the Enterprise's first live operational mission and PEGS validation vehicle; Summit purpose expanded — birthplace of the 2027 Enterprise Strategy | 3 | Founder | none | Mission-001 dossier + PR #9 | in force |
+| **D-2026-001** | 2026-07-20 | **Chairman's Decision: Mission-001 (M-001) APPROVED to Operational Phase B** — accommodations subject to acceptable cancellation terms; airfare at the appropriate window; no expenditures beyond the Mission budget without Authority Matrix approval; mission success measured by Summit quality AND PEGS effectiveness. First decision under the new ID convention; also establishes PEGS-950 and the record-identifier scheme | 2 | Chairman | none | D-2026-001 instrument (Mission-001 folder); memo M001 ruled | in force |
 
 ## Rules
 

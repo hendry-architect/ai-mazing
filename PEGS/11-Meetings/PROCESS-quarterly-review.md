@@ -25,7 +25,7 @@ owner: founder
 | 5. **Quarterly retreat** | Week 13 | Per TEMPLATE-quarterly-retreat: truth → one big conversation → plan lock → team health → commitments | Retreat report ≤72h |
 | 6. Plan lock | At retreat | Next-quarter plan (OKRs, initiatives, risk review, capacity honesty) signed | Locked plan |
 | 7. Archive close ⚙ | Week 13, Fri | `records/YYYY/QN/` closes with the quarter index (meetings, D-IDs, closure rate) | Quarter index |
-| 8. Knowledge feed | Week 13, Fri | Durable lessons → ratified learnings PR; KPI register updated; profile TO CONFIRM deltas applied | KB updates |
+| 8. Knowledge feed | Week 13, Fri | **PEGS-950 entry filed (the four questions — LL-YYYY-NNN)**; durable "should-become-standard" items → canon PR; KPI register updated; profile TO CONFIRM deltas applied | LL entry + KB updates |
 
 ## Quality bar
 
