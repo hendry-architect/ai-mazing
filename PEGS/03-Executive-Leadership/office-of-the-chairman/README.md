@@ -26,6 +26,7 @@ owner: founder
 | **Governance Scorecard** — G/Y/R on the system itself | [GOVERNANCE-SCORECARD.md](GOVERNANCE-SCORECARD.md) | Monthly refresh; quarterly review |
 | **Operations Center** — dashboards by cadence, workflows, triggers, reminders, follow-up checklists | [OPERATIONS-CENTER.md](OPERATIONS-CENTER.md) | The engine room |
 | **Phase 8 reports** — readiness, audit, risks, 90-day plan | [PHASE-8-REPORTS.md](PHASE-8-REPORTS.md) | Point-in-time record |
+| **PEX™ — PEGS Executive Experience** — the Founder-facing layer: 8 plain-language guides for operating the enterprise entirely through Claude (the Claude Project upload set) | [PEX/](PEX/README.md) | Updated on ratification (W-7) |
 
 ## Operating rules of the office
 
