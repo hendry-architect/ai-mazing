@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-150.002 |
 | Series | 150 — Enterprise Architecture (02-Governance) |
-| Version | 0.3.0 |
-| Status | DRAFT — awaiting Founder ratification (Amendment A1 incorporated) |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 (PR #5 + PR #6, Founder written ratification) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-100 v1.1.0 (Amendment A1 — verified entities & pillars); PEGS-150.001; PEGS-151; PEGS-152; PEGS-153; PEGS-210.001–.008 (entity profiles); L09 |
 | Review cadence | On any entity or asset-class change + annual |
@@ -42,6 +42,7 @@ flowchart TB
 
   subgraph P1["PILLAR 1 — HEALTHCARE SERVICES"]
     PINC["✅ 001 Pascual Inc.<br/>d/b/a PassQual Health<br/>FL S-Corp · 100% Founder<br/>CEO Founder · COO Dr. Barroso Perez · CMO M. Garcia Miranda APRN"]
+    ALLMED["✅ 009 AllMed Center Corp<br/>AHCA-exempt HCC + community mental health<br/>50% Founder · co-owner TO CONFIRM"]
     FCLIN["🔮 Future clinics & specialties"]
   end
 
@@ -80,6 +81,7 @@ flowchart TB
 
   %% Ownership — current (verified)
   FOUNDER ==>|"owns 100%"| PINC
+  FOUNDER ==>|"owns 50% (co-owner TO CONFIRM)"| ALLMED
   FOUNDER ==>|"controls (% TO CONFIRM)"| WELLNEX & HOLORA & ATEMP
   FOUNDER ==>|"owns personally, permanently"| PMARKS
   GONSOS -.->|"ownership via ROBS structure — counsel to document"| GONSOS
@@ -109,6 +111,7 @@ flowchart TB
 | Founder | PEGS canon | governs (Class 1) | ✅ | Until succession (PEGS-101) |
 | PEGS canon | all pillars/entities | governs | ✅ | IHC: influence only — independent board governs (see below) |
 | Founder | Pascual Inc. (PassQual Health) | owns 100% + serves as CEO | ✅ | Verified; officers: COO Dr. Arlenis Barroso Perez, CMO Martha Garcia Miranda APRN |
+| Founder | AllMed Center Corp | owns 50%; co-owner TO CONFIRM | ✅ | AHCA-exempt HCC + community mental health; exemption basis + shareholder agreement = counsel workstream; migration to Holdings requires co-owner concurrence |
 | Founder | Wellnex Academy LLC | controls (% TO CONFIRM) | ✅ | Education OpCo |
 | Founder | Holora Health LLC | controls (% TO CONFIRM) | ✅ | IPCo — no IP transfers assumed yet |
 | Founder | Atemporal Holdings LLC | controls (% TO CONFIRM) | ✅ | WY LLC; integration under development |

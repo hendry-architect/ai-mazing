@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document ID | PEGS-210.007 · Version 0.1.0 · Status DRAFT |
+| Document ID | PEGS-210.007 · Version 1.0.0 · Status RATIFIED 2026-07-19 (living document — updates as facts confirm) |
 | Custodian | Founder |
 
 ## Identity

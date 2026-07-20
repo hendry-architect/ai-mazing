@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-150.001 |
 | Series | 150 — Enterprise Architecture (shelved: 02-Governance) |
-| Version | 0.1.0 |
-| Status | DRAFT — awaiting Founder ratification |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 (PR #5 + PR #6, Founder written ratification) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-000 (all articles); PEGS-100; PEGS-101; 15-folder canon (PR #2); Libraries L01–L12 (PR #3) |
 | Review cadence | Annual, with the constitutional review |

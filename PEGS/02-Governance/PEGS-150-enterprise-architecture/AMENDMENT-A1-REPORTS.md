@@ -54,7 +54,7 @@ determination pending**; Wellnex Academy LLC (education) joins the map.
 | Pascual Foundation Inc. | 🔶 conflict (listed current vs. canon "not yet formed") | Resolved: formed FL nonprofit; EIN obtained; 501(c)(3) determination PENDING |
 | Atemporal Holdings LLC | 🔮 future concept | Exists: WY LLC; integration under development |
 | Ascendencia Trust | 🔮 future | Unchanged: architectural concept, no implementation assumed |
-| **AllMed Center** | 🔶 declared in the Phase 3.5 directive | **Absent from the verified structure — removed from the map** (see Remaining Unknowns #1) |
+| **AllMed Center Corp** | 🔶 declared, then absent from the verified structure | **RESOLVED by Founder refinement (2026-07-19): entity 009 — 50% Founder-owned, AHCA-exempt health care clinic + community mental health; profile PEGS-210.009** |
 | SOSTENGO / publishing / podcast / Sana Diferente™ | Mixed entity/venture rows | Reclassified as assets & programs (PEGS-151) within pillars — not legal entities |
 
 ## 4–6. Updated Diagram, Asset Registry, Ownership Philosophy
@@ -86,7 +86,7 @@ integration path). Each carries its own revision history.
 
 | # | Unknown | Blocks |
 |---|---|---|
-| 1 | **AllMed Center** — intentionally excluded from the verified structure, or an omission? (It appeared in the Phase 3.5 directive.) | Final entity map certainty |
+| 1 | ~~AllMed Center~~ **RESOLVED** — now entity 009. New sub-unknowns: co-owner identity, shareholder agreement (incl. 50/50 deadlock protocol), AHCA exemption-basis documentation, behavioral-health compliance rows | 210.009 completion; counsel workstream |
 | 2 | Ownership % for Wellnex, Holora, Atemporal ("Founder-controlled" confirmed; exact %s TO CONFIRM) | PEGS-151 Class A precision |
 | 3 | Sana Diferente™ — current legal owner of the mark; registration status | B-01; Holora assignment program |
 | 4 | Los Gonsos ROBS specifics (plan, ownership %, administrator) | Counsel documentation; any migration design |

@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-150.005 |
 | Series | 150 — Enterprise Architecture (02-Governance) |
-| Version | 0.2.0 (Amendment A1 — Founder-verified entities) |
-| Status | DRAFT — awaiting Founder ratification |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 (PR #5 + PR #6, Founder written ratification) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-150.002/.004; L09 capital allocation + treasury + intercompany guide; L05 budgets |
 | Review cadence | Annual, with the capital allocation policy |
@@ -23,7 +23,7 @@
 ```mermaid
 flowchart TB
   subgraph SOURCES["REVENUE GENERATION (The Hands)"]
-    CLIN["Clinical revenue ✅<br/>Pascual Inc. d/b/a PassQual Health<br/>(visits, exams, programs)"]
+    CLIN["Clinical revenue ✅<br/>Pascual Inc. d/b/a PassQual Health<br/>AllMed Center Corp (50% — flows per shareholder agreement)<br/>(visits, exams, behavioral health, programs)"]
     EDU["Education revenue ✅<br/>Wellnex Academy<br/>(tuition, certifications)"]
     MEDIA["Media & IP revenue<br/>books · podcast · content<br/>+ Holora license fees (future)"]
     INVR["Investment returns 🔮"]

@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-100 |
 | Series | 100 — Governance (02-Governance) |
-| Version | 1.1.0 — AMENDMENT IN REVIEW (PR #6); v1.0.0 remains in force until ratified |
-| Status | RATIFIED v1.0.0 — 2026-07-19 · Amendment A1 (verified entity structure) pending Founder ratification |
+| Version | 1.1.0 |
+| Status | RATIFIED — 2026-07-19 (v1.1.0, Amendment A1: verified entity structure + five pillars + AllMed refinement) |
 | Custodian | Founder (Dr. Hendry Pascual) |
 | Supersedes | None |
 | Superseded by | None |
@@ -62,6 +62,7 @@ The Enterprise comprises the following verified legal entities:
 | 006 | **Pascual Foundation Inc.** | Florida Nonprofit; EIN obtained; **IRS 501(c)(3) determination PENDING** | Private Family Foundation (pending IRS recognition) | 5 | No owners — Founder-governed; future Legacy Council | Formed — not to be described as tax-exempt until determination issues |
 | 007 | **Atemporal Holdings LLC** | Wyoming LLC | Enterprise Holdings | 4 | Founder-controlled (% TO CONFIRM) | Existing — enterprise integration under development |
 | 008 | **Ascendencia Trust** | — (architectural concept) | Future Enterprise Trust | 5 | — | FUTURE — no legal implementation assumed |
+| 009 | **AllMed Center Corp** | Corporation (state/details TO CONFIRM) | Operating — Healthcare | 1 | 50% Founder; co-owner TO CONFIRM | Active — AHCA-exempt health care clinic + community mental health services (exemption basis to be documented by counsel) |
 
 **Non-entity ventures and brands** (SOSTENGO personal brand, publishing,
 podcast, wellness advisory, technology ventures, Sana Diferente™) are
@@ -80,7 +81,7 @@ future acquisition or venture takes its natural home in exactly one pillar:
 
 | Pillar | Function | Members today | Future members |
 |---|---|---|---|
-| **1 — Healthcare Services** | Care delivery | Pascual Inc. d/b/a PassQual Health | Future clinics, specialties |
+| **1 — Healthcare Services** | Care delivery | Pascual Inc. d/b/a PassQual Health; AllMed Center Corp | Future clinics, specialties |
 | **2 — Education** | Workforce & knowledge formation | Wellnex Academy LLC | Continuing-education platform |
 | **3 — Intellectual Property & Consumer Health** | Own and license the Enterprise's ideas | Holora Health LLC; Sana Diferente™ (asset) | Books, podcasts, software, trademarks, licensing |
 | **4 — Real Estate & Investments** | Hold and grow capital assets | Los Gonsos Royal Estate Corp; Atemporal Holdings LLC | Investment vehicles |
@@ -138,4 +139,4 @@ increment and registry update.
 | Act | Name | Role | Date | Evidence |
 |---|---|---|---|---|
 | Ratification (v1.0.0) | Dr. Hendry Pascual | Founder | 2026-07-19 | Written Founder approval; ratified via merge of PR #2 to `main` |
-| Amendment A1 (v1.1.0) — verified entity structure & five pillars | Dr. Hendry Pascual | Founder | pending | Founder-supplied verified data 2026-07-19; ratification via PR #6/#5 merge |
+| Amendment A1 (v1.1.0) — verified entity structure, five pillars, AllMed Center Corp refinement | Dr. Hendry Pascual | Founder | 2026-07-19 | Written Founder approval ("refine and approve and ratify"); ratified via merge of PR #6 → PR #5 → `main` |

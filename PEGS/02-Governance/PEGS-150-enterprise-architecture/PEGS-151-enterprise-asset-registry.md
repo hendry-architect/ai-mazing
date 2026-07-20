@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-151 |
 | Series | 100 — Governance structure (Enterprise Architecture suite, companion to PEGS-150) |
-| Version | 0.2.0 (Amendment A1 — Founder-verified entities) |
-| Status | DRAFT — awaiting Founder ratification (with the PEGS-150 suite) |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 (PR #5 + PR #6, Founder written ratification) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-150.001 (domains); PEGS-150.002 (ecosystem); PEGS-152 (ownership doctrine per class); PEGS-100; L09; L12 |
 | Review cadence | Quarterly registry verification ⚙ + annual full audit |
@@ -50,6 +50,7 @@
 | A-05 | Atemporal Holdings LLC — membership interests (WY LLC) | Founder-controlled (% TO CONFIRM) | Ascendencia Trust 🔮 (doctrine statement) | Founder | ✅ |
 | A-06 | Media/publishing venture interests | Founder | Holdings (economics) — personal-brand carve-out excluded permanently (PEGS-152 §2.2) | Founder | ✅ |
 | A-07 | Future subsidiaries / acquisitions / investment vehicles | — | Atemporal Holdings LLC | per charter | 🔮 |
+| A-08 | AllMed Center Corp — 50% of shares | Founder — 50% (co-owner TO CONFIRM) | Per counsel's design with co-owner concurrence — the 50% stake follows the PEGS-152 doctrine; the other 50% is not the Enterprise's to plan | Founder | ✅ |
 
 *Nonprofits have no owners:* Impactful Health Care Inc. (independent
 public charity — outside the Enterprise's ownership entirely) and Pascual

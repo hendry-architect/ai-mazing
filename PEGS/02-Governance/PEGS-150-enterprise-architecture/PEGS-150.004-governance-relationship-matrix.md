@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-150.004 |
 | Series | 150 — Enterprise Architecture (02-Governance) |
-| Version | 0.2.0 (Amendment A1 — Founder-verified entities) |
-| Status | DRAFT — awaiting Founder ratification |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 (PR #5 + PR #6, Founder written ratification) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-150.002; PEGS-100; PEGS-101; L02 authority matrix; L03 council charter |
 | Review cadence | On any entity change + annual |
@@ -23,6 +23,7 @@
 | # | Entity | Owned by | Governed by | Managed by | Advised by | Funded by | Benefits | Ultimate authority | Review |
 |---|---|---|---|---|---|---|---|---|---|
 | 001 | Pascual Inc. d/b/a PassQual Health ✅ | 100% Founder (TARGET: Atemporal) | PEGS canon + Founder | CEO Dr. Hendry Pascual · COO Dr. Arlenis Barroso Perez · CMO Martha Garcia Miranda, APRN | (future SAC) | Own clinical revenue | Patients; Enterprise | Founder (CEO) | Monthly review; annual plan |
+| 009 | AllMed Center Corp ✅ | 50% Founder; co-owner TO CONFIRM | PEGS canon + shareholders per agreement (TO CONFIRM) | TO CONFIRM | (future SAC) | Own clinical/behavioral-health revenue | Patients; community mental health | Founder + co-owner per agreement — 50/50 deadlock protocol TO CONFIRM | Monthly review; annual plan |
 | 002 | Wellnex Academy LLC ✅ | Founder-controlled (% TO CONFIRM; TARGET: Atemporal) | PEGS canon + Founder | Education lead TBD (profile 210.002) | (future SAC) | Tuition/program revenue | Students; healthcare workforce | Founder | Monthly review; annual plan |
 | 003 | Los Gonsos Royal Estate Corp 🔸 | Via ROBS structure — counsel documents | PEGS canon + Founder | Pre-operational — no active management | — | ROBS capitalization | Enterprise (future RE) | Founder | On activation; annual until then |
 | 004 | Holora Health LLC ✅ | Founder-controlled (% TO CONFIRM; TARGET: Atemporal) | PEGS canon + Founder | Founder (IP portfolio development) | — | License fees (future) | Enterprise brand protection | Founder (marks touching his name: always) | Annual + per filing |

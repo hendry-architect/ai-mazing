@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-150.006 |
 | Series | 150 — Enterprise Architecture (02-Governance) |
-| Version | 0.1.0 |
-| Status | DRAFT — awaiting Founder ratification |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 (PR #5 + PR #6, Founder written ratification) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-000 Art. V; PEGS-101 §4–§5; PEGS-150.004; L02 authority matrix template |
 | Review cadence | Annual + on any role/body change |

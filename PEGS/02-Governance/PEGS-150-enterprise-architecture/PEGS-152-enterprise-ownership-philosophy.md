@@ -4,8 +4,8 @@
 |---|---|
 | Document ID | PEGS-152 |
 | Series | 100 — Governance structure (Enterprise Architecture suite, companion to PEGS-150) |
-| Version | 0.2.0 (Amendment A1 — Founder-verified entities) |
-| Status | DRAFT — awaiting Founder ratification (with the PEGS-150 suite) |
+| Version | 1.0.0 |
+| Status | RATIFIED — 2026-07-19 (PR #5 + PR #6, Founder written ratification) |
 | Custodian | Founder (Chief Enterprise Architect function) |
 | References | PEGS-000 Art. III §7, Art. VI–VIII; PEGS-150.001/.002/.005/.006; PEGS-151; PEGS-101; L07 wealth stewardship; L09 |
 | Review cadence | Annual, with the constitutional review |
