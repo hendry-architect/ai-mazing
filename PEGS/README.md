@@ -144,7 +144,8 @@ The ratification workflow *is* the git workflow — no parallel approval system.
 | **3** | Twelve modular libraries (L01–L12): templates, SOPs, checklists, automation hooks | all | ✅ RATIFIED 2026-07-19 (PR #3) |
 | **4** | Template layer completed: 11 gap templates + master index (48 templates total) | 12 + all | ✅ RATIFIED 2026-07-19 (PR #4) |
 | **3.5** | Enterprise Architecture (PEGS-150.001–.009 + companions 151/152/153 + Amendment A1 + entity profiles 210.001–.009) | 02-Governance/PEGS-150 + PEGS-210 | ✅ RATIFIED 2026-07-19 (PR #5 + PR #6) |
-| **5** | Instantiation: fill libraries with real names, numbers, and ratified policies (role charters signed, matrices populated, calendars loaded) | 03, 08–11 | Awaiting Founder command — remaining unknowns tracked in AMENDMENT-A1-REPORTS |
+| **5** | Instantiation — **Wave 1: Operational Deployment** (12-month plan, official calendar, cadence, quarterly/annual processes, ELT + Council meeting definitions, Italy Summit Dec 2026, live decision log + tracker) | 11-Meetings | ✅ RATIFIED 2026-07-20 (PR #7) — cadence launch Aug 3, 2026 |
+| **5b** | Instantiation — Wave 2: role charters signed, authority matrices populated with thresholds, KPI registers, company charters | 03, 08–10 | Awaiting Founder command |
 | **6** | Structure & legacy instruments: council seated, foundation formed, trust executed, holdings chartered | 04, 05, 06, 07 | Awaiting Founder command |
 | **7** | Automation build-out: catalog items AUT-002+ shipped live | 13 | Backlog live in AUTOMATION-CATALOG.md |
 
