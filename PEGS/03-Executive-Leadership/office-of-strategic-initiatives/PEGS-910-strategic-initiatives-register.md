@@ -33,6 +33,7 @@ last-refreshed: 2026-07-20
 | 10 | Books | 3 | Founder | Founder | 🔵 | P2 | Next title decision at Summit D4 |
 | 11 | Podcast & Media | 3 | Founder | Founder | 🔵 | P2 | 2027 slate at Summit D4 |
 | 12 | Future Acquisitions | 1/4 | Founder | Founder | ⚪ | P3 | Criteria live (L09); first target eval when surfaced |
+| 13 | **Mission-001 — Ascendencia Summit 2026** | all | Founder | Founder (CGO support) | 🟢 | P1 | Memo ruling + hold by Aug 15; Validation Report Aug 1 |
 
 ## Initiative profiles
 
