@@ -21,9 +21,15 @@ owner: founder
 1. **T-14d ⚙** Calendar invite + packet: PEGS-000 full text, the year's
    `annual-index.md` from `11-Meetings/records/`, amendment proposals filed
    during the year.
-2. **T-0 (90 min)** Read key articles aloud (rotating readers — the point is
-   contact with the text, not summary). For each: "Did we live this? Where
-   did we not?" Capture honestly.
+2. **T-0 (90 min)** Open with the **Annual Stewardship Reading** (~10
+   minutes, rotating readers): the Mission (Art. I) · the Vision (Art.
+   II) · the Stewardship Principles (Art. III §7, Art. VI §6) · the
+   current Annual Declaration. The full Constitution remains before every
+   attendee in print; the reading is the ceremony, the text is the law.
+   Then the review proper: article by article in discussion — "Did we
+   live this? Where did we not?" Capture honestly.
+   *(Ceremony refined per Chairman's Directive No. 001 §VI — meaningful,
+   repeatable, timeless; Art. VI §7 satisfied by reading + review.)*
 3. Decide per proposal: reaffirm as-is, or advance an amendment into the
    Art. VIII §3 process (written proposal → 30-day reflection →
    ratification). Immutable Core items are read but never amendable.

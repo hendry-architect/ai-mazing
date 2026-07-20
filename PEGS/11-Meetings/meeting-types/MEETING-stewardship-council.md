@@ -32,7 +32,7 @@ owner: founder
 
 | Block | Time | Content |
 |---|---|---|
-| 1. The Constitution, aloud | 60m | Joint participation in the Annual Constitutional Review (L01 SOP) — stewards read articles as rotating readers |
+| 1. The Stewardship Reading + review | 60m | Joint participation in the Annual Constitutional Review (L01 SOP): the ten-minute Annual Stewardship Reading (stewards as rotating readers) + the lived/not-lived discussion |
 | 2. State of the map | 30m | PEGS-100 current entity map + PEGS-150.002 ecosystem walked end-to-end; changes since last year explained |
 | 3. Succession readiness | 30m | Succession roadmap checklist status (06-Trust): instruments, deputies, incapacity process — deltas only, honestly |
 | 4. **Activation drill** | 45m | Tabletop: "activation trigger fired this morning." Walk PEGS-101 §2–§5 — who convenes, what transfers, what the first 30 days look like, where the supermajority rules bite. Findings recorded |

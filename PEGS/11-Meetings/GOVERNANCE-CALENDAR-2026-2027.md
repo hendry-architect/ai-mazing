@@ -40,7 +40,7 @@ owner: founder
 | Dec 7 | Monthly review #4 + year-end compliance sweep | governance | Founder | Review record |
 | Dec 13 | Summit T-14: packet sent (workbook, readings, travel agendas) | summit | Secretary fn | Summit packet |
 | Dec 20 | Summit T-7: devices clean · VPN tested · continuity note signed | summit | All travelers | Checklist complete |
-| **Dec 27, 2026 – Jan 2, 2027** | **FIRST ANNUAL STRATEGIC ENTERPRISE SUMMIT — Hotel Hermitage Monte-Carlo** (7 days; Annual Declaration signed Jan 1) | summit | Founder | Summit report ≤Jan 5; 2027 plan v0.9; Annual Declaration |
+| **Dec 27, 2026 – Jan 2, 2027** | **ASCENDENCIA SUMMIT™ — First Annual Edition, Hotel Hermitage Monte-Carlo, Monaco** (7 days; five Annual Declarations signed Jan 1) | summit | Founder | Summit report ≤Jan 5; 2027 plan v0.9; the five Declarations |
 | Jan 4, 2027 | Monthly review | governance | Founder | Review record |
 | **Jan 15, 2027** | **2027 Annual Plan + entity budgets RATIFIED** | governance | Founder | Ratified plan + budgets |
 | Jan wk 2 | Q1-2027 plan locked · 2027 calendar issued · Q4/annual archive closed ⚙ | governance/records | Secretary fn | Q1 plan · annual-index-2026 |

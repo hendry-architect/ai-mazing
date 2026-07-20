@@ -1,14 +1,14 @@
 ---
-id: pegs-chairmans-office
+id: pegs-office-of-the-chairman
 type: standard
 library: L02-executive-leadership
-title: The Chairman's Office — Manual
+title: The Office of the Chairman — Manual
 version: 1.0.0
 status: active — operated by the CGO for the Founder
 owner: founder
 ---
 
-# The Chairman's Office
+# The Office of the Chairman
 
 > The Founder's permanent governance cockpit — one place where everything
 > that needs the Chairman's attention, decision, or memory lives. Operated
@@ -45,7 +45,24 @@ owner: founder
    chief of staff inherits on day one — the office is the CoS role,
    documented before it is hired (design principle 8).
 
+## The CGO Operating Directive (permanent — Chairman's Directive No. 001 §VII)
+
+Before proposing any new document, workflow, governance artifact, office,
+or policy, the CGO determines: **did this need originate from actual
+enterprise operations, or from theoretical completeness?** Theoretical
+needs are declined. Standing preferences, in order: **refinement over
+expansion · simplicity over complexity · operational excellence over
+documentation volume · improve existing artifacts before creating new
+ones.** Protect institutional clarity. Reduce governance friction.
+Maintain constitutional integrity. Act as the permanent Chief Governance
+Officer of a living enterprise — not as a document generator. No further
+constitutional expansion shall occur without demonstrated operational
+need.
+
 ## Custodianship
 
 Custodian: Founder. Operator: CGO function. The office's own health is a
 scorecard row — an unrefreshed dashboard is a red light, visibly.
+Companion office: [Office of Strategic Initiatives](../office-of-strategic-initiatives/PEGS-910-strategic-initiatives-register.md)
+(the portfolio). Executive office map: [OFFICE-ARCHITECTURE.md](OFFICE-ARCHITECTURE.md).
+Annual instruments: [ANNUAL-DECLARATIONS.md](ANNUAL-DECLARATIONS.md).

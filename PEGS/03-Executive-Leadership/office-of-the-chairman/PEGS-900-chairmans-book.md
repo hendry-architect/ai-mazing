@@ -12,7 +12,7 @@ owner: founder
 
 > The Founder's private monthly briefing book: everything a chairman
 > needs, compiled — never authored — from canon sources. Editions are
-> numbered **PEGS-900.YYYY-MM**, filed in `chairmans-office/book/`,
+> numbered **PEGS-900.YYYY-MM**, filed in `office-of-the-chairman/book/`,
 > readable in 45 minutes. Compilation is AUT-013 (CGO-manual until the
 > automation ships). **Private instrument:** syncs only to the Founder's
 > own systems; never to shared projections.
@@ -29,7 +29,7 @@ owner: founder
 | 5 | Foundation (status: determination pending) | Pendency updates · giving (personal, pre-determination) |
 | 6 | IP (Holora · marks · content) | Registry Class B deltas · filing status |
 | 7 | Real Estate (Los Gonsos — pre-operational) | Activation triggers · premises question |
-| 8 | Projects | Initiative briefs in flight, milestone status |
+| 8 | Projects — the portfolio | **PEGS-910 Strategic Initiatives Register (OSI)** — summary table + status deltas |
 | 9 | Pending Decisions | Dashboard §1 verbatim |
 | 10 | Open Risks | Dashboard §4 + register movements |
 | 11 | Strategic Opportunities | Dashboard §3 |
@@ -39,6 +39,7 @@ owner: founder
 | 15 | People Updates | Hires, reviews, formation notes (dignity rules apply) |
 | 16 | AI & Automation Updates | Catalog changes · inspection results · policy notes |
 | 17 | Personal Notes | Founder's section — carried forward, never edited by CGO |
+| 18 | Annual Declarations (January editions) | The five signed instruments (ANNUAL-DECLARATIONS.md), archived and cross-referenced |
 
 ## Compilation rules
 

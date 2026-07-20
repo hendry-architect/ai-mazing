@@ -2,7 +2,7 @@
 id: pegs-phase-8-reports
 type: record
 library: L02-executive-leadership
-title: Phase 8 Reports — Operational Deployment & Chairman's Office
+title: Phase 8 Reports — Operational Deployment & Office of the Chairman
 version: 1.0.0
 status: record
 owner: founder
@@ -17,7 +17,7 @@ PEGS is architecturally complete and, with this phase, operationally
 equipped. The role transitioned from Enterprise Architect to **permanent
 Chief Governance Officer**; the deliverables transitioned from
 constitutional documents to operating instruments: an audited template
-catalog (49 templates, honest test-status), the **Chairman's Office**
+catalog (49 templates, honest test-status), the **Office of the Chairman**
 (dashboard, four briefs, PEGS-900 Chairman's Book, governance scorecard,
 operations center), a task-level **Execution Grid** for Aug–Dec 2026,
 and the **First Annual Strategic Enterprise Summit** re-parameterized to
@@ -50,9 +50,9 @@ Delivered as [12-Templates/TEMPLATE-CATALOG.md](../../12-Templates/TEMPLATE-CATA
 logs); every untested template has a named first-use event; improvement
 wave deferred until 90 days of real use (usage drives edits, not theory).
 
-## 4–6. Chairman's Office Manual · Chairman's Book · Governance Dashboard
+## 4–6. Office of the Chairman Manual · Chairman's Book · Governance Dashboard
 
-Delivered in `03-Executive-Leadership/chairmans-office/`: README (the
+Delivered in `03-Executive-Leadership/office-of-the-chairman/`: README (the
 manual), CHAIRMANS-DASHBOARD (live, seeded with 6 queued decisions, 4
 open issues, 4 opportunities, travel + relationship views), BRIEFS (four
 formats), PEGS-900 (compilation map, first edition due Sep 1),
@@ -107,6 +107,26 @@ Delivered: EXECUTION-GRID-AUG-DEC-2026 (every event → prep task → owner
 6. **Don't build anything new before November** — no new documents, no
    new automations beyond the CGO-manual pair; run what exists and let
    the October KPI review tell us what's actually missing.
+
+## Chairman's Directive No. 001 — Amendment Log & Readiness Confirmation
+
+Incorporated into PR #8 prior to merge, per the Directive:
+
+| § | Amendment | Implemented as |
+|---|---|---|
+| II | "Chairman's Office" → **Office of the Chairman (OC)** everywhere; nine-office Executive Architecture (OC, CEO, COO, CMO, Corporate Secretary, Foundation Director, CIO, CGO, OSI) each with purpose/responsibilities/authority/deliverables/PEGS relationship/reporting/expansion | Folder renamed; all references updated; OFFICE-ARCHITECTURE.md |
+| III | Office of Strategic Initiatives + **PEGS-910** register, 12 initiatives seeded with full profile fields | office-of-strategic-initiatives/PEGS-910 (live) |
+| IV | Five Annual Chairman's Declarations tradition, every Jan 1 post-Summit, archived annually, cross-referenced in PEGS-900 §18 | ANNUAL-DECLARATIONS.md |
+| V | Summit refined: **Ascendencia Summit™** (Founder's branding refinement adopted), Monaco HQ, purpose codified, **Cultural Reflection Days** (Ventimiglia, Dolceacqua, Sanremo, Liguria, Menton) separated from governance | Framework v1.2.0; calendar updated; mark → Holora candidate (A-11) |
+| VI | Annual Stewardship Reading (~10 min: Mission, Vision, Stewardship Principles, Annual Declaration) replaces full read-aloud; full text remains before attendees | L01 SOP step 2 revised; Council session card updated |
+| VII | Permanent CGO operating directive: operational-need test, refinement over expansion, simplicity, no constitutional expansion without demonstrated need | OC README, standing section |
+| VIII | Cross-references, indexes, PEGS-900, registry, roadmap, records audited and updated | This PR |
+
+**Operational Readiness Confirmation:** all Directive amendments
+integrate into the canonical PEGS architecture without touching
+constitutional philosophy or governance hierarchy. Readiness remains
+**GO for August 3, 2026** — this merge is the **operational baseline of
+the Pascual Enterprise**.
 
 ## Quality audit (Part VIII findings)
 

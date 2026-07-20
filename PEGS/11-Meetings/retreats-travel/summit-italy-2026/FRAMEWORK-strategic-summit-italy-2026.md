@@ -2,22 +2,27 @@
 id: pegs-summit-italy-2026
 type: plan
 library: L11-travel-retreat-system
-title: First Annual Strategic Enterprise Summit — Hotel Hermitage Monte-Carlo, Dec 27 2026 – Jan 2 2027
-version: 1.1.0
-status: RATIFIED v1.0.0 · v1.1.0 operational update per Founder direction (PR #8)
+title: Ascendencia Summit™ — First Annual Edition — Hotel Hermitage Monte-Carlo, Dec 27 2026 – Jan 2 2027
+version: 1.2.0
+status: RATIFIED — Chairman's Directive No. 001 (PR #8)
 owner: founder
 ---
 
-# First Annual Strategic Enterprise Summit
-## Hotel Hermitage Monte-Carlo · December 27, 2026 → January 2, 2027
+# ASCENDENCIA SUMMIT™
+## First Annual Edition · Hotel Hermitage Monte-Carlo, Principality of Monaco
+### December 27, 2026 → January 2, 2027
 
-> **The annual institution, edition one.** Seven days on the Riviera —
-> Monte-Carlo, Monaco, with Italy thirty minutes east for the cultural
-> blocks — designed to feel like the founding of a tradition, not a
-> vacation with meetings. Primary purpose: **design the next decade of
-> the Pascual Enterprise.** By summit week, PEGS will have run live for
-> five months; the summit is the culmination of a governed year, not the
-> system's debut.
+> **The branded institution of the Pascual Enterprise** (per Chairman's
+> Directive No. 001) — named for the legacy it serves, held where the
+> Riviera meets the new year. Formerly styled "Strategic Enterprise
+> Summit"; the tradition now carries the Ascendencia name permanently.
+> **Purpose:** executive governance · enterprise strategy · capital
+> allocation · innovation · annual planning · decision sessions · legacy
+> planning · relationship building · reflection. By summit week, PEGS
+> will have run live for five months; the Summit is the culmination of a
+> governed year, not the system's debut.
+> *(Mark note: "Ascendencia Summit™" is a Holora Health candidate mark —
+> registry row B-08; filing via counsel — tracker A-11.)*
 
 ## Parameters (v1.1.0 — Founder-directed)
 
@@ -46,6 +51,25 @@ owner: founder
 Daily rhythm: mornings open with 30 unscheduled minutes · sessions run
 the Meeting Kit (decisions + actions captured live) · one evening fully
 free beyond Day 4 · the **daily 10-line log** feeds the report.
+
+## Cultural Reflection Days (Directive No. 001, Section V)
+
+Structured non-governance time, deliberately separated from the formal
+sessions — for reflection, creativity, relationship development, Founder
+thinking time, cultural learning, and innovation. Enterprise
+conversations may occur naturally on these excursions but **never
+replace formal governance sessions** — nothing decided outside the
+Meeting Kit is decided.
+
+| Direction | Destinations (from Monte-Carlo) | Character |
+|---|---|---|
+| **Italy — Liguria** | Ventimiglia (~30 min) · Dolceacqua (~45 min, the Monet bridge) · Sanremo (~50 min) · the Ligurian coast | Markets, medieval villages, the Italian table |
+| **France** | Menton (~15 min, the lemon city) | Gardens, the old town, the border walk |
+
+Scheduling: Day 4 afternoon is the anchored Cultural Reflection block;
+a second, shorter excursion may follow Day 5's closed session if the
+family wishes. The facilitator protects these hours as firmly as the
+governance hours — rest is part of the design, not a gap in it.
 
 ## The Annual Declaration (new instrument, signed Jan 1)
 
@@ -80,3 +104,4 @@ Companion: [PREPARATION-WORKBOOK.md](PREPARATION-WORKBOOK.md) ·
 | 0.1.0 | 2026-07-20 | Initial framework (5-day, venue TBD) | Chief Enterprise Architect |
 | 1.0.0 | 2026-07-20 | Ratified with PR #7 | — |
 | 1.1.0 | 2026-07-20 | Founder re-parameterization: Hotel Hermitage Monte-Carlo, 7 days Dec 27–Jan 2, Founder's daily themes, Annual Declaration instrument, updated gates | CGO, at Founder direction |
+| 1.2.0 | 2026-07-20 | Chairman's Directive No. 001: branded **Ascendencia Summit™**; Monaco HQ formalized; purpose list codified; Cultural Reflection Days structured (Ventimiglia, Dolceacqua, Sanremo, Liguria, Menton) with governance-separation rule; Annual Declarations expanded to five instruments (see ANNUAL-DECLARATIONS.md) | CGO |
