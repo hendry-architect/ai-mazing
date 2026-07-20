@@ -24,6 +24,9 @@ owner: founder
 | A-20260720-6 | Confirm AllMed reporting representation in ELT (per shareholder rhythm) | founder | 2026-09-15 | open | MEETING-elt.md | |
 | A-20260720-7 | Summit T-60 gate: frame memo, venue shortlist, Class 2 memo, invitations | founder | 2026-10-19 | open | Summit framework | |
 | A-20260720-8 | Upload ratified canon to Claude Project files (knowledge sync SOP) | founder | 2026-08-08 | open | SOP-knowledge-sync | |
+| A-20260720-9 | Place refundable hold: Hotel Hermitage Monte-Carlo, Dec 27–Jan 2 (booking link on dashboard) + budget draft row | founder | 2026-08-15 | open | Summit plan v1.1.0 | |
+| A-20260720-10 | Instantiate + ratify enterprise AI usage policy (from template) | founder | 2026-08-22 | open | Execution grid Aug | |
+| A-20260720-11 | Ascendencia Summit™ mark: add to Holora candidate list (B-08); filing evaluation when counsel engages | founder | with counsel | open | Directive 001 §V | |
 
 ## Aging rules (Kit)
 

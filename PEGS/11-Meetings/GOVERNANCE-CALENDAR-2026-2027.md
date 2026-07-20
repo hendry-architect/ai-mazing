@@ -33,11 +33,14 @@ owner: founder
 | Sep 7 | Monthly Executive Review #1 | governance | Founder | Review record |
 | Sep 28 – Oct 2 | **Q3 close + Quarterly Retreat #1** (local) | governance | Founder | Q3 report · retreat report · Q4 plan locked |
 | Oct 5 | Monthly review · **Annual KPI Review opens** | governance | Founder | KPI data-gathering kickoff |
-| Oct wk 3 | Summit T-60: agenda frame + invitations | summit | Founder | Frame memo |
+| **Aug 15** | Summit venue hold: refundable booking, Hotel Hermitage Monte-Carlo | summit | Founder | Hold confirmation |
+| Oct 28 | Summit T-60: frame memo · decade question · Class 2 memo · booking confirmed | summit | Founder | Gate complete |
 | Nov 2 | Monthly review · KPI review sessions (per entity) | governance | Founder | KPI findings |
-| Nov wk 3 | Summit T-30: logistics locked · 2027 plan draft complete | summit/planning | Founder | Draft plan v0.5 |
-| Dec wk 1 | Summit T-14: packet sent (pre-reads) | summit | Founder | Summit packet |
-| **Dec 14–18, 2026** | **STRATEGIC ENTERPRISE SUMMIT — ITALY** (dates Founder-adjustable) | summit | Founder | Summit report ≤72h; 2027 plan v0.9 |
+| Nov 27 | Summit T-30: logistics locked · coverage plan · 2027 plan draft v0.5 | summit/planning | Founder | Gate complete |
+| Dec 7 | Monthly review #4 + year-end compliance sweep | governance | Founder | Review record |
+| Dec 13 | Summit T-14: packet sent (workbook, readings, travel agendas) | summit | Secretary fn | Summit packet |
+| Dec 20 | Summit T-7: devices clean · VPN tested · continuity note signed | summit | All travelers | Checklist complete |
+| **Dec 27, 2026 – Jan 2, 2027** | **ASCENDENCIA SUMMIT™ — First Annual Edition, Hotel Hermitage Monte-Carlo, Monaco** (7 days; five Annual Declarations signed Jan 1) | summit | Founder | Summit report ≤Jan 5; 2027 plan v0.9; the five Declarations |
 | Jan 4, 2027 | Monthly review | governance | Founder | Review record |
 | **Jan 15, 2027** | **2027 Annual Plan + entity budgets RATIFIED** | governance | Founder | Ratified plan + budgets |
 | Jan wk 2 | Q1-2027 plan locked · 2027 calendar issued · Q4/annual archive closed ⚙ | governance/records | Secretary fn | Q1 plan · annual-index-2026 |
@@ -71,3 +74,4 @@ with commit history — the calendar is canon like everything else.
 | Version | Date | Change | Author |
 |---|---|---|---|
 | 0.1.0 | 2026-07-20 | Initial official calendar (operational deployment) | Chief Enterprise Architect, at Founder direction |
+| 1.0.1 | 2026-07-20 | CGO maintenance: Summit re-parameterized per Founder (Hotel Hermitage Monte-Carlo, Dec 27–Jan 2, 7 days); gates updated (hold Aug 15, T-60 Oct 28, T-30 Nov 27, T-14 Dec 13, T-7 Dec 20) | CGO |
