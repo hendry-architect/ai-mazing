@@ -3,8 +3,8 @@ id: pegs-meeting-elt
 type: standard
 library: L02-executive-leadership
 title: Executive Leadership Team (ELT) Meeting Definition
-version: 0.1.0
-status: DRAFT — awaiting Founder ratification
+version: 1.0.0
+status: RATIFIED — 2026-07-20 (Founder written ratification, PR #7)
 owner: founder
 ---
 

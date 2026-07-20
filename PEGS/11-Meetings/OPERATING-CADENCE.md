@@ -3,8 +3,8 @@ id: pegs-operating-cadence
 type: standard
 library: L05-enterprise-planning
 title: The Official Operating Cadence
-version: 0.1.0
-status: DRAFT — awaiting Founder ratification
+version: 1.0.0
+status: RATIFIED — 2026-07-20 (Founder written ratification, PR #7)
 owner: founder
 ---
 

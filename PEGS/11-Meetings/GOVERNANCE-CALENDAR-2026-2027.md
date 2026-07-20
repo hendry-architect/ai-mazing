@@ -3,8 +3,8 @@ id: pegs-governance-calendar-2026-2027
 type: record
 library: L04-corporate-secretary
 title: Official Governance Calendar — Aug 2026 to Jul 2027
-version: 0.1.0
-status: DRAFT — awaiting Founder ratification
+version: 1.0.0
+status: RATIFIED — 2026-07-20 (Founder written ratification, PR #7)
 owner: founder
 ---
 

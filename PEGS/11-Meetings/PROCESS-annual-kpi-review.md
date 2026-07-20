@@ -3,8 +3,8 @@ id: pegs-process-annual-kpi-review
 type: sop
 library: L05-enterprise-planning
 title: Annual KPI Review Process
-version: 0.1.0
-status: DRAFT — awaiting Founder ratification
+version: 1.0.0
+status: RATIFIED — 2026-07-20 (Founder written ratification, PR #7)
 owner: founder
 ---
 

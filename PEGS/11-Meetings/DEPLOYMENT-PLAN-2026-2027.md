@@ -3,8 +3,8 @@ id: pegs-deployment-plan-2026-2027
 type: plan
 library: L05-enterprise-planning
 title: PEGS Operational Deployment Plan — Aug 2026 to Jul 2027
-version: 0.1.0
-status: DRAFT — awaiting Founder ratification
+version: 1.0.0
+status: RATIFIED — 2026-07-20 (Founder written ratification, PR #7)
 owner: founder
 ---
 

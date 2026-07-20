@@ -22,7 +22,7 @@ owner: founder
 | D-20260719-4 | 2026-07-19 | Template layer completed (48 templates + index) ratified | 2 | Founder | none | PR #4 | in force |
 | D-20260719-5 | 2026-07-19 | Phase 3.5 Enterprise Architecture suite (150.001–.009, 151/152/153) ratified v1.0.0 | 1 | Founder | none | PR #5 | in force |
 | D-20260719-6 | 2026-07-19 | Amendment A1: verified 9-entity structure + five pillars (PEGS-100 v1.1.0); AllMed Center Corp added as entity 009 | 1 | Founder | none | PR #6 | in force |
-| D-20260720-1 | 2026-07-20 | Operational deployment phase commissioned (12-month plan, calendar, cadence, Italy Summit Dec 2026) | 2 | Founder | none | PR #7 (pending ratification) | pending |
+| D-20260720-1 | 2026-07-20 | Operational deployment ratified: 12-month plan, official calendar, cadence, Italy Summit Dec 2026 — cadence launch Aug 3, 2026 | 2 | Founder | none | PR #7 | in force |
 
 ## Rules
 
