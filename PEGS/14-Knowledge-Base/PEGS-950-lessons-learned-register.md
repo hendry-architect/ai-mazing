@@ -53,7 +53,36 @@ this time; it must never be discovered late.
 
 ---
 
-*(Next entries: LL-2026-002 — Q3 close, Sep · LL-2026-003 — Mission-001
+## LL-2026-002 — Calendar reconciliation from a stale baseline · filed 2026-07-20
+
+**1. What worked?**
+The reconciliation itself: a projection surfaced real gaps (mis-sorted
+Aug 15 row, missing discrete Jan 5 T+72h row, budget artifacts absent
+from the hold and T-30 gates), and the deltas landed in canon within the
+hour, cleanly versioned.
+
+**2. What created friction?**
+The proposal was drafted against v0.1.0 while canon stood at v1.0.1 —
+it re-fixed what was already fixed, carried a version *downgrade*, and
+silently dropped a non-Summit row (Dec 7 review) while stating "no
+non-Summit rows changed." Export round-tripping also mangled frontmatter
+and links. Applied verbatim, it would have regressed ratified canon.
+
+**3. What should become standard?**
+Any externally drafted change states the canon version it was built
+against, and the CGO applies external drafts **as deltas, never as file
+replacements** — diff against canon first, take only what canon lacks.
+(Standard adopted in practice with this entry; graduates to the sync SOP
+on second occurrence.)
+
+**4. What should never happen again?**
+A wholesale file overwrite of ratified canon from any projection —
+Claude Project, Notion, or otherwise. Projections propose; canon is only
+ever edited in place, with its history.
+
+---
+
+*(Next entries: LL-2026-003 — Q3 close, Sep · LL-2026-004 — Mission-001
 Phases C–E, Jan 2027 · one per quarter, mission, summit, and major
 project thereafter.)*
 
