@@ -80,9 +80,15 @@ Apple Reminders/Calendar).
   Profiles, one per entity
   (`02-Governance/PEGS-210-entity-profiles/`).
 - **The 900-series** is reserved for executive-office instruments:
-  `PEGS-900.YYYY-MM` (the Chairman's Book editions, Office of the
-  Chairman) and `PEGS-910` (the Strategic Initiatives Register, Office
-  of Strategic Initiatives) — both under `03-Executive-Leadership/`.
+  `PEGS-900.YYYY-MM` (the Chairman's Book editions), `PEGS-910` (the
+  Strategic Initiatives Register) — both under
+  `03-Executive-Leadership/` — and `PEGS-950` (the Lessons Learned
+  Register, `14-Knowledge-Base/`).
+- **Record identifiers** (Chairman's convention, 2026-07-20): M-NNN
+  missions · D-YYYY-NNN decisions · ELT/SAC/SUMMIT/MER-YYYY-NNN meetings
+  · AD-YYYY declarations · CL-YYYY letters · LL-YYYY-NNN lessons — full
+  table in `11-Meetings/records/README.md`; earlier date-stamp IDs are
+  grandfathered permanently.
 - **Working documents** are named by convention instead: `SOP-<company>-<topic>`,
   decision memos and minutes by date. Not everything needs a constitutional ID.
 

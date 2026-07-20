@@ -27,7 +27,7 @@ owner: founder
 | A-20260720-9 | Place refundable hold: Hotel Hermitage Monte-Carlo, Dec 27–Jan 2 (booking link on dashboard) + budget draft row | founder | 2026-08-15 | open | Summit plan v1.1.0 | |
 | A-20260720-10 | Instantiate + ratify enterprise AI usage policy (from template) | founder | 2026-08-22 | open | Execution grid Aug | |
 | A-20260720-11 | Ascendencia Summit™ mark: add to Holora candidate list (B-08); filing evaluation when counsel engages | founder | with counsel | open | Directive 001 §V | |
-| A-20260720-12 | Rule on DECISION-MEMO-M001 (summit commitment, Class 2) | founder | 2026-08-15 | open | Mission-001 | |
+| A-20260720-12 | Rule on DECISION-MEMO-M001 (summit commitment, Class 2) | founder | 2026-08-15 | **done** | Mission-001 · D-2026-001 | 2026-07-20 |
 | A-20260720-13 | Gather quotes: Hermitage rate+terms at hold · airfare MIA⇄NCE ×3 options · ground transfer · travel insurance (workbook §1/§3) | founder (CGO prepares) | 2026-08-30 | open | Mission-001 | |
 | A-20260720-14 | Finalize Mission-001 Validation Report (Phase A) before cadence launch | CGO + founder | 2026-08-01 | open | Mission-001 | |
 | A-20260720-15 | Reserve NYE dinner at the Hermitage at hold placement (books out early) | founder | 2026-08-15 | open | Mission-001 workbook | |

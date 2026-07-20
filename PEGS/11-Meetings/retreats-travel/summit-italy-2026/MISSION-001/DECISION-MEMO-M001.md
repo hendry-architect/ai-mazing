@@ -71,4 +71,4 @@ dissent before ruling.)
 
 | Decision | Decided by | Date | Follow-ups created |
 |---|---|---|---|
-| ☐ APPROVED as recommended · ☐ APPROVED with changes: ______ · ☐ DECLINED | Dr. Hendry Pascual, Founder | ________ | Hold placed (A-9) · quotes (A-13) · D-ID logged |
+| ☑ **APPROVED** — per Chairman's Decision [D-2026-001](D-2026-001-chairmans-decision.md): Phase B authorized; accommodations subject to acceptable cancellation terms; airfare at the appropriate window; no expenditures beyond the approved Mission budget without Authority Matrix approval | Dr. Hendry Julian Perez Pascual, Chairman | 2026-07-20 | Hold (A-9, terms-contingent) · quotes (A-13) · D-2026-001 logged · A-12 closed |

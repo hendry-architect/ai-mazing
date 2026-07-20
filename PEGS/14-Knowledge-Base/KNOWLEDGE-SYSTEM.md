@@ -51,9 +51,14 @@ next review. An unlisted policy is not in force.
 
 ## 6. Institutional memory
 
-- **Ratified learnings:** lessons enter `learnings/YYYY-MM-DD-<slug>.md`
-  only by explicit ratification (a PR someone approved) — insight by
-  drift is rumor.
+- **PEGS-950 — Lessons Learned Register:** every mission, quarter,
+  summit, and major project closes with exactly four questions (what
+  worked · what created friction · what should become standard · what
+  should never happen again) — `PEGS-950-lessons-learned-register.md`,
+  entries LL-YYYY-NNN, immutable once filed.
+- **Ratified learnings:** "should-become-standard" answers graduate to
+  `learnings/YYYY-MM-DD-<slug>.md` only by explicit ratification (a PR
+  someone approved) — insight by drift is rumor.
 - **Exit knowledge:** offboarding SOP files departing-leader lessons here.
 - **Glossary:** [GLOSSARY.md](GLOSSARY.md) — every defined term and
   canonical owner handle, one place.

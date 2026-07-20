@@ -60,16 +60,14 @@ trade-off explicitly).
    quotes owner confirmation — the mission joins the cadence it
    validated.
 
-## 5. Lessons-learned framework (applies to every future mission)
+## 5. Lessons-learned framework (Chairman-standardized: PEGS-950)
 
-At each phase close, answer four questions in ≤10 lines total:
-**What did PEGS make easier than it would have been without it? · Where
-did we work around the system (every workaround = a finding)? · What
-did this mission add to the canon (instances, patterns, evidence)? ·
-What would the next mission's owner need to know?** Durable answers →
-ratified learnings (14-Knowledge-Base) by PR; evidence-type answers →
-scorecard and queue. The T+72h summit report closes Mission-001 with
-this framework applied to Phases C–E.
+Every phase close files a **PEGS-950 entry** — exactly the four
+questions, nothing more, nothing less: *What worked? What created
+friction? What should become standard? What should never happen again?*
+Phase A's entry is filed as **LL-2026-001**
+(`14-Knowledge-Base/PEGS-950-lessons-learned-register.md`); the T+72h
+summit report closes Mission-001 with the Phases C–E entry.
 
 ## Sign-off
 

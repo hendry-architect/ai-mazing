@@ -21,7 +21,7 @@ last-refreshed: 2026-07-20
 |---|---|---|---|---|---|
 | 1 | Ownership %s: Wellnex · Holora · Atemporal (confirm for registry) | fact | Aug 31 | Question list ready | A1 unknowns |
 | 2 | AllMed co-owner + shareholder agreement location; exemption-basis doc to counsel | fact/2 | Sep 30 | Question list ready | A1 refinement |
-| 3 | Summit venue commitment: Hotel Hermitage Monte-Carlo, Dec 27–Jan 2 — place refundable hold NOW (New Year availability risk) | 2 | **Aug 15** | Class 2 memo shell ready; booking link on file | Summit plan |
+| 3 | ~~Summit commitment~~ **APPROVED (D-2026-001)** → execute: refundable hold + NYE dinner reservation, terms-contingent | exec | **Aug 15** | Memo ruled; A-9/A-15 active | D-2026-001 |
 | 4 | ELT weekly slot (day/time) — unblocks Aug 3 launch | 3 | Jul 31 | Options: Mon 8:00 / Tue 7:30 | Cadence |
 | 5 | Preliminary $ thresholds (contracts, capex, acquisitions, grants) | 2 | Sep 30 | 150.006 rule 3 blanks listed | Matrix |
 | 6 | Reserve month-counts + philanthropy % (capital policy blanks) | 2 | Oct 31 | L09/L08 blanks listed | Waterfall |
@@ -70,6 +70,15 @@ last-refreshed: 2026-07-20
 |---|---|---|---|
 | Counsel selection (MIR #10) | Phase 6 briefing handoff | Jul 19 | When Founder ready |
 | IRS determination (Foundation) | Philanthropy flow activation | pending | Passive — check quarterly |
+
+## 6a. The First 30 Days (Chairman-directed, with D-2026-001) — *operate, don't build*
+
+| Week | Focus | Existing items |
+|---|---|---|
+| **1** (Jul 20–26) | Mission-001 approved ✅ · place terms-acceptable hold (A-9) · budget workbook opened ✅ · set ELT slot + schedule first meeting (queue #4, ELT-2026-001 = Aug 3) | A-9, A-15, queue #4 |
+| **2** (Jul 27–Aug 2) | Exercise the decision log with real approvals (convention live ✅) · OSI populated ✅ — review the 13 profiles · assign owners on open tracker rows (A-1..A-13) | PEGS-910, tracker |
+| **3** (Aug 3–9) | Cadence runs · note what feels cumbersome → **PEGS-950 entries, not redesigns** | LL-2026-00x |
+| **4** (Aug 10–16) | First monthly Chairman's review rhythm using PEGS-900 (edition compiles Sep 1; dry-run the §0 read) · decide which refinements experience actually justifies | PEGS-900, scorecard |
 
 ## 7. Personal Priorities (Founder-maintained — CGO never edits)
 
