@@ -111,4 +111,18 @@ last-refreshed: 2026-07-20
 
 > …
 
+### The Friday Reflection (personal leadership practice — NOT a PEGS record)
+
+Every Friday afternoon, twenty minutes, three questions:
+
+> **1. What was the most important decision I made this week?**
+> **2. What surprised me?**
+> **3. What deserves attention next week?**
+
+The answers live in the Chairman's own notebook — deliberately outside
+the Decision Log and outside this repo. They capture the context formal
+governance records miss; over years, they become the private complement
+to PEGS. The CGO's only role: the Friday 16:00 reminder, and never
+asking to see the answers.
+
 *Refresh log: seeded 2026-07-20 (Phase 8). Weekly refresh = AUT-014.*

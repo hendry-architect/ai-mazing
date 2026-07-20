@@ -44,6 +44,7 @@ owner: founder
 | Mon 07:00 | ELT today — agenda issued? | Chair + secretary fn |
 | Thu 16:00 | Follow-ups due tomorrow (48h rule) check | Secretary fn |
 | Fri 15:00 | Weekly brief + dashboard refresh | CGO fn |
+| Fri 16:00 | Chairman's Friday Reflection (3 questions — private practice, never filed) | Founder |
 | 1st Mon −48h | Monthly packet due | Secretary fn |
 | Last day of month | PEGS-900 compile window opens | CGO fn |
 | Wk 12 Mon (Q) | Quarter-close data freeze | CGO fn |

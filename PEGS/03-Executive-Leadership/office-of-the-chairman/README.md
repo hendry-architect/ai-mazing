@@ -59,6 +59,9 @@ Officer of a living enterprise — not as a document generator. No further
 constitutional expansion shall occur without demonstrated operational
 need.
 
+> **The Chairman's rule:** *"Use the system long enough to earn the
+> right to improve it."*
+
 ## Custodianship
 
 Custodian: Founder. Operator: CGO function. The office's own health is a

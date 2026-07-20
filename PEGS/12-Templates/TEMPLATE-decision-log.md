@@ -16,10 +16,10 @@ owner: founder
 > replaces them. Feeds the enterprise decision index ⚙
 > (`14-Knowledge-Base/KNOWLEDGE-SYSTEM.md` §4).
 
-| D-ID / Ref | Date | Decision (one line) | Class | Decided by | Advice/dissent noted | Record (link) | Status |
-|---|---|---|---|---|---|---|---|
-| D-20260719-1 | 2026-07-19 | <e.g., Ratified PEGS libraries> | 1 | Founder | none | PR #3 | in force |
-| | | | | | | | in force / superseded / reversed |
+| D-ID / Ref | Date | Decision (one line) | Class | Decided by | Advice/dissent noted | Record (link) | Status | Confidence |
+|---|---|---|---|---|---|---|---|---|
+| D-2026-001 | 2026-07-20 | <e.g., Mission approved to Phase B> | 2 | Chairman | none | <instrument link> | in force | High |
+| | | | | | | | in force / superseded / reversed | High / Medium / Low |
 
 ## Rules
 
