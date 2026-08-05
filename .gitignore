@@ -27,6 +27,9 @@ outputs/*.pdf
 outputs/*.jpg
 outputs/*.jpeg
 
+# ── PCIP data (graph db, exported deliverables) ───────────────────────────────
+pcip_data/
+
 # ── OS artefacts ──────────────────────────────────────────────────────────────
 .DS_Store
 .DS_Store?

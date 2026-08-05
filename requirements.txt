@@ -25,4 +25,8 @@ pyarrow==24.0.0
 # ── AI / code-execution engine (feature-flagged; requires ENABLE_CODE_EXEC=1) ─
 # anthropic is imported lazily inside analyze_with_code_execution() so the app
 # starts and runs the local pipeline even if this package is not installed.
+# PCIP (pcip/) also uses it — lazily — for copy generation.
 anthropic>=0.40.0
+
+# ── PCIP test suite (dev-only; `python -m pytest tests/`) ─────────────────────
+pytest>=8.0.0
