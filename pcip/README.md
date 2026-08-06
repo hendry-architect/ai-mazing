@@ -26,15 +26,17 @@ itself.
          │  (licensed  │  marketing_asset                            │
          │   workflow) │                                             │
          │             │  gather context → AI copy (Claude) →        │
- ┌───────┴────────┐    │  AI image/video (pluggable) → Canva         │
- │  AI PROVIDERS  │───►│  autofill → ⛔ REVIEW GATES → export        │
- │  Claude (copy) │    └──────────────────┬──────────────────────────┘
- │  image slot    │                       ▼
- │  video slot    │    ┌─────────────────────────────────────────────┐
- └────────────────┘    │        LICENSE-CHECKED PUBLISH ROUTER       │
-                       │  passqual.com (WordPress) · Instagram ·     │
-                       │  Facebook · LinkedIn · X · TikTok · YouTube │
-                       └─────────────────────────────────────────────┘
+ ┌───────┴────────┐    │  capability-routed image/video → Canva      │
+ │ CAPABILITY-    │───►│  autofill → ⛔ REVIEW GATES → export        │
+ │ ROUTED AI      │    └──────────────────┬──────────────────────────┘
+ │ Claude (copy)  │                       ▼
+ │ img: OpenAI ·  │    ┌─────────────────────────────────────────────┐
+ │  Imagen ·      │    │  LICENSE-CHECKED PUBLISH ROUTER (hybrid)    │
+ │  Ideogram·Flux │    │  immediate → direct APIs (Meta · LinkedIn · │
+ │ vid: Veo ·     │    │    X · Threads · YouTube · TikTok)          │
+ │  Runway · Pika │    │  scheduled → Buffer queue                   │
+ │  · Luma        │    │  + passqual.com (WordPress, draft-first)    │
+ └────────────────┘    └─────────────────────────────────────────────┘
 ```
 
 ## Why this beats "ask an AI to pull premium images"
@@ -58,13 +60,27 @@ governance, no license trail, and no distribution record. PCIP produces a
    education adds a `medical_review` gate that **cannot** be auto-approved,
    plus a plain-language reading-level check. Nothing publishes from an
    unreviewed run.
-4. **Orchestrated generation.** Claude writes the copy package (headlines,
-   captions, CTA, hashtags, alt-text); image/video providers are pluggable
-   slots; Canva brand-template autofill assembles it all on-brand. Swap any
-   vendor without touching the pipelines.
-5. **Distribution memory.** Publishing to passqual.com or a social channel
-   records a Publication node — "where did this asset go?" has a permanent
-   answer.
+4. **Capability-routed generation.** Orchestration never asks for a vendor
+   by name. A pipeline states requirements — "1080×1920 vertical video,
+   under 15 s, commercial license" — and the capability registry
+   (`pcip/generate/capabilities.py`) selects the best configured provider:
+   OpenAI Images as the image default, Imagen for photorealism, Ideogram
+   for typography, Flux for self-host; Veo as the premium video default,
+   Runway as the production fallback, Pika for fast social clips, Luma for
+   stylized motion. When a better model ships, you update a profile table —
+   business logic never changes. Preview any decision with
+   `pcip media-plan <content_type>`.
+5. **Hybrid publishing.** Direct platform adapters (Meta, LinkedIn, X,
+   Threads, YouTube, TikTok) are first-class for full native capability and
+   resilience; Buffer is the scheduling provider, not the only path. The
+   decision engine routes immediate posts (healthcare alerts, physician
+   announcements) direct-first and scheduled campaigns (podcasts, blogs,
+   evergreen series) Buffer-first, with automatic fallback either way — a
+   scheduler outage never strands an urgent post. Preview with
+   `pcip route <channel> [--scheduled]`.
+6. **Distribution memory.** Publishing to passqual.com or a social channel
+   records a Publication node — including which route the decision engine
+   took — so "where did this asset go, and how?" has a permanent answer.
 
 ## Module map
 
@@ -75,7 +91,9 @@ governance, no license trail, and no distribution record. PCIP produces a
 | `pcip/licensing.py` | Licensing policy engine (pure, fully unit-tested) |
 | `pcip/connectors/canva.py` | Canva Connect API client: OAuth refresh, designs, folders, assets, brand templates, autofill, export |
 | `pcip/connectors/wordpress.py` | passqual.com publisher (drafts by default) |
-| `pcip/connectors/social.py` | Buffer / Meta Graph / LinkedIn adapters |
+| `pcip/connectors/social.py` | Direct adapters (Meta, LinkedIn, X, Threads, YouTube, TikTok) + Buffer scheduler; mode-aware resolver |
+| `pcip/generate/capabilities.py` | MediaSpec, provider capability profiles, capability registry (the media planner) |
+| `pcip/generate/media_providers.py` | Image vendors (OpenAI, Imagen, Ideogram, Flux) and video vendors (Veo, Runway, Pika, Luma) |
 | `pcip/graph/store.py` | SQLite knowledge graph + FTS5 search |
 | `pcip/graph/indexer.py` | Canva library → graph sync (idempotent) |
 | `pcip/generate/providers.py` | Provider registry: Claude copy, Canva design, image/video slots |
@@ -132,18 +150,27 @@ python -m pcip graph canva:design:DAF123 --depth 2
 
 ## Extending
 
-- **Image/video generation**: subclass `GenerationProvider` with capability
-  `"image"` or `"video"`, implement `available()`/`generate()` (attach an
-  `ai_license(provider)` to every asset), and decorate with
-  `@register_provider`. The registry prefers any provider that reports
-  available, so the built-in slots step aside automatically.
-- **New channel**: add a `SocialAdapter` in `pcip/connectors/social.py` and
-  list it in `ADAPTERS`.
+- **New image/video vendor**: subclass `ImageGenerationProvider` or
+  `VideoGenerationProvider` in `pcip/generate/media_providers.py`, decorate
+  with `@register_provider`, and add a `ProviderProfile` for it in
+  `pcip/generate/capabilities.py`. Routing picks it up automatically — no
+  pipeline or orchestrator changes.
+- **Re-ranking vendors as models improve**: edit `DEFAULT_PROFILES` in
+  `pcip/generate/capabilities.py` — vendor knowledge lives in that table,
+  never in business logic.
+- **New channel**: add a `SocialAdapter` (set `mode = "direct"` or
+  `"scheduler"`) in `pcip/connectors/social.py` and list it in `ADAPTERS`.
 - **New deliverable**: compose steps + gates in `pcip/pipelines/library.py`;
   the engine handles persistence, pause/resume, and approvals.
+
+## Setup
+
+Step-by-step credential setup for every provider, with links:
+**[pcip/SETUP.md](SETUP.md)**.
 
 ## Tests
 
 ```bash
-python -m pytest tests/ -q     # 26 offline tests: graph, licensing, pipelines, publish
+python -m pytest tests/ -q     # offline tests: graph, licensing, pipelines,
+                               # capability routing, publish decision engine
 ```

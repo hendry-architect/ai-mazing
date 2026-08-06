@@ -7,11 +7,20 @@ Every publish goes through three checks before any network call:
 2. **Licensing**  — LicensePolicy.check_publish over the output and every
    asset it uses; Canva premium content only ships as part of an exported
    design (metadata ``via_export``).
-3. **Routing**    — the channel must be configured; WordPress posts land as
-   drafts unless explicitly told to go live.
+3. **Routing**    — the hybrid decision engine:
 
-Every successful publish is recorded as a Publication node with edges back
-to the output and channel — the graph answers "where did this go?" forever.
+       immediate post (no schedule)  → direct platform API first
+         (breaking news, healthcare alerts, physician announcements)
+       scheduled campaign            → Buffer (scheduler) first
+         (podcasts, blogs, newsletters, evergreen, educational series)
+
+   with automatic fallback to the other mode when the preferred one isn't
+   configured — a scheduler outage never strands an urgent post. WordPress
+   posts land as drafts unless explicitly told to go live.
+
+Every successful publish is recorded as a Publication node (including which
+route the decision engine took) with edges back to the output and channel —
+the graph answers "where did this go, and how?" forever.
 """
 
 from __future__ import annotations
@@ -97,17 +106,41 @@ class PublishRouter:
         else:
             from pcip.connectors.social import adapter_for
 
-            adapter = adapter_for(channel, self.cfg)
+            # Decision engine: immediate → direct API; scheduled → scheduler.
+            prefer = "scheduler" if schedule_at else "direct"
+            adapter = adapter_for(channel, self.cfg, prefer=prefer)
             pub = adapter.publish(
                 channel,
                 text or title or output.name,
                 media_urls=media_urls,
                 schedule_at=schedule_at,
             )
+            pub.metadata["route"] = {
+                "adapter": type(adapter).__name__,
+                "mode": adapter.mode,
+                "preferred_mode": prefer,
+                "fallback_used": adapter.mode != prefer,
+            }
 
         pub.output_id = output_id
         self._record(pub)
         return pub
+
+    def route_plan(self, channel: Channel | str, scheduled: bool = False) -> Dict[str, Any]:
+        """Preview the decision engine's routing for a channel (no publish)."""
+        from pcip.connectors.social import adapters_for
+
+        channel = Channel(channel) if isinstance(channel, str) else channel
+        if channel == Channel.WORDPRESS:
+            return {"channel": channel.value, "order": ["WordPressPublisher"],
+                    "mode": "direct"}
+        prefer = "scheduler" if scheduled else "direct"
+        order = adapters_for(channel, self.cfg, prefer=prefer)
+        return {
+            "channel": channel.value,
+            "preferred_mode": prefer,
+            "order": [f"{type(a).__name__}({a.mode})" for a in order],
+        }
 
     def _record(self, pub: Publication) -> None:
         channel_node = f"channel:{pub.channel.value}"

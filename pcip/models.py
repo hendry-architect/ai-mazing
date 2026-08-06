@@ -140,6 +140,7 @@ class Channel(str, Enum):
     YOUTUBE = "youtube"
     TIKTOK = "tiktok"
     X = "x"
+    THREADS = "threads"
     NEWSLETTER = "newsletter"
     PODCAST = "podcast"
 

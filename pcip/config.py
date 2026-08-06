@@ -35,6 +35,20 @@ class PCIPConfig:
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-5"
 
+    # ── Image generation providers (capability-routed; all optional) ─────
+    openai_api_key: str = ""           # OpenAI Images — default image provider
+    openai_image_model: str = "gpt-image-1"
+    google_ai_api_key: str = ""        # Gemini API key — Imagen (and Veo video)
+    ideogram_api_key: str = ""         # Ideogram — typography-heavy graphics
+    bfl_api_key: str = ""              # Black Forest Labs — Flux
+    flux_endpoint: str = "https://api.bfl.ml"
+
+    # ── Video generation providers (capability-routed; all optional) ────
+    runway_api_key: str = ""           # Runway — production fallback
+    pika_api_key: str = ""             # Pika — fast social clips (partner-hosted API)
+    pika_endpoint: str = ""
+    luma_api_key: str = ""             # Luma Dream Machine — stylized motion
+
     # ── WordPress (passqual.com) ─────────────────────────────────────────
     # Self-hosted WP: site URL + application password (Users → Profile →
     # Application Passwords). WordPress.com: OAuth bearer token.
@@ -44,11 +58,18 @@ class PCIPConfig:
     wordpress_com_token: str = ""
 
     # ── Social channels (each optional; unconfigured = channel disabled) ─
+    # Direct platform APIs are first-class (full capability + resilience);
+    # Buffer is a scheduling provider, not the only publishing path.
     buffer_token: str = ""
     meta_page_token: str = ""          # Facebook Page / Instagram Business
     meta_ig_user_id: str = ""
     linkedin_token: str = ""
     linkedin_org_urn: str = ""
+    x_user_token: str = ""             # X API v2 OAuth2 user-context token
+    threads_token: str = ""            # Threads API (Meta)
+    threads_user_id: str = ""
+    youtube_token: str = ""            # YouTube Data API v3 OAuth token
+    tiktok_token: str = ""             # TikTok Content Posting API token
 
     # ── Behavior ─────────────────────────────────────────────────────────
     default_brand: str = "PassQual"
@@ -68,10 +89,17 @@ class PCIPConfig:
         self.exports_dir.mkdir(parents=True, exist_ok=True)
 
     def channel_status(self) -> Dict[str, bool]:
-        """Which publishing channels are configured (no secrets exposed)."""
+        """Which connectors are configured (no secrets exposed)."""
         return {
             "canva": bool(self.canva_access_token or self.canva_refresh_token),
             "anthropic": bool(self.anthropic_api_key),
+            "openai_images": bool(self.openai_api_key),
+            "google_ai": bool(self.google_ai_api_key),
+            "ideogram": bool(self.ideogram_api_key),
+            "flux": bool(self.bfl_api_key),
+            "runway": bool(self.runway_api_key),
+            "pika": bool(self.pika_api_key and self.pika_endpoint),
+            "luma": bool(self.luma_api_key),
             "wordpress": bool(
                 self.wordpress_com_token
                 or (self.wordpress_user and self.wordpress_app_password)
@@ -79,6 +107,10 @@ class PCIPConfig:
             "buffer": bool(self.buffer_token),
             "meta": bool(self.meta_page_token),
             "linkedin": bool(self.linkedin_token),
+            "x": bool(self.x_user_token),
+            "threads": bool(self.threads_token and self.threads_user_id),
+            "youtube": bool(self.youtube_token),
+            "tiktok": bool(self.tiktok_token),
         }
 
 
@@ -97,6 +129,16 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         canva_api_base=_env("CANVA_API_BASE", "https://api.canva.com/rest/v1"),
         anthropic_api_key=_env("ANTHROPIC_API_KEY"),
         anthropic_model=_env("PCIP_ANTHROPIC_MODEL", "claude-sonnet-5"),
+        openai_api_key=_env("OPENAI_API_KEY"),
+        openai_image_model=_env("PCIP_OPENAI_IMAGE_MODEL", "gpt-image-1"),
+        google_ai_api_key=_env("GOOGLE_AI_API_KEY"),
+        ideogram_api_key=_env("IDEOGRAM_API_KEY"),
+        bfl_api_key=_env("BFL_API_KEY"),
+        flux_endpoint=_env("FLUX_ENDPOINT", "https://api.bfl.ml"),
+        runway_api_key=_env("RUNWAY_API_KEY"),
+        pika_api_key=_env("PIKA_API_KEY"),
+        pika_endpoint=_env("PIKA_ENDPOINT"),
+        luma_api_key=_env("LUMA_API_KEY"),
         wordpress_url=_env("WORDPRESS_URL", "https://passqual.com").rstrip("/"),
         wordpress_user=_env("WORDPRESS_USER"),
         wordpress_app_password=_env("WORDPRESS_APP_PASSWORD"),
@@ -106,6 +148,11 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         meta_ig_user_id=_env("META_IG_USER_ID"),
         linkedin_token=_env("LINKEDIN_TOKEN"),
         linkedin_org_urn=_env("LINKEDIN_ORG_URN"),
+        x_user_token=_env("X_USER_TOKEN"),
+        threads_token=_env("THREADS_TOKEN"),
+        threads_user_id=_env("THREADS_USER_ID"),
+        youtube_token=_env("YOUTUBE_TOKEN"),
+        tiktok_token=_env("TIKTOK_TOKEN"),
         default_brand=_env("PCIP_DEFAULT_BRAND", "PassQual"),
         auto_approve_gates=[
             g.strip()
