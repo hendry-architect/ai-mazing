@@ -92,6 +92,8 @@ governance, no license trail, and no distribution record. PCIP produces a
 | `pcip/connectors/canva.py` | Canva Connect API client: OAuth refresh, designs, folders, assets, brand templates, autofill, export |
 | `pcip/connectors/wordpress.py` | passqual.com publisher (drafts by default) |
 | `pcip/connectors/social.py` | Direct adapters (Meta, LinkedIn, X, Threads, YouTube, TikTok) + Buffer scheduler; mode-aware resolver |
+| `pcip/connectors/framework.py` | Connector Management Framework: bootstrap.yaml manifest, capability matrix, doctor, `can()` queries |
+| `pcip/connectors/catalog.py` | Per-connector descriptors: auth, env vars, capabilities (incl. honestly-unsupported ones), live probes |
 | `pcip/generate/capabilities.py` | MediaSpec, provider capability profiles, capability registry (the media planner) |
 | `pcip/generate/media_providers.py` | Image vendors (OpenAI, Imagen, Ideogram, Flux) and video vendors (Veo, Runway, Pika, Luma) |
 | `pcip/graph/store.py` | SQLite knowledge graph + FTS5 search |
@@ -163,10 +165,39 @@ python -m pcip graph canva:design:DAF123 --depth 2
 - **New deliverable**: compose steps + gates in `pcip/pipelines/library.py`;
   the engine handles persistence, pause/resume, and approvals.
 
+## Connector management: capabilities, not credentials
+
+The platform never asks "is Canva connected?" — it asks "**can I** export a
+PNG? duplicate a brand template? search premium assets?" and gets a
+machine-readable answer per capability:
+
+```bash
+python -m pcip doctor            # diagnose everything declared in bootstrap.yaml
+python -m pcip doctor --live     # + live auth/entitlement probes
+python -m pcip can canva.export_png
+```
+
+- **`bootstrap.yaml`** (repo root) declares which connectors this deployment
+  wants and how each authenticates — the doctor provisions/diagnoses from
+  it; removing a connector disables it. Credentials stay in `.env`, never in
+  the manifest.
+- **Statuses per capability**: `ready` · `configured` · `mcp_managed` ·
+  `missing_credentials` · `auth_failed` · `not_entitled` (plan-gated, e.g.
+  Canva brand templates without Enterprise) · `unsupported` (the vendor API
+  genuinely can't — e.g. `canva.search_premium_assets`) · `disabled`.
+- **MCP servers expose external systems**: the official GitHub MCP server is
+  the repository/automation backbone and appears as `mcp_managed` — PCIP
+  holds no GitHub credentials. The Canva MCP complements the Connect API the
+  same way.
+- The planner consumes `ConnectorManager.can()` so pipelines degrade
+  gracefully around missing entitlements instead of assuming a connected
+  system can do everything.
+
 ## Setup
 
 Step-by-step credential setup for every provider, with links:
-**[pcip/SETUP.md](SETUP.md)**.
+**[pcip/SETUP.md](SETUP.md)** — and `python -m pcip doctor` tells you at any
+moment what's left to do.
 
 ## Tests
 

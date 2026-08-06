@@ -1,0 +1,65 @@
+# PCIP bootstrap manifest — the declarative statement of which connectors
+# this deployment wants and how each authenticates.
+#
+#   python -m pcip doctor          # diagnose everything declared here
+#   python -m pcip doctor --live   # + live auth/entitlement probes
+#   python -m pcip can canva.export_png
+#
+# Remove (or comment out) a connector to disable it — the doctor stops
+# asking for its credentials and its capabilities report as `disabled`.
+# Credentials themselves NEVER go in this file; they stay in .env.
+
+connectors:
+
+  # Repository & automation backbone — official GitHub MCP server.
+  # Credentials are held by the MCP host (Claude Code), not by PCIP.
+  github:
+    oauth: true
+
+  canva:
+    oauth: true
+
+  anthropic:
+    api_key: true
+
+  wordpress:
+    app_password: true
+
+  openai:
+    api_key: true
+
+  # One Google AI key covers both Imagen (image) and Veo (video).
+  google:
+    api_key: true
+
+  instagram:
+    oauth: true
+
+  facebook:
+    oauth: true
+
+  threads:
+    oauth: true
+
+  linkedin:
+    oauth: true
+
+  # ── Not yet in use — uncomment when onboarding ─────────────────────────
+  # ideogram:
+  #   api_key: true
+  # flux:
+  #   api_key: true
+  # runway:
+  #   api_key: true
+  # pika:
+  #   api_key: true
+  # luma:
+  #   api_key: true
+  # x:
+  #   oauth: true
+  # youtube:
+  #   oauth: true
+  # tiktok:
+  #   oauth: true
+  # buffer:
+  #   api_key: true

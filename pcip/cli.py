@@ -91,6 +91,25 @@ def cmd_graph(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_doctor(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Diagnose connectors against the bootstrap.yaml manifest."""
+    from pcip.connectors.framework import ConnectorManager, load_manifest
+
+    manager = ConnectorManager(cfg, manifest=load_manifest(args.manifest))
+    report = manager.doctor(live=args.live)
+    _print(report)
+    return 0 if not report["actions"] else 1
+
+
+def cmd_can(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Planner-style capability query: pcip can canva.export_png"""
+    from pcip.connectors.framework import ConnectorManager
+
+    answer = ConnectorManager(cfg).can(args.capability, live=args.live)
+    _print(answer)
+    return 0 if answer.get("usable") else 1
+
+
 def cmd_media_plan(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     """Preview which provider the capability registry would pick."""
     from pcip.generate.capabilities import default_registry, spec_for
@@ -269,6 +288,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("pipelines", help="list available pipelines")
 
+    sp = sub.add_parser("doctor", help="diagnose connectors from bootstrap.yaml")
+    sp.add_argument("--live", action="store_true",
+                    help="run live auth/entitlement probes")
+    sp.add_argument("--manifest", default=None, help="path to bootstrap.yaml")
+
+    sp = sub.add_parser("can", help="capability query, e.g. canva.export_png")
+    sp.add_argument("capability")
+    sp.add_argument("--live", action="store_true")
+
     sp = sub.add_parser("media-plan", help="preview capability-based provider routing")
     sp.add_argument("content_type",
                     help="healthcare_photo | infographic | social_quote | blog_hero"
@@ -318,6 +346,8 @@ COMMANDS = {
     "search": cmd_search,
     "graph": cmd_graph,
     "pipelines": cmd_pipelines,
+    "doctor": cmd_doctor,
+    "can": cmd_can,
     "media-plan": cmd_media_plan,
     "route": cmd_route,
     "run": cmd_run,

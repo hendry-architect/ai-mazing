@@ -28,5 +28,8 @@ pyarrow==24.0.0
 # PCIP (pcip/) also uses it — lazily — for copy generation.
 anthropic>=0.40.0
 
+# ── PCIP connector manifest (bootstrap.yaml parsing) ──────────────────────────
+PyYAML>=6.0
+
 # ── PCIP test suite (dev-only; `python -m pytest tests/`) ─────────────────────
 pytest>=8.0.0
