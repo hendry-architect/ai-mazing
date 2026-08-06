@@ -1,5 +1,13 @@
 # 🔬 AI-mazing Data Analyst
 
+> **Also in this repo:** 🎨 **[PCIP — PassQual Creative Intelligence Platform](pcip/README.md)**
+> — the enterprise creative operating system: Canva Connect integration,
+> licensing-safe premium asset workflows, a searchable knowledge graph of
+> every visual asset, AI generation orchestration, review-gated assembly
+> pipelines (presentations, podcast kits, blog graphics, social campaigns,
+> patient education, marketing), and gated publishing to passqual.com and
+> social channels. Run `python -m pcip --help` or see [`pcip/README.md`](pcip/README.md).
+
 A clean, reusable data-analysis app built around a sharpened analyst engine.
 Upload any CSV, pick a built-in sample dataset, or pull **live Amplitude event data**,
 type a plain-language question, and get a full

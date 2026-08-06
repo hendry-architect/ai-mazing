@@ -1,0 +1,23 @@
+{
+  "title": "Managing Type 2 Diabetes at Home — Spring Series",
+  "objective": "Drive patients 55+ to book an annual wellness visit by teaching three at-home habits that improve A1C.",
+  "audience": "Patients 55+, low health literacy, English and Spanish speakers",
+  "brand": "PassQual",
+  "key_messages": [
+    "Small daily habits move your A1C more than occasional big efforts",
+    "Your care team at PassQual can personalize a plan in one visit",
+    "Checking your feet and your numbers weekly prevents complications"
+  ],
+  "channels": ["instagram", "facebook", "wordpress"],
+  "topics": ["diabetes", "patient education", "preventive care"],
+  "language": "bilingual",
+  "tone": "warm, plain-language, physician-led authority without jargon",
+  "references": [
+    "canva:brand_template:REPLACE_WITH_TEMPLATE_ID"
+  ],
+  "constraints": [
+    "No treatment claims without [MEDICAL-REVIEW] flag",
+    "6th-grade reading level",
+    "Every visual needs alt-text"
+  ]
+}
