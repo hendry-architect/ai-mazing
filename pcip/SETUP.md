@@ -26,36 +26,49 @@ python -m pcip status
 
 ---
 
-## Phase 1 — Canva Connect API (required, ~15 min)
+## Phase 1 — Canva Connect API (required, ~15 min, no Enterprise needed)
 
 **Docs:** <https://www.canva.dev/docs/connect/> ·
 **Scopes reference:** <https://www.canva.dev/docs/connect/appendix/scopes/> ·
 **OAuth guide:** <https://www.canva.dev/docs/connect/authentication/>
 
-1. Sign in to your Canva **Business** account, go to the Developer Portal:
-   <https://www.canva.com/developers/> → **Your integrations** → **Create an integration** (choose *Private*).
+> **Plan note:** a **public integration in development mode** works fully
+> for your own account with no review submission and no Enterprise plan.
+> Enterprise is only required for *private* integrations and the
+> brand-template/autofill APIs — `pcip doctor --live` reports those as
+> `not_entitled` until then, and everything else works.
+
+1. Sign in to Canva, open the Developer Portal:
+   <https://www.canva.com/developers/> → **Your integrations** →
+   **Create an integration** → choose **Public**. Name it `PCIP`.
+   Do **not** submit it for review — development mode is exactly what we want.
 2. On the integration's **Scopes** tab, enable:
    `design:meta:read`, `design:content:read`, `design:content:write`,
-   `folder:read`, `asset:read`, `brandtemplate:meta:read`,
-   `brandtemplate:content:read`.
-3. On **Configuration**, copy the **Client ID** and generate a
-   **Client secret** → put them in `.env` as `CANVA_CLIENT_ID` and
-   `CANVA_CLIENT_SECRET`.
-4. Add a redirect URL (e.g. `http://127.0.0.1:8080/callback`) and complete
-   the OAuth PKCE flow once (the authentication guide above has a
-   copy-paste walkthrough) to obtain tokens → put them in `.env` as
-   `CANVA_ACCESS_TOKEN` and `CANVA_REFRESH_TOKEN`.
-   PCIP refreshes automatically from then on (Canva rotates refresh tokens).
-5. Verify and run your first sync:
+   `folder:read`, `asset:read` (+ `brandtemplate:meta:read`,
+   `brandtemplate:content:read` if the portal offers them on your plan).
+3. On **Configuration**: copy the **Client ID**, click **Generate secret**
+   (shown once) → `.env` → `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`.
+4. Under **Redirect URLs**, add exactly: `http://127.0.0.1:8080/callback`
+5. Run the built-in OAuth helper — it opens the consent screen, catches the
+   callback, exchanges the code, and writes the tokens into `.env`:
 
    ```bash
-   python -m pcip init
-   python -m pcip sync            # mirrors designs/folders/templates → graph
-   python -m pcip search "logo"   # prove the graph is live
+   export $(grep -v '^#' .env | xargs)
+   python -m pcip canva-auth
    ```
 
-> **Brand templates note:** the brand-template endpoints require a Canva
-> Enterprise plan; on other plans `pcip sync` simply skips them.
+6. Verify and run your first sync:
+
+   ```bash
+   export $(grep -v '^#' .env | xargs)   # reload — tokens were just written
+   python -m pcip init
+   python -m pcip doctor --live          # canva should report ready
+   python -m pcip sync                   # mirrors designs/folders → graph
+   python -m pcip search "logo"          # prove the graph is live
+   ```
+
+PCIP refreshes the access token automatically from then on (Canva rotates
+refresh tokens on every refresh; the client keeps up).
 
 ---
 
