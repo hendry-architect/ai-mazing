@@ -91,6 +91,19 @@ def cmd_graph(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_canva_auth(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """One-command Canva OAuth (PKCE) — writes tokens into .env."""
+    from pcip.connectors.canva_auth import run_flow
+
+    run_flow(
+        cfg,
+        port=args.port,
+        write_env=None if args.no_write else args.env_file,
+        open_browser=not args.no_browser,
+    )
+    return 0
+
+
 def cmd_doctor(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     """Diagnose connectors against the bootstrap.yaml manifest."""
     from pcip.connectors.framework import ConnectorManager, load_manifest
@@ -288,6 +301,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("pipelines", help="list available pipelines")
 
+    sp = sub.add_parser("canva-auth", help="run the Canva OAuth (PKCE) flow once")
+    sp.add_argument("--port", type=int, default=8080,
+                    help="local callback port (redirect URL must match)")
+    sp.add_argument("--env-file", default=".env")
+    sp.add_argument("--no-write", action="store_true",
+                    help="print instead of writing tokens to the env file")
+    sp.add_argument("--no-browser", action="store_true")
+
     sp = sub.add_parser("doctor", help="diagnose connectors from bootstrap.yaml")
     sp.add_argument("--live", action="store_true",
                     help="run live auth/entitlement probes")
@@ -346,6 +367,7 @@ COMMANDS = {
     "search": cmd_search,
     "graph": cmd_graph,
     "pipelines": cmd_pipelines,
+    "canva-auth": cmd_canva_auth,
     "doctor": cmd_doctor,
     "can": cmd_can,
     "media-plan": cmd_media_plan,
