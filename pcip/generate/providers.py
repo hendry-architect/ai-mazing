@@ -87,6 +87,20 @@ class ProviderRegistry:
             "Add credentials in .env (see .env.example) or register a provider."
         )
 
+    def by_name(self, name: str) -> GenerationProvider:
+        for p in self._instances:
+            if p.name == name:
+                return p
+        raise ProviderNotConfigured(f"No provider named '{name}' is registered.")
+
+    def available_names(self, capability: str) -> List[str]:
+        """Names of configured providers offering a capability — the pool the
+        capability registry routes across."""
+        return [
+            p.name for p in self._instances
+            if capability in p.capabilities and p.available()
+        ]
+
     def status(self) -> Dict[str, Any]:
         return {
             p.name: {"capabilities": p.capabilities, "available": p.available()}
@@ -181,35 +195,6 @@ class CanvaDesignProvider(GenerationProvider):
         )
 
 
-class StubMediaProvider(GenerationProvider):
-    """Base for image/video providers that are not yet wired to a vendor.
-
-    Swap in a real implementation (Vertex Imagen/Veo, Runway, etc.) by
-    subclassing GenerationProvider with the same capability and registering
-    it — the registry prefers whichever provider reports available().
-    """
-
-    media_kind = "image"
-
-    def available(self) -> bool:
-        return False
-
-    def generate(self, request: GenerationRequest) -> GenerationResult:
-        raise ProviderNotConfigured(
-            f"No {self.media_kind} generation provider is configured. "
-            "Register one (see pcip/generate/providers.py docstring)."
-        )
-
-
-@register_provider
-class ImageProviderSlot(StubMediaProvider):
-    name = "image-slot"
-    capabilities = ["image"]
-    media_kind = "image"
-
-
-@register_provider
-class VideoProviderSlot(StubMediaProvider):
-    name = "video-slot"
-    capabilities = ["video"]
-    media_kind = "video"
+# Image/video vendor implementations live in pcip/generate/media_providers.py
+# (OpenAI Images, Imagen, Ideogram, Flux; Veo, Runway, Pika, Luma) and are
+# selected by capability, never by name — see pcip/generate/capabilities.py.

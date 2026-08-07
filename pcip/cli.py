@@ -91,6 +91,56 @@ def cmd_graph(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_doctor(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Diagnose connectors against the bootstrap.yaml manifest."""
+    from pcip.connectors.framework import ConnectorManager, load_manifest
+
+    manager = ConnectorManager(cfg, manifest=load_manifest(args.manifest))
+    report = manager.doctor(live=args.live)
+    _print(report)
+    return 0 if not report["actions"] else 1
+
+
+def cmd_can(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Planner-style capability query: pcip can canva.export_png"""
+    from pcip.connectors.framework import ConnectorManager
+
+    answer = ConnectorManager(cfg).can(args.capability, live=args.live)
+    _print(answer)
+    return 0 if answer.get("usable") else 1
+
+
+def cmd_media_plan(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Preview which provider the capability registry would pick."""
+    from pcip.generate.capabilities import default_registry, spec_for
+    from pcip.generate.providers import ProviderRegistry
+
+    spec = spec_for(args.content_type)
+    registry = ProviderRegistry(cfg)
+    available = registry.available_names(spec.modality)
+    ranked = default_registry().rank(spec, available)
+    all_ranked = default_registry().rank(spec)
+    _print({
+        "content_type": args.content_type,
+        "spec": spec.__dict__,
+        "configured_providers": available,
+        "routing": [{"provider": n, "score": round(s, 3)} for n, s in ranked],
+        "would_route_if_all_configured": [
+            {"provider": n, "score": round(s, 3)} for n, s in all_ranked
+        ],
+    })
+    return 0
+
+
+def cmd_route(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Preview the publish decision engine's routing for a channel."""
+    from pcip.publish.router import PublishRouter
+
+    with _graph(cfg) as g:
+        _print(PublishRouter(cfg, g).route_plan(args.channel, scheduled=args.scheduled))
+    return 0
+
+
 def cmd_pipelines(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     from pcip.pipelines.library import PIPELINES
 
@@ -238,6 +288,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("pipelines", help="list available pipelines")
 
+    sp = sub.add_parser("doctor", help="diagnose connectors from bootstrap.yaml")
+    sp.add_argument("--live", action="store_true",
+                    help="run live auth/entitlement probes")
+    sp.add_argument("--manifest", default=None, help="path to bootstrap.yaml")
+
+    sp = sub.add_parser("can", help="capability query, e.g. canva.export_png")
+    sp.add_argument("capability")
+    sp.add_argument("--live", action="store_true")
+
+    sp = sub.add_parser("media-plan", help="preview capability-based provider routing")
+    sp.add_argument("content_type",
+                    help="healthcare_photo | infographic | social_quote | blog_hero"
+                         " | cinematic_video | quick_reel | stylized_motion")
+
+    sp = sub.add_parser("route", help="preview publish routing for a channel")
+    sp.add_argument("channel")
+    sp.add_argument("--scheduled", action="store_true",
+                    help="preview the scheduled-campaign route (scheduler-first)")
+
     sp = sub.add_parser("run", help="run a pipeline from a brief JSON file")
     sp.add_argument("pipeline")
     sp.add_argument("--brief", required=True, help="path to brief JSON")
@@ -277,6 +346,10 @@ COMMANDS = {
     "search": cmd_search,
     "graph": cmd_graph,
     "pipelines": cmd_pipelines,
+    "doctor": cmd_doctor,
+    "can": cmd_can,
+    "media-plan": cmd_media_plan,
+    "route": cmd_route,
     "run": cmd_run,
     "runs": cmd_runs,
     "approve": cmd_approve,
