@@ -11,6 +11,7 @@
     python -m pcip approve <run_id> [--gate medical_review] [--reviewer name]
     python -m pcip reject  <run_id> [--reason "..."]
     python -m pcip resume  <run_id>              # continue after approval
+    python -m pcip prepare <output_id>            # article for manual publishing
     python -m pcip publish <output_id> --channel wordpress --title "..." [--live]
 """
 
@@ -255,6 +256,18 @@ def cmd_resume(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     return 0 if run.status in ("done", "awaiting_review") else 1
 
 
+def cmd_prepare(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Produce a reviewed article for manual publishing — no network calls."""
+    from pcip.publish.router import PublishRouter
+
+    with _graph(cfg) as g:
+        result = PublishRouter(cfg, g).prepare(
+            args.output_id, title=args.title, text=args.text, dest=args.dest
+        )
+        _print(result)
+    return 0
+
+
 def cmd_publish(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     from pcip.publish.router import PublishRouter
 
@@ -348,6 +361,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("resume", help="resume a paused/failed run")
     sp.add_argument("run_id")
 
+    sp = sub.add_parser(
+        "prepare",
+        help="produce a reviewed article for manual publishing (no network)",
+    )
+    sp.add_argument("output_id")
+    sp.add_argument("--title", default="")
+    sp.add_argument("--text", default="")
+    sp.add_argument("--dest", default=None, help="output folder (default: <data-dir>/handoff/<output_id>)")
+
     sp = sub.add_parser("publish", help="publish an output to a channel")
     sp.add_argument("output_id")
     sp.add_argument("--channel", required=True)
@@ -377,6 +399,7 @@ COMMANDS = {
     "approve": cmd_approve,
     "reject": cmd_reject,
     "resume": cmd_resume,
+    "prepare": cmd_prepare,
     "publish": cmd_publish,
 }
 

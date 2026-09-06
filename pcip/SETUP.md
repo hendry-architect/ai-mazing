@@ -82,26 +82,106 @@ refresh tokens on every refresh; the client keeps up).
 
 ---
 
-## Phase 3 — WordPress / passqual.com (~10 min)
+## Phase 3 — WordPress → passqual.com (~15 min)
 
 **Application Passwords docs:**
 <https://wordpress.org/documentation/article/application-passwords/> ·
 **REST API docs:** <https://developer.wordpress.org/rest-api/>
 
-**If passqual.com is self-hosted WordPress:**
-1. WP Admin → **Users → Profile** → scroll to **Application Passwords**.
-2. Name it `PCIP`, click **Add New Application Password**, copy the
-   generated password (shown once).
-3. `.env`: `WORDPRESS_URL=https://passqual.com`, `WORDPRESS_USER=<your wp
-   username>`, `WORDPRESS_APP_PASSWORD=<generated password>`.
+### How an article actually reaches passqual.com
 
-**If passqual.com is on WordPress.com:**
-1. Create an app at <https://developer.wordpress.com/apps/> and complete
-   OAuth2 (<https://developer.wordpress.com/docs/oauth2/>) to get a bearer
-   token.
-2. `.env`: `WORDPRESS_COM_TOKEN=<token>` (leave the app-password vars empty).
+passqual.com is a Next.js site on Vercel. It does **not** store articles — it
+fetches them from WordPress on each request and caches the result for 60
+seconds. So:
 
-Posts land as **drafts** unless you pass `--live` — that's deliberate.
+```
+pcip publish → WordPress (wp.passqual.com) → passqual.com/<slug>/  ≈60s later
+```
+
+No deploy, no developer, no route file. That also means **two hostnames**, and
+they are not interchangeable:
+
+| Variable | Host | Why |
+|---|---|---|
+| `WORDPRESS_URL` | `https://wp.passqual.com` | where the REST API lives — writes go here |
+| `WORDPRESS_PUBLIC_SITE` | `https://passqual.com` | where readers land — the URL PCIP records |
+
+Pointing `WORDPRESS_URL` at the public site cannot work: that site deliberately
+rewrites `/wp-json/*` to a blocked route.
+
+Marketing, service and team pages are **not** WordPress-driven — they are
+hand-authored modules in the website repository. PCIP publishes articles only,
+and `pcip can wordpress.edit_live_page` reports `unsupported` to say so.
+
+### Steps
+
+1. On **wp.passqual.com** → WP Admin → **Users → Profile** → **Application
+   Passwords**. Name it `PCIP`, **Add New Application Password**, copy it
+   (shown once — it contains spaces; keep them).
+2. `.env`:
+   ```
+   WORDPRESS_URL=https://wp.passqual.com
+   WORDPRESS_PUBLIC_SITE=https://passqual.com
+   WORDPRESS_USER=<wp username>
+   WORDPRESS_APP_PASSWORD=<generated password>
+   ```
+   *(WordPress.com-hosted sites instead use `WORDPRESS_COM_TOKEN` from
+   <https://developer.wordpress.com/apps/>.)*
+3. **Prerequisite on SiteGround — restore the `Authorization` header.**
+   SiteGround strips it before PHP, so Application Passwords return
+   `401 rest_not_logged_in` and **no publish can succeed** until this is added.
+   Site Tools → File Manager → edit `.htaccess` in the document root, *above*
+   `# BEGIN WordPress`:
+   ```apache
+   SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+   ```
+   or, if `mod_setenvif` is unavailable:
+   ```apache
+   <IfModule mod_rewrite.c>
+   RewriteEngine On
+   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+   </IfModule>
+   ```
+4. If `pcip doctor --live` reports the connector **blocked** with an anti-bot
+   message, allowlist the calling machine's IP in Site Tools → **Security**
+   (SiteGround answers bots with an `sg-captcha` challenge that looks like a
+   success to naive clients — PCIP refuses it rather than misreporting).
+5. Verify:
+   ```bash
+   python -m pcip doctor --live
+   python -m pcip route wordpress
+   ```
+
+### Optional — make publishing instant instead of ~60s
+
+The site exposes a revalidation webhook that purges its cache immediately.
+Set the same secret on both sides:
+
+```
+VERCEL_REVALIDATE_URL=https://passqual.com/api/revalidate
+WP_REVALIDATE_SECRET=<a long random string>
+```
+
+and set `WP_REVALIDATE_SECRET` to the same value in the Vercel project's
+environment, then redeploy. Without it, articles still go live — just within
+the 60-second window. `pcip can wordpress.instant_revalidate` reports
+`not_entitled` until both sides are set.
+
+### While publishing is blocked
+
+If step 3 is still pending, work does not have to stop:
+
+```bash
+python -m pcip prepare <output_id>
+```
+
+writes the finished, fully-reviewed article (body HTML, media with real alt
+text, title, slug, excerpt, expected URL) into a folder with paste-by-hand
+instructions. It enforces the same review and licensing gates as a real
+publish, and needs no WordPress credentials at all.
+
+Posts land as **drafts** unless you pass `--live` — deliberate, because on this
+architecture "live" means live to patients within a minute.
 
 ---
 

@@ -81,6 +81,12 @@ governance, no license trail, and no distribution record. PCIP produces a
 6. **Distribution memory.** Publishing to passqual.com or a social channel
    records a Publication node — including which route the decision engine
    took — so "where did this asset go, and how?" has a permanent answer.
+7. **It knows how passqual.com really works.** The site is Next.js on Vercel
+   rendering WordPress articles fetched at request time, so publishing a post
+   puts it live within ~60s with no deploy. PCIP writes to the WordPress origin,
+   records the *reader-facing* URL, optionally purges the site's cache for an
+   instant appearance, and refuses to mistake a host's anti-bot challenge for a
+   healthy API. Hand-authored marketing pages are deliberately out of scope.
 
 ## Module map
 
@@ -90,7 +96,7 @@ governance, no license trail, and no distribution record. PCIP produces a
 | `pcip/config.py` | Env-based configuration; no secrets in code or the graph |
 | `pcip/licensing.py` | Licensing policy engine (pure, fully unit-tested) |
 | `pcip/connectors/canva.py` | Canva Connect API client: OAuth refresh, designs, folders, assets, brand templates, autofill, export |
-| `pcip/connectors/wordpress.py` | passqual.com publisher (drafts by default) |
+| `pcip/connectors/wordpress.py` | Article publisher: hardened transport (refuses anti-bot challenges and non-JSON 2xx), reader-facing URL derivation, best-effort cache revalidation |
 | `pcip/connectors/social.py` | Direct adapters (Meta, LinkedIn, X, Threads, YouTube, TikTok) + Buffer scheduler; mode-aware resolver |
 | `pcip/connectors/framework.py` | Connector Management Framework: bootstrap.yaml manifest, capability matrix, doctor, `can()` queries |
 | `pcip/connectors/catalog.py` | Per-connector descriptors: auth, env vars, capabilities (incl. honestly-unsupported ones), live probes |
@@ -141,9 +147,14 @@ python -m pcip run patient_education --brief brief.json
 python -m pcip approve run_abc123 --gate medical_review --reviewer "Dr. Pascual"
 # → brand_review gate next; approve again and it exports via the official API
 
-# 3. Publish (WordPress lands as a draft unless --live)
-python -m pcip publish out_xyz789 --channel wordpress --title "..." --text "<p>…</p>"
-python -m pcip publish out_xyz789 --channel instagram --text "caption #hashtags"
+# 3. Publish. Body, excerpt, per-image alt text, captions and hashtags all come
+#    from the pipeline's own copy step — --title/--text are overrides, not
+#    requirements. WordPress lands as a draft unless --live.
+python -m pcip publish out_xyz789 --channel wordpress --live
+python -m pcip publish out_xyz789 --channel instagram
+
+# ...or hand it off for manual pasting (same gates, no credentials needed)
+python -m pcip prepare out_xyz789
 
 # 4. Ask the graph anything
 python -m pcip search "diabetes carousel"

@@ -25,6 +25,8 @@ the graph answers "where did this go, and how?" forever.
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pcip.config import PCIPConfig
@@ -35,6 +37,57 @@ from pcip.models import Asset, Channel, EdgeKind, NodeKind, Publication
 
 class PublishError(Exception):
     pass
+
+
+def slugify(title: str) -> str:
+    """A WordPress-style slug: lowercase, hyphenated, ASCII-safe."""
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", title or "")
+    text = text.encode("ascii", "ignore").decode("ascii").lower()
+    return re.sub(r"-{2,}", "-", re.sub(r"[^a-z0-9]+", "-", text)).strip("-")[:80]
+
+
+def _handoff_readme(meta: Dict[str, Any], wp_origin: str) -> str:
+    media_lines = "\n".join(
+        f"   - `media/{name}` — alt text: {alt!r}"
+        for name, alt in zip(meta["media"], meta["alt_texts"] + [""] * len(meta["media"]))
+    ) or "   (no media exported)"
+    hashtags = " ".join(meta["hashtags"]) or "(none)"
+    return f"""# Manual publishing handoff — {meta['title']}
+
+PCIP produced this article but did not publish it. Every gate a real publish
+enforces (review approval, licensing, provenance) already passed — this folder
+exists only because the WordPress REST write path is unavailable.
+
+## Paste it in
+
+1. Go to {wp_origin}/wp-admin/post-new.php
+2. **Title**: {meta['title']}
+3. **Slug** (Post → URL): `{meta['suggested_slug']}`
+4. **Body**: paste the contents of `article.html` into the editor's Code/HTML view.
+5. **Excerpt**: {meta['excerpt'] or '(none generated)'}
+6. **Media** — upload each file and set its alt text exactly:
+{media_lines}
+   Set the first image as the Featured image.
+7. Publish.
+
+The article should appear at **{meta['expected_public_url']}**
+within about 60 seconds — the public site fetches from WordPress on its next
+request, so nothing needs to be deployed.
+
+## Social copy (not published either)
+
+Hashtags: {hashtags}
+
+Captions are in `meta.json` under `captions`, keyed by channel.
+
+## When the REST path is fixed
+
+Apply the Authorization-header fix on the WordPress server, then
+`pcip publish {meta['output_id']} --channel wordpress --live` does all of the
+above automatically and records the publication in the knowledge graph.
+"""
 
 
 class PublishRouter:
@@ -60,6 +113,56 @@ class PublishRouter:
                     f"'{run['payload'].get('status')}' — only outputs of "
                     "completed (fully reviewed) runs can be published."
                 )
+
+    # ── What the pipeline already produced ───────────────────────────────
+
+    def _producing_run(self, output_id: str) -> Dict[str, Any]:
+        for ekind, run_id in self.graph.neighbors(output_id, EdgeKind.PRODUCED, "in"):
+            node = self.graph.get_node(run_id)
+            if node:
+                return node["payload"]
+        return {}
+
+    def payload_for(
+        self, output: Asset, *, title: str = "", text: str = ""
+    ) -> Dict[str, Any]:
+        """Assemble one deliverable's publishable parts.
+
+        Shared by publishing and by ``pcip prepare`` so the offline handoff is
+        byte-for-byte what would have been published. Explicit ``title``/``text``
+        always win; otherwise the copy step's parsed fields are used, falling
+        back to its raw prose so a run is never unpublishable.
+        """
+        run = self._producing_run(output.id)
+        ctx = run.get("context") or {}
+        fields = ctx.get("copy_fields") or {}
+
+        language = "en"
+        brief_node = self.graph.get_node(run.get("brief_id", ""))
+        if brief_node:
+            language = brief_node["payload"].get("language") or "en"
+
+        paths = output.metadata.get("pages") or (
+            [output.local_path] if output.local_path else []
+        )
+        alts = [
+            str(a)
+            for a in (output.metadata.get("alt_texts") or fields.get("alt_texts") or [])
+        ]
+        if len(alts) < len(paths):
+            filler = fields.get("title") or output.name
+            alts = alts + [filler] * (len(paths) - len(alts))
+
+        return {
+            "title": title or fields.get("title") or output.name,
+            "body_html": text or fields.get("body_html") or ctx.get("copy") or "",
+            "excerpt": fields.get("excerpt", ""),
+            "media_paths": paths,
+            "alt_texts": alts[: len(paths)],
+            "language": language,
+            "hashtags": fields.get("hashtags") or [],
+            "captions": fields.get("captions") or {},
+        }
 
     def _check_license(self, output: Asset) -> None:
         used: List[Asset] = [output]
@@ -89,19 +192,29 @@ class PublishRouter:
         self._check_run_state(output_id)
         self._check_license(output)
 
+        payload = self.payload_for(output, title=title, text=text)
+
         if channel == Channel.WORDPRESS:
             from pcip.connectors.wordpress import WordPressPublisher
 
             wp = WordPressPublisher(self.cfg)
-            paths = output.metadata.get("pages") or (
-                [output.local_path] if output.local_path else []
-            )
+            if not payload["body_html"].strip():
+                raise PublishError(
+                    f"Refusing to publish {output_id} with an empty body. The run "
+                    "that produced it has no generated copy, and no --text was "
+                    "given. Either pass the body explicitly:\n"
+                    f"  pcip publish {output_id} --channel wordpress --text '<p>…</p>'\n"
+                    "or re-run the pipeline so its copy step persists an article body."
+                )
             pub = wp.publish_post(
-                title or output.name,
-                content_html=text,
+                payload["title"],
+                content_html=payload["body_html"],
                 status="publish" if live else "draft",
-                media_paths=paths,
-                alt_texts=[output.metadata.get("alt_text", output.name)] * len(paths),
+                media_paths=payload["media_paths"],
+                alt_texts=payload["alt_texts"],
+                excerpt=payload["excerpt"],
+                language=payload["language"],
+                schedule_at=schedule_at,
             )
         else:
             from pcip.connectors.social import adapter_for
@@ -109,9 +222,17 @@ class PublishRouter:
             # Decision engine: immediate → direct API; scheduled → scheduler.
             prefer = "scheduler" if schedule_at else "direct"
             adapter = adapter_for(channel, self.cfg, prefer=prefer)
+            caption = (
+                text
+                or payload["captions"].get(channel.value)
+                or payload["body_html"]
+                or payload["title"]
+            )
+            if payload["hashtags"] and not text:
+                caption = f"{caption}\n\n{' '.join(payload['hashtags'])}"
             pub = adapter.publish(
                 channel,
-                text or title or output.name,
+                caption,
                 media_urls=media_urls,
                 schedule_at=schedule_at,
             )
@@ -126,14 +247,86 @@ class PublishRouter:
         self._record(pub)
         return pub
 
+    def prepare(
+        self,
+        output_id: str,
+        *,
+        title: str = "",
+        text: str = "",
+        dest: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Produce the article for manual publishing — same gates, no network.
+
+        The escape hatch for when the WordPress REST write path is blocked
+        (e.g. a server stripping the Authorization header). Every provenance,
+        review and licensing check a real publish runs is enforced here too, so
+        nothing bypasses governance just because it is pasted by hand.
+        """
+        import json
+        import shutil
+
+        output = self._load_output_asset(output_id)
+        self._check_run_state(output_id)
+        self._check_license(output)
+        payload = self.payload_for(output, title=title, text=text)
+
+        folder = Path(dest) if dest else Path(self.cfg.data_dir) / "handoff" / output_id
+        (folder / "media").mkdir(parents=True, exist_ok=True)
+
+        slug = slugify(payload["title"])
+        copied: List[str] = []
+        for path in payload["media_paths"]:
+            src = Path(path)
+            if not src.exists():
+                continue
+            shutil.copy2(src, folder / "media" / src.name)
+            copied.append(src.name)
+
+        (folder / "article.html").write_text(payload["body_html"], encoding="utf-8")
+        meta = {
+            "title": payload["title"],
+            "suggested_slug": slug,
+            "excerpt": payload["excerpt"],
+            "language": payload["language"],
+            "alt_texts": payload["alt_texts"],
+            "hashtags": payload["hashtags"],
+            "captions": payload["captions"],
+            "media": copied,
+            "expected_public_url": self._expected_url(slug, payload["language"]),
+            "output_id": output_id,
+        }
+        (folder / "meta.json").write_text(
+            json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        (folder / "README.md").write_text(
+            _handoff_readme(meta, self.cfg.wordpress_url), encoding="utf-8"
+        )
+        return {"folder": str(folder), **meta}
+
+    def _expected_url(self, slug: str, language: str) -> str:
+        base = self.cfg.wordpress_public_site.rstrip("/")
+        prefix = "/es" if str(language).lower().startswith("es") else ""
+        return f"{base}{prefix}/{slug}/" if slug else ""
+
     def route_plan(self, channel: Channel | str, scheduled: bool = False) -> Dict[str, Any]:
         """Preview the decision engine's routing for a channel (no publish)."""
         from pcip.connectors.social import adapters_for
 
         channel = Channel(channel) if isinstance(channel, str) else channel
         if channel == Channel.WORDPRESS:
-            return {"channel": channel.value, "order": ["WordPressPublisher"],
-                    "mode": "direct"}
+            return {
+                "channel": channel.value,
+                "order": ["WordPressPublisher"],
+                "mode": "direct",
+                "api_origin": self.cfg.wordpress_url,
+                "reader_site": self.cfg.wordpress_public_site,
+                "instant_revalidation": self.cfg.revalidation_configured,
+                "note": "publishing to WordPress makes the article live on the "
+                        "reader site within ~60s (ISR)"
+                        + ("" if self.cfg.revalidation_configured
+                           else "; set VERCEL_REVALIDATE_URL + WP_REVALIDATE_SECRET "
+                                "to make it immediate"),
+            }
         prefer = "scheduler" if scheduled else "direct"
         order = adapters_for(channel, self.cfg, prefer=prefer)
         return {

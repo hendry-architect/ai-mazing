@@ -49,13 +49,24 @@ class PCIPConfig:
     pika_endpoint: str = ""
     luma_api_key: str = ""             # Luma Dream Machine — stylized motion
 
-    # ── WordPress (passqual.com) ─────────────────────────────────────────
-    # Self-hosted WP: site URL + application password (Users → Profile →
-    # Application Passwords). WordPress.com: OAuth bearer token.
-    wordpress_url: str = "https://passqual.com"
+    # ── WordPress (the API origin behind passqual.com) ───────────────────
+    # passqual.com is a Next.js site on Vercel that fetches articles from
+    # WordPress at request time (ISR, ~60s). So there are two hosts:
+    #   wordpress_url         — where the REST API lives (writes go here)
+    #   wordpress_public_site — where readers land (URLs recorded here)
+    # The public site deliberately rewrites /wp-json/* to a blocked route,
+    # so the API must be addressed at its own hostname.
+    wordpress_url: str = "https://wp.passqual.com"
+    wordpress_public_site: str = "https://passqual.com"
     wordpress_user: str = ""
     wordpress_app_password: str = ""
     wordpress_com_token: str = ""
+
+    # Optional instant-publish path: the Next.js site exposes a revalidation
+    # webhook that purges its ISR cache immediately instead of waiting out
+    # the 60s window. Unset = publishes still appear, just within ~60s.
+    vercel_revalidate_url: str = ""
+    wp_revalidate_secret: str = ""
 
     # ── Social channels (each optional; unconfigured = channel disabled) ─
     # Direct platform APIs are first-class (full capability + resilience);
@@ -88,6 +99,23 @@ class PCIPConfig:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.exports_dir.mkdir(parents=True, exist_ok=True)
 
+    @property
+    def wordpress_configured(self) -> bool:
+        """Single source of truth for 'can we talk to WordPress at all'.
+
+        The publisher, ``channel_status`` and the doctor all ask this rather
+        than each re-deriving the same predicate.
+        """
+        return bool(
+            self.wordpress_com_token
+            or (self.wordpress_user and self.wordpress_app_password)
+        )
+
+    @property
+    def revalidation_configured(self) -> bool:
+        """Whether the instant-publish webhook can be called."""
+        return bool(self.vercel_revalidate_url and self.wp_revalidate_secret)
+
     def channel_status(self) -> Dict[str, bool]:
         """Which connectors are configured (no secrets exposed)."""
         return {
@@ -100,10 +128,8 @@ class PCIPConfig:
             "runway": bool(self.runway_api_key),
             "pika": bool(self.pika_api_key and self.pika_endpoint),
             "luma": bool(self.luma_api_key),
-            "wordpress": bool(
-                self.wordpress_com_token
-                or (self.wordpress_user and self.wordpress_app_password)
-            ),
+            "wordpress": self.wordpress_configured,
+            "wordpress_revalidate": self.revalidation_configured,
             "buffer": bool(self.buffer_token),
             "meta": bool(self.meta_page_token),
             "linkedin": bool(self.linkedin_token),
@@ -139,10 +165,15 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         pika_api_key=_env("PIKA_API_KEY"),
         pika_endpoint=_env("PIKA_ENDPOINT"),
         luma_api_key=_env("LUMA_API_KEY"),
-        wordpress_url=_env("WORDPRESS_URL", "https://passqual.com").rstrip("/"),
+        wordpress_url=_env("WORDPRESS_URL", "https://wp.passqual.com").rstrip("/"),
+        wordpress_public_site=_env(
+            "WORDPRESS_PUBLIC_SITE", "https://passqual.com"
+        ).rstrip("/"),
         wordpress_user=_env("WORDPRESS_USER"),
         wordpress_app_password=_env("WORDPRESS_APP_PASSWORD"),
         wordpress_com_token=_env("WORDPRESS_COM_TOKEN"),
+        vercel_revalidate_url=_env("VERCEL_REVALIDATE_URL"),
+        wp_revalidate_secret=_env("WP_REVALIDATE_SECRET"),
         buffer_token=_env("BUFFER_TOKEN"),
         meta_page_token=_env("META_PAGE_TOKEN"),
         meta_ig_user_id=_env("META_IG_USER_ID"),

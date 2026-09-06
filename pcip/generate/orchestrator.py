@@ -26,6 +26,64 @@ from pcip.graph.store import KnowledgeGraph
 from pcip.models import Brief, EdgeKind, NodeKind
 
 
+COPY_FIELDS: Dict[str, Any] = {
+    "title": "",
+    "excerpt": "",
+    "body_html": "",
+    "alt_texts": [],
+    "hashtags": [],
+    "captions": {},
+}
+
+
+def parse_copy_fields(text: str) -> Dict[str, Any]:
+    """Extract the machine-readable block from a copy result.
+
+    Defensive on purpose: a model that ignores the format, wraps the block in
+    prose, or emits invalid JSON must degrade to "body is the whole text",
+    never break a pipeline run mid-flight.
+    """
+    import json
+    import re
+
+    fields = {k: (list(v) if isinstance(v, list) else dict(v) if isinstance(v, dict) else v)
+              for k, v in COPY_FIELDS.items()}
+    text = text or ""
+
+    candidates = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if not candidates:
+        # No fence — fall back to the outermost brace-balanced span.
+        start, depth = text.find("{"), 0
+        if start != -1:
+            for i in range(start, len(text)):
+                depth += (text[i] == "{") - (text[i] == "}")
+                if depth == 0:
+                    candidates = [text[start : i + 1]]
+                    break
+
+    for raw in reversed(candidates):          # a trailing block is the summary
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        for key, default in COPY_FIELDS.items():
+            value = parsed.get(key, default)
+            if isinstance(default, list):
+                fields[key] = [str(v) for v in value] if isinstance(value, list) else []
+            elif isinstance(default, dict):
+                fields[key] = {str(k): str(v) for k, v in value.items()} if isinstance(value, dict) else {}
+            else:
+                fields[key] = str(value or "")
+        break
+
+    if not fields["body_html"]:
+        # Nothing usable parsed — the prose itself is the best body we have.
+        fields["body_html"] = text.strip()
+    return fields
+
+
 class GenerationOrchestrator:
     def __init__(
         self,
@@ -138,7 +196,12 @@ class GenerationOrchestrator:
         )
 
     def copy_for_brief(self, brief: Brief, deliverable: str) -> GenerationResult:
-        """Generate deliverable-specific copy grounded in the brief."""
+        """Generate deliverable-specific copy grounded in the brief.
+
+        Returns prose for the human reviewer *and* a machine-readable block, so
+        the publisher can put the body in the body and the hashtags in the
+        caption rather than dumping one blob into the article.
+        """
         prompt = (
             f"Deliverable: {deliverable}\n"
             f"Objective: {brief.objective}\n"
@@ -149,9 +212,24 @@ class GenerationOrchestrator:
             f"Constraints: {'; '.join(brief.constraints) or 'none'}\n\n"
             "Produce the complete copy package for this deliverable "
             "(headlines, body, captions, CTA, hashtags where relevant, and "
-            "alt-text for every visual)."
+            "alt-text for every visual).\n\n"
+            "Then, at the very end, repeat the publishable parts as a single "
+            "fenced JSON block so they can be placed automatically:\n\n"
+            "```json\n"
+            "{\n"
+            '  "title": "the headline, plain text",\n'
+            '  "excerpt": "1-2 sentence summary, plain text",\n'
+            '  "body_html": "the article body as simple HTML (<p>, <h2>, <ul>) '
+            'with NO hashtags and no alt-text notes",\n'
+            '  "alt_texts": ["one alt text per visual, in order"],\n'
+            '  "hashtags": ["#example"],\n'
+            '  "captions": {"instagram": "...", "linkedin": "..."}\n'
+            "}\n"
+            "```"
         )
-        return self.generate("copy", prompt, brief)
+        result = self.generate("copy", prompt, brief)
+        result.metadata["fields"] = parse_copy_fields(result.text)
+        return result
 
     # ── Graph recording ──────────────────────────────────────────────────
 

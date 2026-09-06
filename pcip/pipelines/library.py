@@ -47,6 +47,9 @@ def generate_copy(ctx: Dict[str, Any]) -> str:
     deliverable = ctx.get("deliverable", "creative deliverable")
     result = orch.copy_for_brief(ctx["brief"], deliverable)
     ctx["copy"] = result.text
+    # The prose is what a human reads at the review gate; the parsed fields are
+    # what the publisher places (body in the body, hashtags in the caption).
+    ctx["copy_fields"] = result.metadata.get("fields", {})
     needs_medical = "[MEDICAL-REVIEW]" in result.text
     ctx["copy_flagged_medical"] = needs_medical
     return "Copy generated" + (" — flagged for medical review." if needs_medical else ".")
@@ -131,6 +134,10 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
         client.download_export(url, dest)
         paths.append(str(dest))
 
+    # Real per-visual alt text from the copy step, aligned to the exported
+    # pages; without this every image inherits the deliverable's filename.
+    alt_texts = [str(a) for a in (ctx.get("copy_fields") or {}).get("alt_texts") or []]
+
     asset = Asset(
         id=output_id,
         name=f"{ctx['brief'].title} ({fmt})",
@@ -138,10 +145,12 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
         canva_id=design_id,
         local_path=paths[0] if paths else "",
         license=LicensePolicy.canva_export_license(pro=True),
-        metadata={"via_export": True, "format": fmt, "pages": paths},
+        metadata={"via_export": True, "format": fmt, "pages": paths,
+                  "alt_texts": alt_texts},
     )
     graph.upsert_node(output_id, NodeKind.OUTPUT, asset.name, asset.to_dict())
-    graph.add_edge(output_id, EdgeKind.DERIVED_FROM, ctx.get("design_node", ""))
+    if ctx.get("design_node"):
+        graph.add_edge(output_id, EdgeKind.DERIVED_FROM, ctx["design_node"])
     ctx["output_id"] = output_id
     ctx["export_paths"] = paths
     ctx.setdefault("_step_outputs", []).append(output_id)

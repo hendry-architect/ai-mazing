@@ -32,6 +32,9 @@ Capability statuses:
     mcp_managed          delegated to an MCP server (credentials live there)
     missing_credentials  desired in the manifest but env vars absent
     auth_failed          live probe rejected the credentials
+    blocked              reachable, but something between PCIP and the API is
+                         refusing (bot challenge, WAF, interstitial) — the
+                         credentials may be fine; the path is not
     not_entitled         authenticated, but the plan/scope lacks this feature
     unsupported          the vendor's API does not offer this operation
     disabled             connector not requested in bootstrap.yaml
@@ -50,6 +53,16 @@ USABLE_STATUSES = ("ready", "configured", "mcp_managed")
 
 class ConnectorAuthError(Exception):
     """A live probe determined the credentials are invalid."""
+
+
+class ConnectorBlockedError(Exception):
+    """Something between PCIP and the API refused the call.
+
+    Distinct from an auth failure: the credentials may be perfectly good, but
+    a bot challenge, WAF rule or interstitial is answering instead of the API.
+    Distinct from a transient network error, which leaves the connector
+    ``configured`` — this one is a standing blocker and must not read as ready.
+    """
 
 
 class EntitlementError(Exception):
@@ -218,6 +231,8 @@ class ConnectorManager:
                 )
             except ConnectorAuthError as exc:
                 base_status, detail = "auth_failed", str(exc)
+            except ConnectorBlockedError as exc:
+                base_status, detail = "blocked", str(exc)
             except Exception as exc:  # network flake ≠ bad credentials
                 detail = f"probe error (kept 'configured'): {type(exc).__name__}: {exc}"
 
@@ -226,7 +241,8 @@ class ConnectorManager:
         for cap in desc.capabilities:
             if not cap.supported:
                 status = "unsupported"
-            elif base_status in ("disabled", "missing_credentials", "auth_failed"):
+            elif base_status in ("disabled", "missing_credentials", "auth_failed",
+                                 "blocked"):
                 status = base_status
             else:
                 status = overrides.get(cap.name, base_status)
@@ -280,6 +296,8 @@ class ConnectorManager:
             elif report["status"] == "auth_failed":
                 actions.append(f"{name}: credentials rejected — rotate the "
                                f"token ({report['detail']})")
+            elif report["status"] == "blocked":
+                actions.append(f"{name}: reachable but blocked — {report['detail']}")
             for cap, entry in report["capabilities"].items():
                 if entry["status"] == "not_entitled":
                     actions.append(
@@ -293,7 +311,7 @@ class ConnectorManager:
         summary = {
             s: sum(1 for r in matrix.values() if r["status"] == s)
             for s in ("ready", "configured", "mcp_managed",
-                      "missing_credentials", "auth_failed", "disabled")
+                      "missing_credentials", "auth_failed", "blocked", "disabled")
         }
         return {
             "manifest": {

@@ -18,6 +18,7 @@ from pcip.config import PCIPConfig
 from pcip.connectors.framework import (
     CapabilitySpec,
     ConnectorAuthError,
+    ConnectorBlockedError,
     ConnectorDescriptor,
     EntitlementError,
 )
@@ -84,13 +85,50 @@ def probe_google_ai(cfg: PCIPConfig) -> Dict[str, str]:
 
 
 def probe_wordpress(cfg: PCIPConfig) -> Dict[str, str]:
-    from pcip.connectors.wordpress import WordPressPublisher
+    """Verify the WordPress path end to end, without publishing anything.
+
+    Goes through the hardened transport so a SiteGround anti-bot challenge
+    (a 2xx carrying HTML) can never be mistaken for a healthy API, and asks
+    WordPress whether this account may actually create posts — a read
+    succeeding does not imply a write will.
+    """
+    from pcip.connectors.wordpress import (
+        WordPressAuthHeaderError,
+        WordPressChallengeError,
+        WordPressError,
+        WordPressPermissionError,
+        WordPressPublisher,
+    )
 
     wp = WordPressPublisher(cfg)
-    resp = wp.http.get(f"{wp.api_base}/users/me", timeout=cfg.request_timeout)
-    if resp.status_code in (401, 403):
-        raise ConnectorAuthError(f"WordPress auth failed ({resp.status_code})")
-    resp.raise_for_status()
+    try:
+        wp._get("/users/me")
+    except WordPressChallengeError as exc:
+        raise ConnectorBlockedError(str(exc)) from exc
+    except (WordPressAuthHeaderError, WordPressPermissionError) as exc:
+        raise ConnectorAuthError(str(exc)) from exc
+
+    gaps, reasons = [], []
+    if not cfg.revalidation_configured:
+        gaps.append("instant_revalidate")
+        reasons.append(
+            "instant revalidation is off (set VERCEL_REVALIDATE_URL and "
+            "WP_REVALIDATE_SECRET, and the matching secret on the site) — "
+            "articles still go live within ~60s without it"
+        )
+    try:
+        if not wp.can_write_posts():
+            gaps.append("create_post")
+            reasons.append(
+                "this WordPress account cannot create posts — grant it Author "
+                "or Editor rights, or use a different Application Password"
+            )
+    except WordPressError:
+        # OPTIONS unsupported or refused: no verdict is better than a wrong one.
+        pass
+
+    if gaps:
+        raise EntitlementError(gaps, "; ".join(reasons))
     return {}
 
 
@@ -167,8 +205,25 @@ CATALOG = [
         setup_ref="pcip/SETUP.md Phase 3",
         probe=probe_wordpress,
         capabilities=(
-            CapabilitySpec("create_post", "draft by default; --live is explicit"),
+            CapabilitySpec("create_post", "draft by default; --live is explicit",
+                           note="WORDPRESS_URL must point at the WordPress origin "
+                                "(e.g. wp.passqual.com), not the public site, which "
+                                "blocks /wp-json/*"),
             CapabilitySpec("upload_media", "media library upload with alt-text"),
+            CapabilitySpec("schedule_post", "native future-dated publishing"),
+            CapabilitySpec(
+                "instant_revalidate",
+                "purge the public site's cache on publish",
+                note="without it the article still appears within ~60s via the "
+                     "site's own revalidation window",
+            ),
+            CapabilitySpec(
+                "edit_live_page",
+                supported=False,
+                note="the public site's marketing/service pages are hand-authored "
+                     "modules in the website repository, deliberately not "
+                     "WordPress-driven — PCIP publishes articles only",
+            ),
         ),
     ),
     ConnectorDescriptor(
