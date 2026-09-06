@@ -126,6 +126,25 @@ def test_probe_network_flake_keeps_configured():
     assert report["status"] == "configured"      # flake ≠ bad credentials
 
 
+def test_a_failed_live_probe_is_never_silently_green():
+    """--live that could not verify must say so, not just look configured."""
+    def probe(cfg):
+        raise OSError("connection reset")
+
+    cfg = PCIPConfig(canva_access_token="tok")
+    m = manager(cfg, probe=probe)
+    report = m.doctor(live=True)
+    assert any("UNVERIFIED" in a for a in report["actions"])
+    assert any("connection reset" in a for a in report["actions"])
+
+
+def test_a_passing_live_probe_raises_no_unverified_action():
+    cfg = PCIPConfig(canva_access_token="tok")
+    m = manager(cfg, probe=lambda c: {})
+    report = m.doctor(live=True)
+    assert not any("UNVERIFIED" in a for a in report["actions"])
+
+
 def test_doctor_actions_and_summary():
     m = manager()
     report = m.doctor()

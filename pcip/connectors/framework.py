@@ -234,7 +234,12 @@ class ConnectorManager:
             except ConnectorBlockedError as exc:
                 base_status, detail = "blocked", str(exc)
             except Exception as exc:  # network flake ≠ bad credentials
+                # Keep the status: a transient blip must not flip a working
+                # connector to broken. But the operator asked for verification
+                # and did not get it, so this must never pass silently — the
+                # doctor raises it as an action below.
                 detail = f"probe error (kept 'configured'): {type(exc).__name__}: {exc}"
+                report["probe_error"] = detail
 
         report["status"] = base_status
         report["detail"] = detail
@@ -298,6 +303,11 @@ class ConnectorManager:
                                f"token ({report['detail']})")
             elif report["status"] == "blocked":
                 actions.append(f"{name}: reachable but blocked — {report['detail']}")
+            if report.get("probe_error"):
+                actions.append(
+                    f"{name}: live check could not complete, so '{report['status']}' "
+                    f"is UNVERIFIED — {report['probe_error']}"
+                )
             for cap, entry in report["capabilities"].items():
                 if entry["status"] == "not_entitled":
                     actions.append(
