@@ -201,7 +201,9 @@ class PCIPConfig:
         }
 
 
-def load_dotenv(path: Optional[Path] = None, *, override: bool = False) -> Dict[str, str]:
+def load_dotenv(
+    path: Optional[Path | str] = None, *, override: bool = False
+) -> Dict[str, str]:
     """Read a .env file into the process environment.
 
     PCIP is run from a terminal by one person, and every credential lives in a
@@ -210,16 +212,28 @@ def load_dotenv(path: Optional[Path] = None, *, override: bool = False) -> Dict[
     credentials" report rather than an obvious error, so the platform reads the
     file itself.
 
-    Existing environment variables win by default: an explicitly exported value
-    is a deliberate override for one command, and a file should not silently
-    undo it. Nothing here is logged — the return value is the set of keys read,
-    never the values.
+    Within the file, the LAST assignment to a key wins — the same rule `source`
+    follows. This matters in practice: the bootstrap seeds a .env from the
+    template with every key present and empty, and a tool appending a real
+    value writes it after those lines. Taking the first occurrence made the
+    empty placeholder shadow the real credential, so a key that had just been
+    saved successfully was reported as not set.
+
+    Existing environment variables still win over the file: an explicitly
+    exported value is a deliberate override for one command. Nothing here is
+    logged — the return value is the set of keys read, never the values.
     """
-    candidates = [path] if path else [Path.cwd() / ".env", _REPO_ROOT / ".env"]
-    loaded: Dict[str, str] = {}
+    if path is not None:
+        candidates = [Path(path)]
+    else:
+        candidates = [Path.cwd() / ".env", _REPO_ROOT / ".env"]
+
     for candidate in candidates:
-        if not candidate or not candidate.is_file():
+        if not candidate.is_file():
             continue
+        # Collect first, apply second, so later lines overwrite earlier ones
+        # before anything reaches the environment.
+        values: Dict[str, str] = {}
         for raw in candidate.read_text(encoding="utf-8", errors="replace").splitlines():
             line = raw.strip()
             if not line or line.startswith("#") or "=" not in line:
@@ -237,11 +251,12 @@ def load_dotenv(path: Optional[Path] = None, *, override: bool = False) -> Dict[
                 value = value[1:-1]
             elif " #" in value:
                 value = value.split(" #", 1)[0].rstrip()
+            values[key] = value
+        for key, value in values.items():
             if override or key not in os.environ:
                 os.environ[key] = value
-            loaded[key] = ""          # keys only; values are never retained here
-        break                          # first file found wins
-    return loaded
+        return {k: "" for k in values}   # keys only; values are never retained
+    return {}
 
 
 def _env(name: str, default: str = "") -> str:

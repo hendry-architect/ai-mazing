@@ -60,13 +60,58 @@ if [ -z "$VALUE" ]; then
   exit 1
 fi
 
-TMP="$(mktemp)"
-grep -v "^[[:space:]]*\(export[[:space:]]\+\)\?${KEY}=" "$ENVFILE" > "$TMP" 2>/dev/null
-printf '%s=%s\n' "$KEY" "$VALUE" >> "$TMP"
-mv "$TMP" "$ENVFILE"
+# Rewrite in Python rather than grep. The previous version used BRE with \+
+# and \?, which GNU grep accepts and the BSD grep shipped with macOS does not
+# — so on a Mac it removed nothing, the old line survived, and the new value
+# was merely appended below it. Combined with a loader that took the first
+# occurrence, a key that had just been saved read back as unset.
+REMOVED="$(KEY="$KEY" VALUE="$VALUE" ENVFILE="$ENVFILE" python3 <<'PYEOF'
+import os, pathlib, re
+
+key, value = os.environ["KEY"], os.environ["VALUE"]
+path = pathlib.Path(os.environ["ENVFILE"])
+pattern = re.compile(r"^\s*(?:export\s+)?" + re.escape(key) + r"\s*=")
+
+kept, removed = [], 0
+for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    if pattern.match(line):
+        removed += 1
+    else:
+        kept.append(line)
+
+while kept and not kept[-1].strip():
+    kept.pop()
+kept.append(f"{key}={value}")
+path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+print(removed)
+PYEOF
+)"
 chmod 600 "$ENVFILE"
 
 printf '✓ %s saved to .env (%d characters)\n' "$KEY" "${#VALUE}"
+if [ "${REMOVED:-0}" -gt 0 ] 2>/dev/null; then
+    printf '  (replaced %s earlier line(s) for this key)\n' "$REMOVED"
+fi
+
+# Prove it round-trips through the loader the platform actually uses, rather
+# than trusting that writing the file was enough.
+if ! KEY="$KEY" python3 - <<'PYEOF'
+import os, sys
+sys.path.insert(0, os.getcwd())
+try:
+    from pcip.config import load_dotenv
+except Exception:
+    sys.exit(0)                      # not runnable from here; writing succeeded
+os.environ.pop(os.environ["KEY"], None)
+load_dotenv()
+sys.exit(0 if os.environ.get(os.environ["KEY"]) else 1)
+PYEOF
+then
+    printf '\033[31m  ✗ saved, but PCIP still cannot read %s back\033[0m\n' "$KEY"
+    printf '    Check .env for another line assigning it.\n'
+    exit 1
+fi
+printf '  verified: PCIP reads it back\n'
 unset VALUE
 echo
 echo "next:  bash scripts/pcip-bringup.sh"

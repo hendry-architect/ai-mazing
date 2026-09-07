@@ -83,3 +83,57 @@ def test_load_config_picks_up_the_file(tmp_path, monkeypatch):
     from pcip.config import load_config
 
     assert load_config().anthropic_api_key == "sk-test-123"
+
+
+# ── duplicate keys ───────────────────────────────────────────────────────────
+
+
+def test_last_assignment_wins(tmp_path, monkeypatch):
+    """The bootstrap seeds every key empty; a tool appends the real value after.
+
+    Taking the first occurrence made the empty placeholder shadow a credential
+    that had just been saved successfully, and the platform reported it as not
+    set. `source` takes the last assignment; so does this.
+    """
+    monkeypatch.delenv("PCIP_TEST_DUP", raising=False)
+    load_dotenv(write(tmp_path, "PCIP_TEST_DUP=\nPCIP_TEST_DUP=real-value\n"))
+    assert os.environ["PCIP_TEST_DUP"] == "real-value"
+
+
+def test_last_assignment_wins_even_with_export_and_spacing(tmp_path, monkeypatch):
+    monkeypatch.delenv("PCIP_TEST_DUP2", raising=False)
+    load_dotenv(write(tmp_path, "PCIP_TEST_DUP2=first\nexport PCIP_TEST_DUP2 = second\n"))
+    assert os.environ["PCIP_TEST_DUP2"] == "second"
+
+
+def test_a_credential_with_spaces_survives_a_duplicate(tmp_path, monkeypatch):
+    """WordPress Application Passwords contain spaces — the real failing case."""
+    monkeypatch.delenv("PCIP_TEST_APP_PW", raising=False)
+    load_dotenv(write(
+        tmp_path,
+        "PCIP_TEST_APP_PW=\nPCIP_TEST_APP_PW=abcd efgh ijkl mnop qrst uvwx\n",
+    ))
+    assert os.environ["PCIP_TEST_APP_PW"] == "abcd efgh ijkl mnop qrst uvwx"
+
+
+def test_a_string_path_is_accepted(tmp_path, monkeypatch):
+    """It crashed on a str, which is what a caller naturally passes."""
+    monkeypatch.delenv("PCIP_TEST_STRPATH", raising=False)
+    load_dotenv(str(write(tmp_path, "PCIP_TEST_STRPATH=ok\n")))
+    assert os.environ["PCIP_TEST_STRPATH"] == "ok"
+
+
+def test_the_real_config_sees_the_later_value(tmp_path, monkeypatch):
+    for k in ("WORDPRESS_USER", "WORDPRESS_APP_PASSWORD"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.chdir(tmp_path)
+    write(tmp_path, (
+        "WORDPRESS_USER=\nWORDPRESS_APP_PASSWORD=\n"
+        "WORDPRESS_USER=editor\nWORDPRESS_APP_PASSWORD=abcd efgh ijkl\n"
+    ))
+    from pcip.config import load_config
+
+    cfg = load_config()
+    assert cfg.wordpress_user == "editor"
+    assert cfg.wordpress_app_password == "abcd efgh ijkl"
+    assert cfg.wordpress_configured is True
