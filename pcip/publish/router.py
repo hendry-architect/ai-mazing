@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Optional
 
 from pcip.config import PCIPConfig
 from pcip.graph.store import KnowledgeGraph
+from pcip.annotations import strip_review_annotations
 from pcip.licensing import LicensePolicy, LicensingError
 from pcip.models import Asset, Channel, EdgeKind, NodeKind, Publication
 
@@ -136,6 +137,12 @@ class PublishRouter:
         run = self._producing_run(output.id)
         ctx = run.get("context") or {}
         fields = ctx.get("copy_fields") or {}
+        # Reviewer annotations are addressed to a clinician, never to a reader.
+        # The medical_review gate is where they are resolved; by the time copy
+        # reaches a channel they must be gone, and what was removed is recorded
+        # so the edit is auditable rather than silent.
+        raw_body = text or fields.get("body_html") or ctx.get("copy") or ""
+        body_html, stripped_annotations = strip_review_annotations(raw_body)
 
         language = "en"
         brief_node = self.graph.get_node(run.get("brief_id", ""))
@@ -155,13 +162,14 @@ class PublishRouter:
 
         return {
             "title": title or fields.get("title") or output.name,
-            "body_html": text or fields.get("body_html") or ctx.get("copy") or "",
+            "body_html": body_html,
             "excerpt": fields.get("excerpt", ""),
             "media_paths": paths,
             "alt_texts": alts[: len(paths)],
             "language": language,
             "hashtags": fields.get("hashtags") or [],
             "captions": fields.get("captions") or {},
+            "stripped_annotations": stripped_annotations,
         }
 
     def _check_license(self, output: Asset) -> None:
@@ -294,6 +302,9 @@ class PublishRouter:
             "media": copied,
             "expected_public_url": self._expected_url(slug, payload["language"]),
             "output_id": output_id,
+            # Notes removed on the way out, kept so the reviewer can confirm
+            # each one was actually resolved rather than merely deleted.
+            "reviewer_notes_removed": payload["stripped_annotations"],
         }
         (folder / "meta.json").write_text(
             json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"

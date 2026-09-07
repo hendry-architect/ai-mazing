@@ -17,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List
 
+from pcip.annotations import has_review_annotations, strip_review_annotations
 from pcip.licensing import LicensePolicy
 from pcip.models import Asset, EdgeKind, NodeKind, new_id
 from pcip.pipelines.base import HandoffRequired, Pipeline, ReviewGate, Step
@@ -50,7 +51,7 @@ def generate_copy(ctx: Dict[str, Any]) -> str:
     if ctx.get("copy_fields") or ctx.get("copy"):
         text = ctx.get("copy", "")
         ctx.setdefault("copy_fields", {})
-        ctx["copy_flagged_medical"] = "[MEDICAL-REVIEW]" in text
+        ctx["copy_flagged_medical"] = has_review_annotations(text)
         return "Copy supplied via handoff."
 
     orch = GenerationOrchestrator(cfg, ctx["graph"])
@@ -90,7 +91,7 @@ def generate_copy(ctx: Dict[str, Any]) -> str:
     # The prose is what a human reads at the review gate; the parsed fields are
     # what the publisher places (body in the body, hashtags in the caption).
     ctx["copy_fields"] = result.metadata.get("fields", {})
-    needs_medical = "[MEDICAL-REVIEW]" in result.text
+    needs_medical = has_review_annotations(result.text)
     ctx["copy_flagged_medical"] = needs_medical
     return "Copy generated" + (" — flagged for medical review." if needs_medical else ".")
 
@@ -303,7 +304,7 @@ def plain_language_check(ctx: Dict[str, Any]) -> str:
         return "No copy to check."
     text = _html.unescape(_re.sub(r"<[^>]+>", " ", raw))
     # Reviewer annotations are instructions to a human, not patient copy.
-    text = _re.sub(r"\[MEDICAL-REVIEW[^\]]*\]", " ", text)
+    text, _ = strip_review_annotations(text)
 
     words = text.split()
     if not words:

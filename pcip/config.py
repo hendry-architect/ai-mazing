@@ -15,6 +15,9 @@ from typing import Dict, List, Optional
 
 DEFAULT_DATA_DIR = "pcip_data"
 
+# pcip/config.py -> pcip/ -> repo root
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
 
 @dataclass
 class PCIPConfig:
@@ -186,12 +189,60 @@ class PCIPConfig:
         }
 
 
+def load_dotenv(path: Optional[Path] = None, *, override: bool = False) -> Dict[str, str]:
+    """Read a .env file into the process environment.
+
+    PCIP is run from a terminal by one person, and every credential lives in a
+    .env next to the repo. Requiring `set -a; source .env` before every command
+    is a step that is easy to forget and produces a confusing "missing
+    credentials" report rather than an obvious error, so the platform reads the
+    file itself.
+
+    Existing environment variables win by default: an explicitly exported value
+    is a deliberate override for one command, and a file should not silently
+    undo it. Nothing here is logged — the return value is the set of keys read,
+    never the values.
+    """
+    candidates = [path] if path else [Path.cwd() / ".env", _REPO_ROOT / ".env"]
+    loaded: Dict[str, str] = {}
+    for candidate in candidates:
+        if not candidate or not candidate.is_file():
+            continue
+        for raw in candidate.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            if line.startswith("export "):
+                line = line[len("export "):].lstrip()
+            key, _, value = line.partition("=")
+            key = key.strip()
+            if not key.isidentifier():
+                continue
+            value = value.strip()
+            # Strip one matching pair of surrounding quotes, and anything after
+            # an unquoted ` #` — both are ordinary in a hand-edited .env.
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            elif " #" in value:
+                value = value.split(" #", 1)[0].rstrip()
+            if override or key not in os.environ:
+                os.environ[key] = value
+            loaded[key] = ""          # keys only; values are never retained here
+        break                          # first file found wins
+    return loaded
+
+
 def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
 
 def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
-    """Build a PCIPConfig from PCIP_* / provider environment variables."""
+    """Build a PCIPConfig from PCIP_* / provider environment variables.
+
+    A .env beside the repo (or in the working directory) is read first, so the
+    platform behaves the same whether or not the caller remembered to export it.
+    """
+    load_dotenv()
     cfg = PCIPConfig(
         data_dir=Path(data_dir or _env("PCIP_DATA_DIR", DEFAULT_DATA_DIR)),
         canva_client_id=_env("CANVA_CLIENT_ID"),
