@@ -123,8 +123,87 @@ case "$STATUS::$NEED" in
         info "  unset ANTHROPIC_API_KEY && bash scripts/pcip-publish.sh" ;;
     awaiting_review::*)
         warn "waiting for YOUR review of: $NEED"
+        # A review gate you cannot read is not a review. Render the article to
+        # a file and point at it, rather than asking for approval of something
+        # that has only ever existed as a JSON field.
+        REVIEWFILE="$("$PY" - "$DATA" "$RUN" "$NEED" <<'PYEOF'
+import html, pathlib, sys
+from pcip.graph.store import KnowledgeGraph
+from pcip.annotations import find_review_annotations
+
+data, run_id, gate = sys.argv[1], sys.argv[2], sys.argv[3]
+g = KnowledgeGraph(str(pathlib.Path(data) / "graph.db"))
+run = (g.get_node(run_id) or {}).get("payload", {})
+fields = (run.get("context") or {}).get("copy_fields") or {}
+bodies = fields.get("bodies") or {}
+if not bodies and fields.get("body_html"):
+    bodies = {"es": fields["body_html"]}
+titles = fields.get("titles") or {}
+
+notes = []
+for body in bodies.values():
+    notes.extend(find_review_annotations(body))
+
+out = pathlib.Path(data) / "review"
+out.mkdir(parents=True, exist_ok=True)
+path = out / f"{run_id}-{gate}.html"
+
+parts = [
+    "<meta charset='utf-8'>",
+    "<style>body{font:16px/1.6 -apple-system,system-ui,sans-serif;"
+    "max-width:44rem;margin:3rem auto;padding:0 1.5rem;color:#14181F}"
+    "h1{font-size:1.5rem}h2{font-size:1.15rem;margin-top:2rem}"
+    ".note{background:#FDF3D8;border-left:4px solid #F4B41C;padding:.75rem 1rem;"
+    "margin:1rem 0;border-radius:4px}"
+    ".meta{color:#667;font-size:.9rem}hr{margin:3rem 0;border:0;"
+    "border-top:1px solid #ddd}</style>",
+    f"<p class='meta'>Run {html.escape(run_id)} &middot; gate: "
+    f"<strong>{html.escape(gate)}</strong></p>",
+]
+if notes:
+    parts.append(f"<div class='note'><strong>{len(notes)} item(s) flagged for "
+                 "clinician sign-off.</strong> These are removed from the "
+                 "published article and kept in the audit trail — read them "
+                 "before approving:<ul>")
+    for n in notes:
+        parts.append(f"<li>{html.escape(n)}</li>")
+    parts.append("</ul></div>")
+
+meta_t = fields.get("meta_title", "")
+meta_d = fields.get("meta_description", "")
+if meta_t or meta_d:
+    parts.append(f"<p class='meta'>SEO title: {html.escape(meta_t)}<br>"
+                 f"Meta description: {html.escape(meta_d)}</p>")
+
+for lang, body in bodies.items():
+    parts.append("<hr>")
+    parts.append(f"<p class='meta'>{lang.upper()} &middot; "
+                 f"{len(body.split())} words</p>")
+    parts.append(f"<h1>{html.escape(titles.get(lang, ''))}</h1>")
+    parts.append(body)
+
+faq = fields.get("faq") or []
+if faq:
+    parts.append("<hr><h2>FAQ</h2>")
+    for item in faq:
+        parts.append(f"<p><strong>{html.escape(str(item.get('q','')))}</strong><br>"
+                     f"{html.escape(str(item.get('a','')))}</p>")
+
+path.write_text("\n".join(parts), encoding="utf-8")
+print(path)
+PYEOF
+)"
+        if [ -n "$REVIEWFILE" ] && [ -f "$REVIEWFILE" ]; then
+            info ""
+            info "Read it first — this opens in your browser:"
+            info "  open \"$REVIEWFILE\""
+            if [ "$SHOW_ONLY" != "1" ] && command -v open >/dev/null 2>&1; then
+                open "$REVIEWFILE" >/dev/null 2>&1 && ok "opened the article for review"
+            fi
+        fi
+        info ""
         info "This is a human decision and the script will not make it."
-        info "Read the copy, then approve with the id already filled in:"
+        info "When you have read it, approve with the id already filled in:"
         info ""
         info "  python3 -m pcip --data-dir pcip_data approve $RUN \\"
         info "      --gate $NEED --reviewer \"Dr. Pascual\""
