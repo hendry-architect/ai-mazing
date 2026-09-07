@@ -424,3 +424,43 @@ def test_wpcom_mode_does_not_send_the_mirror_header():
     wp = WordPressPublisher(PCIPConfig(wordpress_com_token="t"),
                             session=FakeSession(lambda *a: Resp()))
     assert "X-PCIP-Authorization" not in wp.http.headers
+
+
+# ── wrong origin ─────────────────────────────────────────────────────────────
+
+
+def test_empty_404_names_the_wrong_origin():
+    """The public site rewrites /wp-json/* to a blocked route: 404, no body.
+
+    Reported as a bare "HTTP 404. Body:" this is unactionable — it looks like a
+    missing endpoint rather than a misconfigured hostname.
+    """
+    from pcip.connectors.wordpress import WordPressOriginError
+
+    resp = Resp(status=404, text="", headers={})
+    with pytest.raises(WordPressOriginError) as exc:
+        classify_response(resp, "POST /media")
+    msg = str(exc.value)
+    assert "WORDPRESS_URL" in msg
+    assert "wp.passqual.com" in msg
+    assert "never reached the REST API" in msg
+
+
+def test_html_404_is_also_treated_as_a_wrong_origin():
+    from pcip.connectors.wordpress import WordPressOriginError
+
+    resp = Resp(status=404, text="<html>Not Found</html>",
+                headers={"content-type": "text/html"})
+    with pytest.raises(WordPressOriginError):
+        classify_response(resp, "POST /media")
+
+
+def test_a_genuine_wordpress_404_is_not_confused_with_it():
+    """WordPress answers a missing route with JSON; that is a different bug."""
+    from pcip.connectors.wordpress import WordPressOriginError
+
+    resp = Resp(status=404, text='{"code":"rest_no_route","message":"No route"}',
+                headers={"content-type": "application/json"})
+    with pytest.raises(WordPressError) as exc:
+        classify_response(resp, "GET /nope")
+    assert not isinstance(exc.value, WordPressOriginError)

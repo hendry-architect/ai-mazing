@@ -74,6 +74,14 @@ class WordPressNotConfigured(WordPressError):
     """No WordPress credentials are available."""
 
 
+class WordPressOriginError(WordPressError):
+    """The request did not reach a WordPress REST API at all.
+
+    Distinct from an auth or permission failure: the address is wrong, so no
+    credential could have helped.
+    """
+
+
 class WordPressChallengeError(WordPressError):
     """The host answered with an anti-bot challenge instead of the REST API."""
 
@@ -115,6 +123,30 @@ def classify_response(resp: Any, what: str = "request") -> Dict[str, Any]:
 
     if status == 204:
         return {}
+
+    # ── A 404 that is not WordPress answering ────────────────────────────
+    # WordPress's own 404 is JSON with a "rest_no_route" code. A 404 carrying
+    # an empty or HTML body means the request never reached the REST API at
+    # all — almost always because WORDPRESS_URL points at the reader-facing
+    # site rather than the WordPress origin. On this deployment the public
+    # site rewrites /wp-json/* to a blocked route, which produces exactly
+    # this: 404, no body, no explanation.
+    if status == 404 and "rest_no_route" not in body:
+        detail = (body or "").strip()
+        raise WordPressOriginError(
+            f"{what}: HTTP 404 with "
+            + ("an empty body" if not detail else f"a non-API body ({content_type or 'unknown type'})")
+            + ". WordPress answers a missing route with JSON, so this request "
+            "never reached the REST API.\n\n"
+            "The usual cause is WORDPRESS_URL pointing at the public site "
+            "instead of the WordPress origin. They are different hosts here: "
+            "the public site rewrites /wp-json/* to a blocked route.\n\n"
+            "Check it:\n"
+            "  WORDPRESS_URL=https://wp.passqual.com    (the REST API — writes go here)\n"
+            "  WORDPRESS_PUBLIC_SITE=https://passqual.com   (where readers land)\n\n"
+            "Fix with:\n"
+            "  bash scripts/pcip-set-key.sh WORDPRESS_URL"
+        )
 
     # ── Authentication and permission ────────────────────────────────────
     if status in (401, 403):

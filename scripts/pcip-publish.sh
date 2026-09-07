@@ -149,6 +149,11 @@ if [ $STATUS -ne 0 ]; then
         *"XML-RPC"*disabled*|*"does not expose"*)
             info "XML-RPC looks disabled. Check Wordfence:"
             info "  Wordfence → All Options → search 'XML-RPC'" ;;
+        *WORDPRESS_URL*|*"never reached the REST API"*)
+            info "WORDPRESS_URL is pointing at the wrong host. Set it to the"
+            info "WordPress origin, not the reader-facing site:"
+            info "  bash scripts/pcip-set-key.sh WORDPRESS_URL"
+            info "  (value: https://wp.passqual.com)" ;;
         *ProxyError*|*"Max retries exceeded"*|*"Connection refused"*|*Timeout*)
             info "This is a network failure reaching the site, not an"
             info "authentication problem. Check your connection and retry." ;;
