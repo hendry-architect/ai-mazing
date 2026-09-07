@@ -222,3 +222,67 @@ def test_rest_success_records_its_transport():
     wp = WordPressPublisher(cfg(), session=ok)
     pub = wp.publish_post("T", "<p>b</p>", status="publish", slug="s", language="en")
     assert pub.metadata["transport"] == "rest"
+
+
+def test_fallback_fires_when_media_upload_is_what_fails(monkeypatch, tmp_path):
+    """Media is uploaded before the post, so that is where auth fails first.
+
+    Wrapping only the post-creation call meant any deliverable with an
+    attachment — which is every one this pipeline produces — never reached the
+    fallback.
+    """
+    rest = FakeSession([Resp('{"code":"rest_not_logged_in"}', status=401,
+                             content_type="application/json")])
+    wp = WordPressPublisher(cfg(), session=rest)
+
+    used = {}
+
+    class FakeRPC:
+        def __init__(self, config, session=None):
+            pass
+
+        def available(self):
+            return True
+
+        def upload_file(self, path, mime_type=""):
+            used["uploaded"] = str(path)
+            return {"id": "9", "url": "https://wp/x.pdf"}
+
+        def set_alt_text(self, *a):
+            pass
+
+        def new_post(self, title, content, **kw):
+            used["posted"] = True
+            return "88", "https://wp.passqual.com/?p=88"
+
+    handout = tmp_path / "handout.pdf"
+    handout.write_bytes(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr("pcip.connectors.wordpress_xmlrpc.WordPressXMLRPC", FakeRPC)
+    pub = wp.publish_post(
+        "T", "<p>b</p>", status="publish", slug="s", language="es",
+        media_paths=[str(handout)], alt_texts=["un folleto"],
+    )
+    assert used["uploaded"].endswith("handout.pdf")
+    assert used["posted"] is True
+    assert pub.metadata["transport"] == "xmlrpc"
+
+
+def test_transport_xmlrpc_skips_rest_entirely(monkeypatch):
+    rest = FakeSession([])          # any REST call would IndexError
+    wp = WordPressPublisher(cfg(wordpress_transport="xmlrpc"), session=rest)
+
+    class FakeRPC:
+        def __init__(self, config, session=None):
+            pass
+
+        def available(self):
+            return True
+
+        def new_post(self, title, content, **kw):
+            return "99", "https://wp.passqual.com/?p=99"
+
+    monkeypatch.setattr("pcip.connectors.wordpress_xmlrpc.WordPressXMLRPC", FakeRPC)
+    pub = wp.publish_post("T", "<p>b</p>", status="publish", slug="s")
+    assert pub.external_id == "99"
+    assert rest.calls == []

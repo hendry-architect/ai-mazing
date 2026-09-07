@@ -429,10 +429,60 @@ class WordPressPublisher:
         language: str = "en",
         schedule_at: str = "",
     ) -> Publication:
-        """Create a post; embeds uploaded media and sets the first as featured."""
+        """Create a post, choosing a write path that works on this host.
+
+        The fallback wraps the whole REST attempt, not just the post creation.
+        Media is uploaded first, so on a host that strips the Authorization
+        header the failure surfaces at the media endpoint — wrapping only the
+        post call would mean any deliverable with an attachment never reached
+        the fallback at all.
+        """
         # Validate before any network call, so a bad timestamp never leaves a
         # half-uploaded media library behind.
         scheduled_gmt = _wp_datetime(schedule_at) if schedule_at else ""
+
+        rest_kwargs = dict(
+            status=status, media_paths=media_paths, alt_texts=alt_texts,
+            categories=categories, tags=tags, excerpt=excerpt, slug=slug,
+            language=language, scheduled_gmt=scheduled_gmt,
+        )
+        if self.cfg.wordpress_transport == "xmlrpc":
+            return self._publish_via_xmlrpc(
+                title, content_html, status=status, excerpt=excerpt, slug=slug,
+                language=language, scheduled_gmt=scheduled_gmt,
+                media_paths=media_paths, alt_texts=alt_texts,
+            )
+        try:
+            return self._publish_via_rest(title, content_html, **rest_kwargs)
+        except WordPressAuthHeaderError:
+            # This host cannot authenticate REST at all. XML-RPC sends the
+            # credentials in the request body and is unaffected. Fall back:
+            # the caller asked for the article to be published, not for a
+            # particular transport to be used.
+            if self.cfg.wordpress_transport == "rest":
+                raise
+            return self._publish_via_xmlrpc(
+                title, content_html, status=status, excerpt=excerpt, slug=slug,
+                language=language, scheduled_gmt=scheduled_gmt,
+                media_paths=media_paths, alt_texts=alt_texts,
+            )
+
+    def _publish_via_rest(
+        self,
+        title: str,
+        content_html: str,
+        *,
+        status: str,
+        media_paths: Optional[List[str]],
+        alt_texts: Optional[List[str]],
+        categories: Optional[List[int]],
+        tags: Optional[List[int]],
+        excerpt: str,
+        slug: str,
+        language: str,
+        scheduled_gmt: str,
+    ) -> Publication:
+        """Create a post over the REST API, uploading media first."""
 
         media_ids: List[int] = []
         media_html: List[str] = []
@@ -469,21 +519,7 @@ class WordPressPublisher:
         if tags:
             body["tags"] = tags
 
-        try:
-            post = self._post("/posts", json=body)
-        except WordPressAuthHeaderError:
-            # The host strips the Authorization header, so REST can never
-            # authenticate here. XML-RPC carries the credentials in the request
-            # body and is unaffected. Fall back rather than fail: the operator
-            # asked for the article to be published, not for a particular
-            # transport to be used.
-            if self.cfg.wordpress_transport == "rest":
-                raise
-            return self._publish_via_xmlrpc(
-                title, content_html, status=body["status"], excerpt=excerpt,
-                slug=slug, language=language, scheduled_gmt=scheduled_gmt,
-                media_paths=media_paths, alt_texts=alt_texts,
-            )
+        post = self._post("/posts", json=body)
         wp_status = post.get("status", body["status"])
         public_url = self.public_url_for(post.get("slug", slug), language)
 
