@@ -137,3 +137,38 @@ def test_the_real_config_sees_the_later_value(tmp_path, monkeypatch):
     assert cfg.wordpress_user == "editor"
     assert cfg.wordpress_app_password == "abcd efgh ijkl"
     assert cfg.wordpress_configured is True
+
+
+def test_an_empty_exported_variable_does_not_shadow_the_file(tmp_path, monkeypatch):
+    """`source`-ing a .env full of blank placeholders poisons the shell.
+
+    Those empty exports then shadow every credential saved afterwards, for the
+    life of that shell — so a key saved successfully keeps reading back as
+    unset. An empty exported value carries no information; treat it as absent.
+    """
+    monkeypatch.setenv("PCIP_TEST_EMPTY_SHADOW", "")
+    load_dotenv(write(tmp_path, "PCIP_TEST_EMPTY_SHADOW=real\n"))
+    assert os.environ["PCIP_TEST_EMPTY_SHADOW"] == "real"
+
+
+def test_a_real_exported_variable_still_wins(tmp_path, monkeypatch):
+    monkeypatch.setenv("PCIP_TEST_REAL_WINS", "from-shell")
+    load_dotenv(write(tmp_path, "PCIP_TEST_REAL_WINS=from-file\n"))
+    assert os.environ["PCIP_TEST_REAL_WINS"] == "from-shell"
+
+
+def test_the_full_failure_the_operator_actually_hit(tmp_path, monkeypatch):
+    """Blank placeholders exported, real values appended: must resolve."""
+    monkeypatch.setenv("WORDPRESS_USER", "")
+    monkeypatch.setenv("WORDPRESS_APP_PASSWORD", "")
+    monkeypatch.chdir(tmp_path)
+    write(tmp_path, (
+        "WORDPRESS_USER=\nWORDPRESS_APP_PASSWORD=\n"
+        "WORDPRESS_USER=editor\nWORDPRESS_APP_PASSWORD=abcd efgh ijkl\n"
+    ))
+    from pcip.config import load_config
+
+    cfg = load_config()
+    assert cfg.wordpress_user == "editor"
+    assert cfg.wordpress_app_password == "abcd efgh ijkl"
+    assert cfg.wordpress_configured is True

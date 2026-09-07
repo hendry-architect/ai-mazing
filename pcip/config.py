@@ -219,9 +219,12 @@ def load_dotenv(
     empty placeholder shadow the real credential, so a key that had just been
     saved successfully was reported as not set.
 
-    Existing environment variables still win over the file: an explicitly
-    exported value is a deliberate override for one command. Nothing here is
-    logged — the return value is the set of keys read, never the values.
+    A non-empty exported variable still wins over the file, since that is a
+    deliberate override for one command. An EMPTY one does not: it carries no
+    information, and it is exactly what `source`-ing a .env full of blank
+    placeholders leaves behind — which then shadows every credential saved
+    afterwards, for the life of that shell. Nothing here is logged — the
+    return value is the set of keys read, never the values.
     """
     if path is not None:
         candidates = [Path(path)]
@@ -253,7 +256,12 @@ def load_dotenv(
                 value = value.split(" #", 1)[0].rstrip()
             values[key] = value
         for key, value in values.items():
-            if override or key not in os.environ:
+            # An exported value wins over the file — but only a real one. An
+            # empty exported variable is not a deliberate override; it is what
+            # you get from `source`-ing a .env while its placeholders were
+            # still blank, and it then shadows the credential you just saved
+            # for the rest of that shell session. Treat empty as absent.
+            if override or not os.environ.get(key):
                 os.environ[key] = value
         return {k: "" for k in values}   # keys only; values are never retained
     return {}

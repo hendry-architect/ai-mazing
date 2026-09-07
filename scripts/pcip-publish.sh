@@ -40,8 +40,51 @@ PYEOF
 )"
 if [ -n "$MISSING" ]; then
     bad "not set: $MISSING"
+    info ""
+    info "Where each key actually stands (no values shown):"
+    "$PY" - <<'PYEOF' || true
+import os, pathlib
+
+from pcip.config import _REPO_ROOT
+
+files = [p for p in (pathlib.Path.cwd() / ".env", _REPO_ROOT / ".env")
+         if p.is_file()]
+seen = {str(p) for p in files}
+print(f"      .env files found: {', '.join(seen) or 'NONE'}")
+
+for key in ("WORDPRESS_USER", "WORDPRESS_APP_PASSWORD"):
+    shell = os.environ.get(key)
+    in_file = []
+    for f in files:
+        for raw in f.read_text(errors="replace").splitlines():
+            line = raw.strip().removeprefix("export ").strip()
+            if line.startswith(f"{key}=") or line.startswith(f"{key} ="):
+                in_file.append(len(line.split("=", 1)[1].strip().strip("\"'")))
+    if shell is None:
+        shell_state = "not in the shell environment"
+    elif shell == "":
+        shell_state = "EXPORTED AS EMPTY in this shell — this shadows the file"
+    else:
+        shell_state = f"exported in this shell ({len(shell)} chars)"
+    if not in_file:
+        file_state = "absent from .env"
+    elif all(n == 0 for n in in_file):
+        file_state = f"in .env but EMPTY ({len(in_file)} line(s))"
+    else:
+        file_state = f"in .env, {max(in_file)} chars ({len(in_file)} line(s))"
+    print(f"      {key}:")
+    print(f"        file  : {file_state}")
+    print(f"        shell : {shell_state}")
+PYEOF
+    info ""
+    info "If a key shows EXPORTED AS EMPTY, that shell variable is the problem."
+    info "Clear it and re-run — no need to re-enter anything:"
+    info "    unset WORDPRESS_USER WORDPRESS_APP_PASSWORD"
+    info "    bash scripts/pcip-publish.sh"
+    info ""
+    info "If a key is absent from .env, add it:"
     for KEY in $MISSING; do
-        info "bash scripts/pcip-set-key.sh $KEY"
+        info "    bash scripts/pcip-set-key.sh $KEY"
     done
     info ""
     info "The Application Password comes from:"
