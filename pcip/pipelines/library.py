@@ -284,6 +284,49 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
     return f"Exported {len(paths)} file(s) → {cfg.exports_dir} (output {output_id})."
 
 
+def ph_standard_check(ctx: Dict[str, Any]) -> str:
+    """Hold the deliverable to the PassQual Health article standard.
+
+    This runs before any review gate, so a clinician is never asked to approve
+    something the brand standard already rejects. Blockers and missing
+    requirements fail the step: the first article PCIP published was ~120
+    words, Spanish-only, with no meta description, no hero image, no NAP and no
+    physician credentials — every one of which this catches.
+    """
+    from pcip.standards import check_article
+
+    fields = ctx.get("copy_fields") or {}
+    bodies = fields.get("bodies") or {}
+    titles = fields.get("titles") or {}
+    if not bodies and fields.get("body_html"):
+        # Older single-language copy: grade it in the brief's language so the
+        # missing counterpart is reported rather than silently accepted.
+        lang = (ctx["brief"].language or "es").lower()[:2]
+        bodies = {lang: fields["body_html"]}
+        titles = {lang: fields.get("title", "")}
+
+    article = {
+        "bodies": bodies,
+        "titles": titles,
+        "meta_title": fields.get("meta_title", ""),
+        "meta_description": fields.get("meta_description", ""),
+        "faq": fields.get("faq") or [],
+        "featured_image": (ctx.get("export_paths") or [""])[0]
+                          or fields.get("featured_image", ""),
+        "alt_texts": fields.get("alt_texts_by_language")
+                     or fields.get("alt_texts") or {},
+    }
+    check = check_article(article, stage="draft")
+    ctx["ph_standard"] = check.to_dict()
+
+    if not check.passed:
+        raise ValueError(check.report())
+    if check.advisories:
+        return (f"PH standard: passed with {len(check.advisories)} advisory "
+                f"note(s) — {check.advisories[0].detail}")
+    return "PH standard: passed."
+
+
 # Share of long words that reads as "dense" for patient-facing copy. Spanish
 # words are systematically longer than English ones, so one threshold across
 # both languages fails bilingual material that is in fact plain.
@@ -348,6 +391,9 @@ def _standard(name: str, description: str, deliverable: str,
         Step("format", _set_format, "Choose export format"),
         Step("gather_context", gather_context, "Search the knowledge graph for related work"),
         Step("generate_copy", generate_copy, "AI copy package (headlines, body, CTA, hashtags, alt-text)"),
+        # Before any human review: a clinician should never be asked to approve
+        # something the brand standard already rejects.
+        Step("ph_standard", ph_standard_check, "PassQual Health article standard"),
         *extra_steps,
         Step("assemble", assemble_in_canva, "Autofill the brand template (supported workflow)"),
     ]

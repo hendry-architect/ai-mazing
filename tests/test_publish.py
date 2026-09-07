@@ -60,12 +60,28 @@ def test_publish_blocks_unknown_license():
         router.publish("out_1", Channel.WORDPRESS)
 
 
-def test_licensed_output_reaches_channel_config_check():
-    """A properly exported output clears policy; the next failure is simply
-    that no WordPress credentials exist in the test environment."""
+def test_licensed_output_then_faces_the_brand_standard():
+    """Licensing clears; the next gate is the PassQual Health article standard.
+
+    It sits between licensing and transport deliberately: there is no point
+    checking WordPress credentials for an article that must not be published
+    in the first place.
+    """
     cfg, g, router = setup()
     with pytest.raises(Exception) as exc_info:
         router.publish("out_1", Channel.WORDPRESS)
+    assert "PassQual Health article standard" in str(exc_info.value)
+
+
+def test_operator_supplied_text_reaches_channel_config_check():
+    """Explicit --text is the operator taking responsibility for the body.
+
+    The standard is skipped, so the next failure is simply that no WordPress
+    credentials exist in the test environment.
+    """
+    cfg, g, router = setup()
+    with pytest.raises(Exception) as exc_info:
+        router.publish("out_1", Channel.WORDPRESS, text="<p>Mi propio texto.</p>")
     assert "not configured" in str(exc_info.value)
 
 

@@ -178,6 +178,52 @@ class PublishRouter:
             "stripped_annotations": stripped_annotations,
         }
 
+    def _check_ph_standard(
+        self, output_id: str, payload: Dict[str, Any], output: Asset
+    ) -> None:
+        """Refuse to publish an article below the PassQual Health standard.
+
+        The pipeline runs this too, before human review — but only at the draft
+        stage, when the design has not been exported and the hero image cannot
+        exist yet. This is the last gate before a reader sees it, so it runs
+        the full check: bilingual pair, depth, SEO surface, hero image, NAP,
+        credentials, and the compliance rules that must never ship.
+
+        Explicit ``--text`` bypasses this deliberately: an operator supplying
+        the body by hand has taken responsibility for it, and refusing their
+        own words would make the escape hatch useless.
+        """
+        from pcip.standards import check_article
+
+        run = self._producing_run(output_id)
+        fields = (run.get("context") or {}).get("copy_fields") or {}
+        bodies = fields.get("bodies") or {}
+        titles = fields.get("titles") or {}
+        if not bodies:
+            bodies = {payload.get("language", "es"): payload.get("body_html", "")}
+            titles = {payload.get("language", "es"): payload.get("title", "")}
+
+        media = payload.get("media_paths") or []
+        check = check_article({
+            "bodies": bodies,
+            "titles": titles,
+            "meta_title": fields.get("meta_title", ""),
+            "meta_description": fields.get("meta_description",
+                                           payload.get("excerpt", "")),
+            "faq": fields.get("faq") or [],
+            "featured_image": media[0] if media else "",
+            "alt_texts": fields.get("alt_texts_by_language") or {},
+        }, stage="publish")
+
+        if not check.passed:
+            raise PublishError(
+                f"Refusing to publish {output_id}: it does not meet the "
+                f"PassQual Health article standard.\n\n{check.report()}\n\n"
+                "Fix the copy and re-run the pipeline, or pass --text to "
+                "publish body copy you have written and taken responsibility "
+                "for."
+            )
+
     def _check_license(self, output: Asset) -> None:
         used: List[Asset] = [output]
         for ekind, asset_id in self.graph.neighbors(output.id, EdgeKind.USES_ASSET):
@@ -207,6 +253,8 @@ class PublishRouter:
         self._check_license(output)
 
         payload = self.payload_for(output, title=title, text=text)
+        if not text:
+            self._check_ph_standard(output_id, payload, output)
 
         if channel == Channel.WORDPRESS:
             from pcip.connectors.wordpress import WordPressPublisher
