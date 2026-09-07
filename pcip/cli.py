@@ -333,6 +333,23 @@ def cmd_publish(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_record(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Write down a publication that happened outside PCIP."""
+    from pcip.publish.router import PublishRouter
+
+    with _graph(cfg) as g:
+        pub = PublishRouter(cfg, g).record_manual(
+            args.output_id,
+            args.channel,
+            url=args.url,
+            external_id=args.external_id,
+            note=args.note,
+            published_at=args.published_at,
+        )
+        _print(pub.to_dict())
+    return 0
+
+
 # ─── Parser ──────────────────────────────────────────────────────────────────
 
 
@@ -436,6 +453,17 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--text", default="")
     sp.add_argument("--dest", default=None, help="output folder (default: <data-dir>/handoff/<output_id>)")
 
+    sp = sub.add_parser(
+        "record",
+        help="record a publication made outside PCIP (keeps the graph honest)",
+    )
+    sp.add_argument("output_id")
+    sp.add_argument("--channel", default="wordpress")
+    sp.add_argument("--url", default="", help="the reader-facing URL it went live at")
+    sp.add_argument("--external-id", default="", help="the channel's own id for the post")
+    sp.add_argument("--note", default="", help="why it was published by hand")
+    sp.add_argument("--published-at", default="", help="ISO timestamp (default: now)")
+
     sp = sub.add_parser("publish", help="publish an output to a channel")
     sp.add_argument("output_id")
     sp.add_argument("--channel", required=True)
@@ -467,6 +495,7 @@ COMMANDS = {
     "resume": cmd_resume,
     "attach": cmd_attach,
     "prepare": cmd_prepare,
+    "record": cmd_record,
     "publish": cmd_publish,
 }
 

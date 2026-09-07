@@ -70,8 +70,14 @@ exists only because the WordPress REST write path is unavailable.
 5. **Excerpt**: {meta['excerpt'] or '(none generated)'}
 6. **Media** — upload each file and set its alt text exactly:
 {media_lines}
-   Set the first image as the Featured image.
+   If a file is an image, set the first one as the Featured image. A PDF
+   cannot be a featured image: attach it as a download link instead, and
+   export a PNG of the same design if the article needs a hero image.
 7. Publish.
+
+8. Record it, so the knowledge graph knows where this went:
+   `pcip record {meta['output_id']} --channel wordpress --url {meta['expected_public_url']}`
+   Without this the output reads as unpublished while it is in fact live.
 
 The article should appear at **{meta['expected_public_url']}**
 within about 60 seconds — the public site fetches from WordPress on its next
@@ -356,6 +362,62 @@ class PublishRouter:
         )
         self.graph.add_edge(pub.output_id, EdgeKind.PUBLISHED_TO, pub.id)
         self.graph.add_edge(pub.id, EdgeKind.ON_CHANNEL, channel_node)
+
+    def record_manual(
+        self,
+        output_id: str,
+        channel: Channel | str,
+        *,
+        url: str = "",
+        external_id: str = "",
+        note: str = "",
+        published_at: str = "",
+    ) -> Publication:
+        """Record a publication that happened outside PCIP.
+
+        `prepare` exists because the automated write path can be unavailable —
+        a host misconfiguration, a channel without an API, a one-off posted by
+        hand. When that article goes live, the knowledge graph would otherwise
+        never learn of it, and the distribution record would be silently wrong:
+        an output that reads as unpublished while it is in fact on the internet.
+
+        The same review-state check as a real publish still applies, because a
+        deliverable whose gates never passed should not acquire a publication
+        record by another route. Licensing is not re-checked: the file has
+        already been distributed, and refusing to write it down would not undo
+        that — it would only lose the evidence.
+
+        The record is marked `manual` so it is never mistaken for something
+        PCIP performed and could reproduce.
+        """
+        channel = Channel(channel) if isinstance(channel, str) else channel
+        self._load_output_asset(output_id)     # raises if unknown
+        self._check_run_state(output_id)
+
+        if not (url or external_id):
+            raise PublishError(
+                "Recording a manual publication needs somewhere it went: pass "
+                "--url (preferred, it is the reader-facing address) or "
+                "--external-id."
+            )
+
+        pub = Publication(
+            output_id=output_id,
+            channel=channel,
+            url=url,
+            external_id=external_id,
+            status="published",
+            metadata={
+                "manual": True,
+                "recorded_by": "pcip record",
+                "note": note,
+                "reason": "published outside PCIP; see pcip/PUBLISHING-BLOCKER.md",
+            },
+        )
+        if published_at:
+            pub.published_at = published_at
+        self._record(pub)
+        return pub
 
     # ── Reporting ────────────────────────────────────────────────────────
 
