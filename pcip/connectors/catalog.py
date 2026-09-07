@@ -48,15 +48,37 @@ def probe_canva(cfg: PCIPConfig) -> Dict[str, str]:
 
 
 def probe_anthropic(cfg: PCIPConfig) -> Dict[str, str]:
-    resp = requests.get(
-        "https://api.anthropic.com/v1/models",
-        headers={"x-api-key": cfg.anthropic_api_key,
-                 "anthropic-version": "2023-06-01"},
-        timeout=cfg.request_timeout,
+    """Verify Anthropic access through whichever credential source is in play.
+
+    Goes through the SDK rather than a hand-rolled x-api-key request, so a
+    stored `ant auth login` profile or workload identity federation verifies
+    the same way an API key does.
+    """
+    if not cfg.anthropic_auth_source:
+        raise ConnectorAuthError(
+            "No Anthropic credentials. Either run `ant auth login` (stores a "
+            "profile, no long-lived secret on disk) or set ANTHROPIC_API_KEY."
+        )
+    try:
+        import anthropic
+    except ImportError as exc:
+        raise ConnectorAuthError(
+            "The 'anthropic' package is not installed (pip install anthropic)."
+        ) from exc
+    client = (
+        anthropic.Anthropic(api_key=cfg.anthropic_api_key)
+        if cfg.anthropic_api_key
+        else anthropic.Anthropic()
     )
-    if resp.status_code in (401, 403):
-        raise ConnectorAuthError(f"Anthropic key rejected ({resp.status_code})")
-    resp.raise_for_status()
+    try:
+        client.models.list(limit=1)
+    except Exception as exc:
+        if type(exc).__name__ in ("AuthenticationError", "PermissionDeniedError"):
+            raise ConnectorAuthError(
+                f"Anthropic rejected the credentials from "
+                f"'{cfg.anthropic_auth_source}': {exc}"
+            ) from exc
+        raise
     return {}
 
 
@@ -187,7 +209,8 @@ CATALOG = [
     ConnectorDescriptor(
         name="anthropic",
         auth_methods=("api_key",),
-        env_vars=("anthropic_api_key",),
+        # Any credential source counts, not just an API key.
+        env_any=(("anthropic_api_key",), ("anthropic_auth_source",)),
         docs_url="https://docs.anthropic.com/",
         setup_ref="pcip/SETUP.md Phase 2",
         probe=probe_anthropic,

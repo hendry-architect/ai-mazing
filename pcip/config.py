@@ -33,7 +33,7 @@ class PCIPConfig:
 
     # ── Anthropic (copy generation) ──────────────────────────────────────
     anthropic_api_key: str = ""
-    anthropic_model: str = "claude-sonnet-5"
+    anthropic_model: str = "claude-opus-5"
 
     # ── Image generation providers (capability-routed; all optional) ─────
     openai_api_key: str = ""           # OpenAI Images — default image provider
@@ -112,6 +112,35 @@ class PCIPConfig:
         self.exports_dir.mkdir(parents=True, exist_ok=True)
 
     @property
+    def anthropic_auth_source(self) -> str:
+        """Which credential source the Anthropic SDK will actually use.
+
+        An unset ANTHROPIC_API_KEY does not mean "no credentials" — the SDK
+        resolves, in order: the API key, an auth token, a profile stored by
+        `ant auth login`, then workload identity federation. PCIP reports the
+        source rather than assuming a key, so `ant auth login` (no long-lived
+        secret on disk) is a first-class way to run the platform.
+        """
+        if self.anthropic_api_key:
+            return "api_key"
+        if os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+            return "auth_token"
+        federation = (
+            "ANTHROPIC_FEDERATION_RULE_ID",
+            "ANTHROPIC_ORGANIZATION_ID",
+            "ANTHROPIC_SERVICE_ACCOUNT_ID",
+        )
+        if all(os.environ.get(v) for v in federation) and (
+            os.environ.get("ANTHROPIC_IDENTITY_TOKEN_FILE")
+            or os.environ.get("ANTHROPIC_IDENTITY_TOKEN")
+        ):
+            return "workload_identity_federation"
+        profiles = Path.home() / ".config" / "anthropic"
+        if profiles.is_dir() and any(profiles.iterdir()):
+            return "cli_profile"
+        return ""
+
+    @property
     def wordpress_configured(self) -> bool:
         """Single source of truth for 'can we talk to WordPress at all'.
 
@@ -132,7 +161,7 @@ class PCIPConfig:
         """Which connectors are configured (no secrets exposed)."""
         return {
             "canva": bool(self.canva_access_token or self.canva_refresh_token),
-            "anthropic": bool(self.anthropic_api_key),
+            "anthropic": bool(self.anthropic_auth_source),
             "openai_images": bool(self.openai_api_key),
             "google_ai": bool(self.google_ai_api_key),
             "ideogram": bool(self.ideogram_api_key),
@@ -166,7 +195,7 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         canva_refresh_token=_env("CANVA_REFRESH_TOKEN"),
         canva_api_base=_env("CANVA_API_BASE", "https://api.canva.com/rest/v1"),
         anthropic_api_key=_env("ANTHROPIC_API_KEY"),
-        anthropic_model=_env("PCIP_ANTHROPIC_MODEL", "claude-sonnet-5"),
+        anthropic_model=_env("PCIP_ANTHROPIC_MODEL", "claude-opus-5"),
         openai_api_key=_env("OPENAI_API_KEY"),
         openai_image_model=_env("PCIP_OPENAI_IMAGE_MODEL", "gpt-image-1"),
         google_ai_api_key=_env("GOOGLE_AI_API_KEY"),
