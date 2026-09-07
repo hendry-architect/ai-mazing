@@ -74,12 +74,37 @@ for HOST in $HOSTS; do
     200)
         warn "auth_test.php is PUBLICLY REACHABLE (HTTP 200)"
         info "type: $(field "$AT" 2)   bytes: $(field "$AT" 3)"
-        info "first bytes of its output:"
+        info "unauthenticated output:"
         "${CURL[@]}" "https://$HOST/auth_test.php" 2>/dev/null \
             | head -c 400 | sed 's/^/        /'
         echo
         info "NOTE: this is the file's OUTPUT, not its source. Read the source"
-        info "in SiteGround File Manager before deciding what it is." ;;
+        info "in SiteGround File Manager before deciding what it is."
+
+        # ── The decisive test ──────────────────────────────────────────────
+        # This probe reports the raw header as PHP sees it, which isolates the
+        # one variable WordPress's error code cannot: whether the header
+        # survives the web server at all. rest_not_logged_in is consistent
+        # with a stripped header AND with WordPress declining it for its own
+        # reasons; this is not.
+        AUTHED="$("${CURL[@]}" -u "header-probe:not-a-real-password" \
+                  "https://$HOST/auth_test.php" 2>/dev/null)"
+        SEEN="$(printf '%s' "$AUTHED" | grep -i '^Authorization:' | head -1)"
+        VALUE="$(printf '%s' "$SEEN" | cut -d: -f2- | tr -d ' \r')"
+        printf '\n'
+        if [ -n "$VALUE" ]; then
+            ok  "PHP DOES receive the Authorization header"
+            info "PHP sees: ${VALUE:0:12}…  (a Basic credential arrived intact)"
+            info "So the web server is NOT the problem — the header survives."
+            info "If WordPress still says rest_not_logged_in, the cause is"
+            info "inside WordPress: application passwords disabled, a security"
+            info "plugin refusing Basic auth, or REST auth filtered."
+        else
+            bad "PHP does NOT receive the Authorization header"
+            info "The credential was sent and is gone before PHP runs."
+            info "Confirmed at the web-server layer, not inferred from"
+            info "WordPress's error code."
+        fi ;;
     403|401)
         ok  "auth_test.php exists but is access-restricted (HTTP $ATCODE)" ;;
     404)
