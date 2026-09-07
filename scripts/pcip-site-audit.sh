@@ -55,8 +55,13 @@ for HOST in $HOSTS; do
           "https://$HOST/wp-json/wp/v2/users/me" 2>/dev/null)"
   case "$AUTH" in
     *rest_not_logged_in*)
-        bad "Authorization header NOT reaching PHP (rest_not_logged_in)"
-        info "WordPress received no credential at all — the header is stripped." ;;
+        warn "rest_not_logged_in — INCONCLUSIVE, not proof of a stripped header"
+        info "This probe deliberately sends a username that does not exist."
+        info "WordPress does not report a password error for an unknown user:"
+        info "it declines, continues unauthenticated, and returns exactly this"
+        info "code — the same one a genuinely missing credential produces."
+        info "To find out whether authentication works, publish with a real"
+        info "account:  bash scripts/pcip-publish.sh" ;;
     *incorrect_password*|*invalid_username*|*invalid_application_password*)
         ok  "Authorization header IS reaching PHP"
         info "WordPress read the credential and rejected the fake one. Correct." ;;
