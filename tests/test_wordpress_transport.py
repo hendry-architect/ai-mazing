@@ -394,21 +394,29 @@ def test_unconfigured_wordpress_names_the_origin_requirement():
     assert "wp.passqual.com" in str(exc.value)
 
 
-def test_mirror_auth_header_is_sent_for_stripped_hosts():
-    """Hosts that strip Authorization still receive the credentials."""
+def test_credentials_are_not_mirrored_unless_asked():
+    """Off by default.
+
+    Mirroring credentials into a second, non-standard header widens where they
+    can be logged or observed, and the server side of it accepts a
+    non-standard header as an authentication source. That is a decision for
+    the operator to make after the standard .htaccess fix has failed — not a
+    default that ships switched on and is never consciously chosen.
+    """
+    wp = WordPressPublisher(cfg(), session=FakeSession(lambda *a: Resp()))
+    assert "X-PCIP-Authorization" not in wp.http.headers
+
+
+def test_mirror_auth_header_is_sent_when_explicitly_enabled():
+    """Hosts that strip Authorization can still receive the credentials."""
     import base64
 
-    wp = WordPressPublisher(cfg(), session=FakeSession(lambda *a: Resp()))
+    wp = WordPressPublisher(cfg(wordpress_auth_mirror_header=True),
+                            session=FakeSession(lambda *a: Resp()))
     header = wp.http.headers.get("X-PCIP-Authorization", "")
     assert header.startswith("Basic ")
     decoded = base64.b64decode(header.split(" ", 1)[1]).decode()
     assert decoded == "editor:abcd efgh ijkl"
-
-
-def test_mirror_auth_header_can_be_switched_off():
-    wp = WordPressPublisher(cfg(wordpress_auth_mirror_header=False),
-                            session=FakeSession(lambda *a: Resp()))
-    assert "X-PCIP-Authorization" not in wp.http.headers
 
 
 def test_wpcom_mode_does_not_send_the_mirror_header():

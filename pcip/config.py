@@ -71,10 +71,17 @@ class PCIPConfig:
     vercel_revalidate_url: str = ""
     wp_revalidate_secret: str = ""
 
-    # Mirror the credentials into a non-standard header, for hosts that strip
-    # the standard Authorization header before PHP. Harmless where the normal
-    # header works; requires the companion must-use plugin on the site.
-    wordpress_auth_mirror_header: bool = True
+    # Last-resort workaround for hosts that strip the standard Authorization
+    # header before PHP: mirror the credentials into a non-standard header.
+    #
+    # OFF by default, deliberately. Sending credentials in a second, custom
+    # header widens where they can be logged or observed, and the server side
+    # of it accepts a non-standard header as an authentication source — which
+    # is exactly the shape a reviewer should challenge. Turn it on only after
+    # the standard fix (an .htaccess SetEnvIf rule) has been tried and proven
+    # insufficient, and only together with the companion must-use plugin,
+    # which itself requires an explicit constant in wp-config.php.
+    wordpress_auth_mirror_header: bool = False
 
     # ── Social channels (each optional; unconfigured = channel disabled) ─
     # Direct platform APIs are first-class (full capability + resilience);
@@ -272,8 +279,8 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         vercel_revalidate_url=_env("VERCEL_REVALIDATE_URL"),
         wp_revalidate_secret=_env("WP_REVALIDATE_SECRET"),
         wordpress_auth_mirror_header=_env(
-            "WORDPRESS_AUTH_MIRROR_HEADER", "1"
-        ).lower() not in ("0", "false", "no"),
+            "WORDPRESS_AUTH_MIRROR_HEADER", "0"
+        ).lower() in ("1", "true", "yes"),
         buffer_token=_env("BUFFER_TOKEN"),
         meta_page_token=_env("META_PAGE_TOKEN"),
         meta_ig_user_id=_env("META_IG_USER_ID"),
