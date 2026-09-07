@@ -235,6 +235,67 @@ class PublishRouter:
         }
         return primary
 
+    def _promote_drafts(
+        self, wp: Any, output_id: str, *, live: bool
+    ) -> Optional[Publication]:
+        """Publish drafts this output already has, instead of new posts.
+
+        Reviewing as a draft and then publishing is the intended workflow, and
+        it produced two posts per language: the draft held the clean slug, so
+        WordPress gave the live one a "-2" suffix. The draft is the article —
+        promote it.
+
+        Returns None when there is nothing to promote, so the caller falls
+        through to creating posts normally.
+        """
+        if not live:
+            return None
+        drafts = [
+            p for p in self.where_did_it_go(output_id)
+            if p.get("channel") == Channel.WORDPRESS.value
+            and p.get("status") == "draft"
+            and p.get("external_id")
+        ]
+        if not drafts:
+            return None
+
+        out: List[Publication] = []
+        for record in drafts:
+            updated = wp.update_post(str(record["external_id"]), status="publish")
+            lang = (record.get("metadata") or {}).get("language", "es")
+            url = wp.public_url_for(
+                updated.get("slug", ""), lang, wp_link=updated.get("link", "")
+            ) or record.get("url", "")
+
+            meta = dict(record.get("metadata") or {})
+            meta["wp_status"] = updated.get("status", "publish")
+            meta["wp_link"] = updated.get("link", meta.get("wp_link", ""))
+            meta["promoted_from_draft"] = True
+            if meta["wp_status"] == "publish":
+                meta.update(wp.revalidate(updated.get("slug", ""), lang))
+
+            pub = Publication(
+                id=record["id"],          # same record: this is the same post
+                output_id=output_id,
+                channel=Channel.WORDPRESS,
+                url=url,
+                external_id=str(record["external_id"]),
+                status="published",
+                metadata=meta,
+            )
+            self._record(pub)
+            out.append(pub)
+
+        primary = next(
+            (p for p in out if (p.metadata or {}).get("language") == "es"), out[0]
+        )
+        primary.metadata["pair"] = {
+            (p.metadata or {}).get("language", "?"):
+                {"url": p.url, "post_id": p.external_id}
+            for p in out
+        }
+        return primary
+
     def _check_not_already_published(
         self, output_id: str, channel: Channel, republish: bool
     ) -> None:
@@ -336,6 +397,19 @@ class PublishRouter:
     ) -> Publication:
         channel = Channel(channel) if isinstance(channel, str) else channel
         self._check_not_already_published(output_id, channel, republish)
+
+        # Promoting a draft flips a status; it does not change the article,
+        # which was validated when the draft was created. Doing it before the
+        # content checks also avoids re-deriving a payload for copy that is
+        # already sitting in WordPress.
+        if channel == Channel.WORDPRESS and live:
+            from pcip.connectors.wordpress import WordPressPublisher
+
+            promoted = self._promote_drafts(
+                WordPressPublisher(self.cfg), output_id, live=True
+            )
+            if promoted is not None:
+                return promoted
         output = self._load_output_asset(output_id)
         self._check_run_state(output_id)
         self._check_license(output)
@@ -580,7 +654,9 @@ class PublishRouter:
 
         out: List[Publication] = []
         for record in self.where_did_it_go(output_id):
-            if record.get("status") not in ("published", "scheduled"):
+            # Drafts included: a leftover draft keeps its slug reserved, so
+            # the next publish gets a "-2" suffix instead of the clean URL.
+            if record.get("status") not in ("published", "scheduled", "draft"):
                 continue
             if record.get("channel") != Channel.WORDPRESS.value:
                 continue

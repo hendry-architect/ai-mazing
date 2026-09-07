@@ -104,3 +104,84 @@ def test_retract_trashes_the_post_and_keeps_the_history(tmp_path, monkeypatch):
 def test_retracting_something_unpublished_is_not_an_error(tmp_path):
     cfg, g, router = setup(tmp_path)
     assert router.retract("out_1") == []
+
+
+# ── draft → published ────────────────────────────────────────────────────────
+
+
+def test_going_live_promotes_the_draft_instead_of_duplicating_it(tmp_path, monkeypatch):
+    """Review-as-draft then publish is the intended workflow, and it produced
+    two posts per language: the draft held the clean slug, so WordPress gave
+    the live post a "-2" suffix. The draft IS the article."""
+    from pcip.connectors.wordpress import WordPressPublisher
+
+    cfg, g, router = setup(tmp_path)
+    for lang, post_id in (("es", "3379"), ("en", "3380")):
+        router._record(Publication(
+            output_id="out_1", channel=Channel.WORDPRESS, status="draft",
+            external_id=post_id, url=f"https://passqual.com/{lang}/articulo/",
+            metadata={"language": lang},
+        ))
+
+    updated = []
+
+    class FakeWP:
+        def __init__(self, config, **kw):
+            pass
+
+        def update_post(self, post_id, **fields):
+            updated.append((post_id, fields))
+            return {"id": post_id, "slug": "articulo", "status": fields.get("status"),
+                    "link": f"https://wp.passqual.com/articulo/"}
+
+        def public_url_for(self, slug, lang, wp_link=""):
+            return f"https://passqual.com/{slug}/"
+
+        def revalidate(self, slug="", language="en"):
+            return {"revalidated": False}
+
+    monkeypatch.setattr("pcip.connectors.wordpress.WordPressPublisher", FakeWP)
+    pub = router.publish("out_1", Channel.WORDPRESS, live=True)
+
+    assert {p for p, _ in updated} == {"3379", "3380"}
+    assert all(f["status"] == "publish" for _, f in updated)
+    assert pub.metadata["promoted_from_draft"] is True
+    assert set(pub.metadata["pair"]) == {"es", "en"}
+    # No new posts: the record count is unchanged, the statuses flipped.
+    records = router.where_did_it_go("out_1")
+    assert len(records) == 2
+    assert all(r["status"] == "published" for r in records)
+
+
+def test_a_draft_publish_does_not_promote(tmp_path, monkeypatch):
+    """Only --live promotes; re-running the draft step must not go public."""
+    cfg, g, router = setup(tmp_path)
+    router._record(Publication(
+        output_id="out_1", channel=Channel.WORDPRESS, status="draft",
+        external_id="3379", url="https://passqual.com/x/",
+        metadata={"language": "es"},
+    ))
+    assert router._promote_drafts(None, "out_1", live=False) is None
+
+
+def test_retract_also_clears_drafts(tmp_path, monkeypatch):
+    """A leftover draft keeps its slug reserved, which is what produced the
+    '-2' URLs in the first place."""
+    cfg, g, router = setup(tmp_path)
+    router._record(Publication(
+        output_id="out_1", channel=Channel.WORDPRESS, status="draft",
+        external_id="3364", url="", metadata={"language": "es"},
+    ))
+    trashed = []
+
+    class FakeWP:
+        def __init__(self, config, **kw):
+            pass
+
+        def trash_post(self, post_id):
+            trashed.append(post_id)
+            return {}
+
+    monkeypatch.setattr("pcip.connectors.wordpress.WordPressPublisher", FakeWP)
+    router.retract("out_1", reason="slug cleanup")
+    assert trashed == ["3364"]
