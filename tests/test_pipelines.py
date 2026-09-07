@@ -1,6 +1,8 @@
 """Pipeline engine tests: gates pause runs, approvals resume them,
 medical_review can never be auto-approved, failures are resumable."""
 
+import pytest
+
 from pcip.config import PCIPConfig
 from pcip.graph.store import KnowledgeGraph
 from pcip.models import Brief
@@ -173,3 +175,67 @@ def test_the_raw_block_is_not_copied_into_the_legacy_body():
     fields = parse_copy_fields('```json\n{"bodies": {"es": "<p>real</p>"}}\n```')
     assert fields["bodies"]["es"] == "<p>real</p>"
     assert "```" not in fields["body_html"]
+
+
+def test_copy_provider_streams_and_detects_truncation(monkeypatch):
+    """Long generations must stream, and a cut-off article must not be
+    mistaken for one that simply lacks fields."""
+    import sys
+    import types
+
+    calls = {}
+
+    class FakeStream:
+        def __init__(self, msg):
+            self.msg = msg
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def get_final_message(self):
+            return self.msg
+
+    class FakeMessages:
+        def __init__(self, msg):
+            self.msg = msg
+
+        def stream(self, **kw):
+            calls.update(kw)
+            return FakeStream(self.msg)
+
+        def create(self, **kw):           # must NOT be used for long output
+            raise AssertionError("create() would hit the 10-minute limit")
+
+    class FakeMsg:
+        def __init__(self, stop_reason="end_turn"):
+            self.stop_reason = stop_reason
+            block = types.SimpleNamespace(type="text", text='{"bodies": {"es": "x"}}')
+            self.content = [block]
+
+    class FakeAnthropic:
+        msg = FakeMsg()
+
+        def __init__(self, **kw):
+            self.messages = FakeMessages(type(self).msg)
+
+    monkeypatch.setitem(sys.modules, "anthropic",
+                        types.SimpleNamespace(Anthropic=FakeAnthropic))
+
+    from pcip.config import PCIPConfig
+    from pcip.generate.providers import ClaudeCopyProvider, GenerationRequest
+
+    cfg = PCIPConfig(anthropic_api_key="sk-test")
+    provider = ClaudeCopyProvider(cfg)
+    result = provider.generate(GenerationRequest(capability="copy", prompt="p"))
+    assert "bodies" in result.text
+    assert calls["max_tokens"] >= 32000, "streaming should allow a generous ceiling"
+
+    FakeAnthropic.msg = FakeMsg(stop_reason="max_tokens")
+    with pytest.raises(RuntimeError) as exc:
+        ClaudeCopyProvider(cfg).generate(
+            GenerationRequest(capability="copy", prompt="p")
+        )
+    assert "cut off" in str(exc.value)

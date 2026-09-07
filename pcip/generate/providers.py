@@ -148,16 +148,26 @@ class ClaudeCopyProvider(GenerationProvider):
             "would require clinician review — flag anything that needs "
             "medical sign-off with [MEDICAL-REVIEW]."
         ).format(lang=request.language)
-        msg = client.messages.create(
+        # Streaming, not create(): a bilingual article at the PH standard is
+        # ~1200 words plus a structured block, and the SDK refuses a
+        # non-streaming request whose max_tokens implies it could run past the
+        # 10-minute HTTP limit. Streaming removes the timeout concern, so the
+        # ceiling can be generous — a truncated response parses as "no fields"
+        # and fails the standard for the wrong reason.
+        with client.messages.stream(
             model=self.cfg.anthropic_model,
-            # A bilingual article at the PH standard is ~1200 words plus a
-            # structured block. 8000 truncated it mid-JSON, which parsed as
-            # "no fields" and failed the standard for the wrong reason.
-            max_tokens=request.params.get("max_tokens", 32000),
+            max_tokens=request.params.get("max_tokens", 64000),
             system=system,
             thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": request.prompt}],
-        )
+        ) as stream:
+            msg = stream.get_final_message()
+
+        if getattr(msg, "stop_reason", "") == "max_tokens":
+            raise RuntimeError(
+                "The copy generation hit its token ceiling and was cut off "
+                "mid-article. Raise max_tokens, or narrow the brief."
+            )
         text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
         return GenerationResult(
             provider=self.name,
