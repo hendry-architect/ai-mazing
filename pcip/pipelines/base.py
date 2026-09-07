@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from pcip.config import PCIPConfig
+from pcip.redact import redact_urls
 from pcip.models import (
     Brief,
     EdgeKind,
@@ -181,7 +182,7 @@ class PipelineRunner:
                 return run
             except Exception as exc:  # persist failures; runs are resumable
                 sr.status = "failed"
-                sr.detail = f"{type(exc).__name__}: {exc}"
+                sr.detail = redact_urls(f"{type(exc).__name__}: {exc}")
                 run.status = "failed"
                 sr.finished_at = now_iso()
                 self._save(run)

@@ -224,16 +224,31 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
     paths: List[str] = []
 
     attached = [p for p in (ctx.get("export_files") or []) if p]
+    # Underscore key: a signed export URL is a bearer credential for the
+    # file, so it stays in memory and never reaches the run record.
+    urls = [u for u in (ctx.get("_export_urls") or []) if u]
     if attached:
         paths = [str(p) for p in attached]
+    elif urls:
+        # MCP export-design returns signed URLs, not files. Fetching them here
+        # keeps the download inside the step that records the licensing
+        # metadata, so an attached URL and an attached file end up identical.
+        from pcip.connectors.canva import download_export_url
+
+        for n, url in enumerate(urls):
+            dest = Path(cfg.exports_dir) / f"{output_id}_{n}.{fmt}"
+            download_export_url(url, dest, timeout=cfg.request_timeout)
+            paths.append(str(dest))
     elif cfg.canva_mode == "mcp":
         raise HandoffRequired("export", {
             "design_id": design_id,
             "format": fmt,
             "how": (
-                "Export the design through Canva (MCP: export-design), download "
-                "the file(s), then attach them:\n"
-                f"  pcip attach {ctx['run'].id} --export-file <path> [--export-file <path>]"
+                "Export the design through Canva (MCP: export-design), then attach "
+                "the result — either the signed URL, which PCIP downloads itself:\n"
+                f"  pcip attach {ctx['run'].id} --export-url <url>\n"
+                "or, if that host is unreachable from here, the downloaded file:\n"
+                f"  pcip attach {ctx['run'].id} --export-file <path>"
             ),
         })
     else:

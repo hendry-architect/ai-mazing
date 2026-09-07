@@ -24,6 +24,7 @@ from typing import Any, Dict, Iterator, List, Optional
 import requests
 
 from pcip.config import PCIPConfig
+from pcip.redact import redact_urls
 
 TOKEN_URL = "https://api.canva.com/rest/v1/oauth/token"
 
@@ -271,10 +272,66 @@ class CanvaClient:
 
     def download_export(self, url: str, dest: Path) -> Path:
         """Download an export URL to disk (URLs are short-lived)."""
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        with self.http.get(url, stream=True, timeout=self.cfg.request_timeout) as r:
+        return download_export_url(
+            url, dest, timeout=self.cfg.request_timeout, session=self.http
+        )
+
+
+# Export download URLs are pre-signed and short-lived, and they live on a
+# different host from the API (export-download.canva.com). They carry their own
+# authorization in the query string, so this deliberately sends no credentials —
+# and it is a module-level function, not a client method, because MCP mode has
+# an export URL to fetch but no Connect client to fetch it with.
+
+class ExportDownloadError(Exception):
+    """A signed export URL could not be downloaded."""
+
+
+def download_export_url(
+    url: str,
+    dest: Path,
+    timeout: int = 60,
+    session: Optional[requests.Session] = None,
+) -> Path:
+    """Stream a signed Canva export URL to ``dest``.
+
+    Raises ExportDownloadError with the cause named, rather than leaving a
+    truncated or empty file behind that a later step would treat as a
+    deliverable.
+    """
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    http = session or requests.Session()
+    try:
+        with http.get(url, stream=True, timeout=timeout) as r:
+            if r.status_code == 403:
+                raise ExportDownloadError(
+                    "Canva rejected the export download (403). Signed export "
+                    "URLs expire (typically within a day) — re-run the export "
+                    "to get a fresh URL."
+                )
             r.raise_for_status()
             with open(dest, "wb") as fh:
                 for chunk in r.iter_content(chunk_size=1 << 16):
                     fh.write(chunk)
-        return dest
+    except requests.RequestException as exc:
+        dest.unlink(missing_ok=True)
+        raise ExportDownloadError(
+            f"Could not download the export from {_host_of(url)}: "
+            f"{redact_urls(str(exc))}. If this host is blocked by a network "
+            "policy, download the file where egress is allowed and attach it "
+            "with --export-file."
+        ) from exc
+    if dest.stat().st_size == 0:
+        dest.unlink(missing_ok=True)
+        raise ExportDownloadError(
+            f"The export downloaded from {_host_of(url)} was empty."
+        )
+    return dest
+
+
+def _host_of(url: str) -> str:
+    """Hostname only — signed export URLs carry credentials in the query."""
+    from urllib.parse import urlparse
+
+    return urlparse(url).hostname or "the export host"

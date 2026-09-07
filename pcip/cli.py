@@ -203,13 +203,17 @@ def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
                 run.context[key] = value
         if args.export_file:
             run.context["export_files"] = list(args.export_file)
+        if args.export_url:
+            run.context["_export_urls"] = list(args.export_url)
         if args.copy_file:
             fields = json.loads(pathlib.Path(args.copy_file).read_text(encoding="utf-8"))
             run.context["copy_fields"] = fields
             run.context["copy"] = fields.get("body_html", "") or run.context.get("copy", "")
-        if not any(supplied.values()) and not args.export_file and not args.copy_file:
-            print("error: nothing to attach — pass --copy-file, --design-id "
-                  "and/or --export-file",
+        if not any(supplied.values()) and not (
+            args.export_file or args.export_url or args.copy_file
+        ):
+            print("error: nothing to attach — pass --copy-file, --design-id, "
+                  "--export-url and/or --export-file",
                   file=sys.stderr)
             return 1
         # Let the paused step run again now that its input exists.
@@ -418,6 +422,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--copy-file", default="", help="JSON file of copy fields")
     sp.add_argument("--export-file", action="append", default=[],
                     help="path to an exported file (repeatable, one per page)")
+    sp.add_argument("--export-url", action="append", default=[],
+                    help="signed Canva export URL to download (repeatable); use "
+                         "instead of --export-file when this machine can reach "
+                         "export-download.canva.com")
 
     sp = sub.add_parser(
         "prepare",
