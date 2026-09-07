@@ -89,21 +89,49 @@ for HOST in $HOSTS; do
         # reasons; this is not.
         AUTHED="$("${CURL[@]}" -u "header-probe:not-a-real-password" \
                   "https://$HOST/auth_test.php" 2>/dev/null)"
-        SEEN="$(printf '%s' "$AUTHED" | grep -i '^Authorization:' | head -1)"
-        VALUE="$(printf '%s' "$SEEN" | cut -d: -f2- | tr -d ' \r')"
+
         printf '\n'
-        if [ -n "$VALUE" ]; then
-            ok  "PHP DOES receive the Authorization header"
-            info "PHP sees: ${VALUE:0:12}…  (a Basic credential arrived intact)"
-            info "So the web server is NOT the problem — the header survives."
-            info "If WordPress still says rest_not_logged_in, the cause is"
-            info "inside WordPress: application passwords disabled, a security"
-            info "plugin refusing Basic auth, or REST auth filtered."
+        info "every AUTH-related variable PHP can see, with a credential sent:"
+        printf '%s' "$AUTHED" | grep -i "auth" | sed 's/^/        /' || true
+        printf '\n'
+
+        # Read the specific variables that decide what to do next. A value is
+        # anything after the colon that is not empty and not a "(none)" /
+        # "(not set)" placeholder printed by the probe itself.
+        val_of() {
+            printf '%s' "$AUTHED" \
+              | grep -i "^$1:" | head -1 | cut -d: -f2- \
+              | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' \
+              | grep -viE '^(\(none\)|\(not set\)|no)$' || true
+        }
+        V_STD="$(val_of 'HTTP_AUTHORIZATION')"
+        [ -z "$V_STD" ] && V_STD="$(val_of 'Authorization')"
+        V_USER="$(val_of 'PHP_AUTH_USER')"
+        V_REDIR="$(printf '%s' "$AUTHED" \
+                   | grep -iE '^REDIRECT_[A-Z_]*AUTHORIZATION:' \
+                   | grep -viE ':[[:space:]]*(\(none\)|\(not set\))?[[:space:]]*$' | head -1)"
+
+        if [ -n "$V_USER" ]; then
+            ok  "PHP_AUTH_USER is populated — WordPress has what it needs"
+            info "If REST still refuses, the cause is inside WordPress"
+            info "(application passwords disabled, or a security plugin)."
+        elif [ -n "$V_STD" ]; then
+            warn "HTTP_AUTHORIZATION arrives, but PHP_AUTH_USER is not set"
+            info "The header survives; nothing decodes it into the variables"
+            info "WordPress actually reads. A small decode step fixes this."
+        elif [ -n "$V_REDIR" ]; then
+            warn "credential found under a REDIRECT_ variable:"
+            info "  $V_REDIR"
+            info "The .htaccess rules DID work — Apache's internal redirect"
+            info "re-prefixed the variable, and WordPress never reads that name."
+            info "This is the case the must-use plugin's stage 1 exists for,"
+            info "and installing it here is justified."
         else
-            bad "PHP does NOT receive the Authorization header"
-            info "The credential was sent and is gone before PHP runs."
-            info "Confirmed at the web-server layer, not inferred from"
-            info "WordPress's error code."
+            bad "no Authorization value under ANY variable name"
+            info "The credential was sent and nothing on the box received it,"
+            info "so it is gone upstream of Apache — nginx or the PHP-FPM"
+            info "parameter set. No .htaccess rule and no plugin can recover"
+            info "a header that never arrives. This needs SiteGround support."
         fi ;;
     403|401)
         ok  "auth_test.php exists but is access-restricted (HTTP $ATCODE)" ;;
