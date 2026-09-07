@@ -31,6 +31,17 @@ bad()  { printf '\033[31m  ✗ %s\033[0m\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
 hdr()  { printf '\n\033[1m━━━ %s ━━━\033[0m\n' "$*"; }
 
+# Running from another branch means running PCIP without the fixes on this
+# one, and the symptom is a bug that was already fixed reappearing. Cheap to
+# detect, confusing to debug.
+PCIP_BRANCH="claude/passqual-creative-platform-sl5wzw"
+CUR_BRANCH="$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+if [ -n "$CUR_BRANCH" ] && [ "$CUR_BRANCH" != "$PCIP_BRANCH" ]; then
+    printf '\033[33m  ⚠ on branch "%s", not "%s"\033[0m\n' "$CUR_BRANCH" "$PCIP_BRANCH"
+    printf '    You may be running an older version of PCIP. Switch with:\n'
+    printf '      git checkout %s && git pull origin %s\n\n' "$PCIP_BRANCH" "$PCIP_BRANCH"
+fi
+
 hdr "Current run"
 STATE="$("$PY" - "$DATA" <<'PYEOF'
 import json, pathlib, sys
