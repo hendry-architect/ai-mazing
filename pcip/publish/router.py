@@ -178,6 +178,63 @@ class PublishRouter:
             "stripped_annotations": stripped_annotations,
         }
 
+    def _publish_bilingual(
+        self,
+        wp: Any,
+        output_id: str,
+        fields: Dict[str, Any],
+        bodies: Dict[str, str],
+        payload: Dict[str, Any],
+        *,
+        live: bool,
+        schedule_at: str,
+    ) -> Publication:
+        """Publish the ES/EN pair, record both, return the primary.
+
+        Both publications are written to the graph so the distribution record
+        answers "where did this go" completely. The Spanish one is returned
+        because Spanish is primary for this brand and a caller expects a single
+        Publication back; the English one is reachable through
+        ``where_did_it_go`` and named in the returned metadata rather than
+        being invisible.
+        """
+        if schedule_at:
+            raise PublishError(
+                "Scheduling a bilingual pair is not supported yet — the two "
+                "posts would need to go live together, and a partial schedule "
+                "would publish one language early. Publish now, or pass "
+                "--text to publish a single language."
+            )
+
+        titles = fields.get("titles") or {}
+        slugs = {
+            lang: slugify(titles.get(lang) or payload.get("title", ""))
+            for lang in bodies
+        }
+        pubs = wp.publish_bilingual(
+            titles=titles,
+            bodies=bodies,
+            slugs=slugs,
+            meta_title=fields.get("meta_title", ""),
+            meta_description=fields.get("meta_description",
+                                        payload.get("excerpt", "")),
+            faq=fields.get("faq") or [],
+            alt_texts=fields.get("alt_texts_by_language") or {},
+            media_paths=payload.get("media_paths") or [],
+            status="publish" if live else "draft",
+            excerpt=payload.get("excerpt", ""),
+        )
+        for pub in pubs.values():
+            pub.output_id = output_id
+            self._record(pub)
+
+        primary = pubs.get("es") or next(iter(pubs.values()))
+        primary.metadata["pair"] = {
+            lang: {"url": p.url, "post_id": p.external_id}
+            for lang, p in pubs.items()
+        }
+        return primary
+
     def _check_ph_standard(
         self, output_id: str, payload: Dict[str, Any], output: Asset
     ) -> None:
@@ -260,6 +317,18 @@ class PublishRouter:
             from pcip.connectors.wordpress import WordPressPublisher
 
             wp = WordPressPublisher(self.cfg)
+
+            # A bilingual copy package publishes as a linked pair. The standard
+            # requires ES/EN parity, so producing one post from copy that has
+            # both would quietly ship half the deliverable.
+            run = self._producing_run(output_id)
+            fields = (run.get("context") or {}).get("copy_fields") or {}
+            bodies = {k: v for k, v in (fields.get("bodies") or {}).items() if v}
+            if len(bodies) > 1 and not text:
+                return self._publish_bilingual(
+                    wp, output_id, fields, bodies, payload,
+                    live=live, schedule_at=schedule_at,
+                )
             if not payload["body_html"].strip():
                 raise PublishError(
                     f"Refusing to publish {output_id} with an empty body. The run "

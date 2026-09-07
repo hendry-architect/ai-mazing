@@ -66,6 +66,9 @@ def _wp_datetime(value: str) -> str:
     return parsed.isoformat(timespec="seconds")
 
 
+PH_PRIMARY = "es"          # Spanish-primary, per the PH standard
+
+
 class WordPressError(Exception):
     """A WordPress REST call did not return a usable result."""
 
@@ -470,6 +473,157 @@ class WordPressPublisher:
             status="scheduled" if wp_status == "future" else "published",
             metadata=meta,
         )
+
+    def compose_article(
+        self,
+        body_html: str,
+        *,
+        language: str,
+        faq: Optional[List[Dict[str, str]]] = None,
+        meta_title: str = "",
+        meta_description: str = "",
+        url: str = "",
+        image_url: str = "",
+        translation_url: str = "",
+    ) -> str:
+        """Assemble the full article body: copy, FAQ, NAP, and schema.
+
+        These are appended rather than expected from the copy step because they
+        are invariants, not writing: the NAP must be byte-identical everywhere,
+        the FAQ has to appear both as readable markup and as FAQPage schema,
+        and the JSON-LD has to reflect the URL the post actually got — none of
+        which a copy model should be trusted to reproduce exactly.
+        """
+        from pcip.publish import seo
+
+        parts = [body_html or ""]
+        if translation_url:
+            other = "en" if str(language).startswith("es") else "es"
+            parts.append(seo.translation_link(translation_url, other))
+        parts.append(seo.faq_html(faq or [], language))
+        parts.append(seo.nap_block(language))
+        parts.append(seo.build_jsonld(
+            title=meta_title or "",
+            description=meta_description or "",
+            url=url,
+            language=language,
+            faq=faq,
+            image_url=image_url,
+            translation_url=translation_url,
+        ))
+        return "".join(p for p in parts if p)
+
+    def update_post(self, post_id: str, **fields: Any) -> Dict[str, Any]:
+        """Patch an existing post. Used to cross-link the two languages once
+        both exist and their URLs are known."""
+        return self._post(f"/posts/{post_id}", json=fields)
+
+    def publish_bilingual(
+        self,
+        *,
+        titles: Dict[str, str],
+        bodies: Dict[str, str],
+        slugs: Dict[str, str],
+        meta_title: str = "",
+        meta_description: str = "",
+        faq: Optional[List[Dict[str, str]]] = None,
+        alt_texts: Optional[Dict[str, str]] = None,
+        media_paths: Optional[List[str]] = None,
+        status: str = "draft",
+        excerpt: str = "",
+    ) -> Dict[str, Publication]:
+        """Publish an ES/EN pair and link them to each other.
+
+        Order matters. Media is uploaded once and shared, because two copies of
+        the same hero in the library is a mess someone has to clean up later.
+        Both posts are then created, and only afterwards patched with the
+        cross-link and schema — the JSON-LD must carry each post's real URL,
+        and neither URL exists until WordPress has assigned it.
+        """
+        from pcip.publish import seo
+
+        alt_texts = alt_texts or {}
+        media_ids: List[int] = []
+        media_url = ""
+        for i, path in enumerate(media_paths or []):
+            uploaded = self.upload_media(
+                path, alt_text=alt_texts.get(PH_PRIMARY, "") or ""
+            )
+            media_ids.append(uploaded["id"])
+            if i == 0:
+                media_url = uploaded.get("source_url", "")
+
+        created: Dict[str, Dict[str, Any]] = {}
+        for lang in ("es", "en"):
+            body = bodies.get(lang)
+            if not body:
+                continue
+            payload: Dict[str, Any] = {
+                "title": titles.get(lang, ""),
+                "content": body,          # patched with schema once URLs exist
+                "status": status,
+                "excerpt": excerpt if lang == PH_PRIMARY else "",
+            }
+            if slugs.get(lang):
+                payload["slug"] = slugs[lang]
+            if media_ids:
+                payload["featured_media"] = media_ids[0]
+            meta = seo.seo_meta_fields(meta_title, meta_description)
+            if meta:
+                payload["meta"] = meta
+            created[lang] = self._post("/posts", json=payload)
+
+        # Second pass: now that both permalinks exist, write the cross-link and
+        # the schema that has to name them.
+        out: Dict[str, Publication] = {}
+        for lang, post in created.items():
+            other = "en" if lang == "es" else "es"
+            other_link = (created.get(other) or {}).get("link", "")
+            public_url = self.public_url_for(
+                post.get("slug", slugs.get(lang, "")), lang,
+                wp_link=post.get("link", ""),
+            )
+            other_public = self.public_url_for(
+                (created.get(other) or {}).get("slug", slugs.get(other, "")),
+                other,
+                wp_link=other_link,
+            ) if other_link else ""
+
+            full_body = self.compose_article(
+                bodies[lang],
+                language=lang,
+                faq=faq,
+                meta_title=meta_title,
+                meta_description=meta_description,
+                url=public_url,
+                image_url=media_url,
+                translation_url=other_public,
+            )
+            updated = self.update_post(str(post["id"]), content=full_body)
+
+            meta_out: Dict[str, Any] = {
+                "wp_status": updated.get("status", post.get("status", status)),
+                "wp_link": updated.get("link", post.get("link", "")),
+                "media_ids": media_ids,
+                "language": lang,
+                "transport": "rest",
+                "translation_of": (created.get(other) or {}).get("id", ""),
+                "translation_url": other_public,
+                "seo_meta_sent": bool(seo.seo_meta_fields(meta_title, meta_description)),
+                "schema": "MedicalWebPage+MedicalClinic+Physician"
+                          + ("+FAQPage" if faq else ""),
+            }
+            if meta_out["wp_status"] == "publish":
+                meta_out.update(self.revalidate(post.get("slug", ""), lang))
+
+            out[lang] = Publication(
+                channel=self.channel,
+                url=public_url,
+                external_id=str(post["id"]),
+                status="published" if meta_out["wp_status"] == "publish" else "draft",
+                metadata=meta_out,
+            )
+        return out
 
     def publish_post(
         self,
