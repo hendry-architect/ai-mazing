@@ -187,6 +187,20 @@ class WordPressPublisher:
         elif config.wordpress_user and config.wordpress_app_password:
             self.api_base = f"{config.wordpress_url}/wp-json/wp/v2"
             self.http.auth = (config.wordpress_user, config.wordpress_app_password)
+            # Some hosts (SiteGround among them) strip the standard
+            # Authorization header before PHP sees it, so WordPress reports
+            # rest_not_logged_in no matter how correct the credentials are.
+            # A differently-named header survives; a tiny must-use plugin on
+            # the site copies it back into place. Same credentials, same host,
+            # same TLS session — no additional exposure — and it is simply
+            # ignored where the standard header already works.
+            if config.wordpress_auth_mirror_header:
+                import base64 as _b64
+
+                token = _b64.b64encode(
+                    f"{config.wordpress_user}:{config.wordpress_app_password}".encode()
+                ).decode()
+                self.http.headers["X-PCIP-Authorization"] = f"Basic {token}"
         else:
             raise WordPressNotConfigured(
                 "WordPress is not configured. Set WORDPRESS_COM_TOKEN, or "

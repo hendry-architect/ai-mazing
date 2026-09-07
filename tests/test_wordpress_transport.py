@@ -392,3 +392,27 @@ def test_unconfigured_wordpress_names_the_origin_requirement():
     with pytest.raises(WordPressNotConfigured) as exc:
         WordPressPublisher(PCIPConfig())
     assert "wp.passqual.com" in str(exc.value)
+
+
+def test_mirror_auth_header_is_sent_for_stripped_hosts():
+    """Hosts that strip Authorization still receive the credentials."""
+    import base64
+
+    wp = WordPressPublisher(cfg(), session=FakeSession(lambda *a: Resp()))
+    header = wp.http.headers.get("X-PCIP-Authorization", "")
+    assert header.startswith("Basic ")
+    decoded = base64.b64decode(header.split(" ", 1)[1]).decode()
+    assert decoded == "editor:abcd efgh ijkl"
+
+
+def test_mirror_auth_header_can_be_switched_off():
+    wp = WordPressPublisher(cfg(wordpress_auth_mirror_header=False),
+                            session=FakeSession(lambda *a: Resp()))
+    assert "X-PCIP-Authorization" not in wp.http.headers
+
+
+def test_wpcom_mode_does_not_send_the_mirror_header():
+    """Only the self-hosted basic-auth path needs it."""
+    wp = WordPressPublisher(PCIPConfig(wordpress_com_token="t"),
+                            session=FakeSession(lambda *a: Resp()))
+    assert "X-PCIP-Authorization" not in wp.http.headers
