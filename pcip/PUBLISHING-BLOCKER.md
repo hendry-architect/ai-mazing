@@ -81,14 +81,19 @@ do reach PHP. It gives support the finding rather than the symptom.
 >   (`SetEnvIf Authorization`, and two `RewriteRule ... [E=HTTP_AUTHORIZATION]`
 >   variants). None has any effect, which is consistent with the header being
 >   dropped before Apache processes the rules.
-> - A control header (`X-Auth-Probe`) on the same request *does* reach PHP, so
->   custom headers are forwarded in general — `Authorization` specifically is
->   not.
+> - A control header (`X-Auth-Probe`) sent on the same request also does not
+>   reach PHP, so this is not specific to `Authorization`: client-supplied
+>   request headers in general are not being passed through to PHP on this
+>   account.
+> - `HTTP_AUTHORIZATION` does exist in `$_SERVER`, but empty — that is the
+>   `.htaccess` rule firing and finding nothing to copy, which confirms the
+>   header is already gone by the time Apache evaluates the rule.
 >
-> Please pass the `Authorization` header through to PHP for this account —
-> typically by including `HTTP_AUTHORIZATION` in the PHP-FPM fastcgi
-> parameters, or the equivalent in the proxy configuration. I do not need any
-> file changed on my side; this is at a layer I cannot reach from Site Tools.
+> Please pass client request headers — `Authorization` above all — through to
+> PHP for this account, typically by including `HTTP_AUTHORIZATION` in the
+> PHP-FPM fastcgi parameters or the equivalent in the proxy configuration. I do
+> not need any file changed on my side; this is at a layer I cannot reach from
+> Site Tools.
 
 ## The remaining options, in order of preference
 

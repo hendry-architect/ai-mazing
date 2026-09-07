@@ -105,6 +105,7 @@ for HOST in $HOSTS; do
         printf '\n'
         CACHEHDRS="$("${CURL[@]}" -s -D - -o /dev/null "$AT_URL" 2>/dev/null \
                      | grep -iE '^(x-cache|x-proxy-cache|age|cf-cache-status|x-sg)' || true)"
+        CACHEHDRS="$(printf '%s' "$CACHEHDRS" | tr -d '\r' | grep -v '^[[:space:]]*$' || true)"
         if [ -n "$CACHEHDRS" ]; then
             info "cache headers on this response:"
             printf '%s' "$CACHEHDRS" | sed 's/^/        /'
@@ -153,18 +154,34 @@ for HOST in $HOSTS; do
         # Read the specific variables that decide what to do next. A value is
         # anything after the colon that is not empty and not a "(none)" /
         # "(not set)" placeholder printed by the probe itself.
+        # A present-but-empty variable is the normal outcome of the
+        # .htaccess rules: RewriteRule E=HTTP_AUTHORIZATION:%{HTTP:Authorization}
+        # sets the variable unconditionally, to "" when no header arrived. The
+        # probe then prints it with a trailing ellipsis from substr(), so the
+        # ellipsis must be stripped before testing for emptiness — otherwise
+        # "the variable exists" reads as "the credential arrived", which is
+        # the opposite conclusion.
         val_of() {
             printf '%s' "$AUTHED" \
               | grep -i "^$1:" | head -1 | cut -d: -f2- \
+              | sed 's/\xe2\x80\xa6//g; s/\.\.\.//g' \
+              | tr -d '\r' \
               | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' \
-              | grep -viE '^(\(none\)|\(not set\)|no)$' || true
+              | grep -viE '^(\(none\)|\(not set\)|no|)$' || true
         }
         V_STD="$(val_of 'HTTP_AUTHORIZATION')"
         [ -z "$V_STD" ] && V_STD="$(val_of 'Authorization')"
         V_USER="$(val_of 'PHP_AUTH_USER')"
-        V_REDIR="$(printf '%s' "$AUTHED" \
-                   | grep -iE '^REDIRECT_[A-Z_]*AUTHORIZATION:' \
-                   | grep -viE ':[[:space:]]*(\(none\)|\(not set\))?[[:space:]]*$' | head -1)"
+        V_REDIR=""
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            body="$(printf '%s' "$line" | cut -d: -f2- \
+                    | sed 's/\xe2\x80\xa6//g; s/\.\.\.//g' | tr -d '\r' \
+                    | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+            if [ -n "$body" ]; then V_REDIR="$line"; break; fi
+        done <<REDIR_EOF
+$(printf '%s' "$AUTHED" | grep -iE '^REDIRECT_[A-Z_]*AUTHORIZATION:')
+REDIR_EOF
 
         if [ -n "$V_USER" ]; then
             ok  "PHP_AUTH_USER is populated — WordPress has what it needs"
@@ -182,6 +199,10 @@ for HOST in $HOSTS; do
             info "This is the case the must-use plugin's stage 1 exists for,"
             info "and installing it here is justified."
         elif [ "${CONTROL_OK:-0}" = "1" ]; then
+            if printf '%s' "$AUTHED" | grep -qi '^HTTP_AUTHORIZATION:'; then
+                info "note: HTTP_AUTHORIZATION exists but is EMPTY — the"
+                info ".htaccess rule fired and had nothing to copy."
+            fi
             bad "no Authorization value under ANY variable name"
             info "The control header proved the probe is live and that custom"
             info "headers do reach PHP — so this is not a broken test."
