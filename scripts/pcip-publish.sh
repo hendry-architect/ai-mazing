@@ -129,6 +129,17 @@ else
     info "nothing becomes public; re-run with --live when it looks right"
 fi
 
+# Print the resolved target before sending. Three rounds were lost to
+# inferring where the request went from the error it came back with.
+"$PY" - <<'PYEOF'
+from pcip.config import load_config
+cfg = load_config()
+print(f"    origin      : {cfg.wordpress_url}")
+print(f"    REST base   : {cfg.wordpress_url}/wp-json/wp/v2")
+print(f"    public site : {cfg.wordpress_public_site}")
+print(f"    transport   : {cfg.wordpress_transport}")
+PYEOF
+
 ARGS=(-m pcip --data-dir "$DATA" publish "$OUT" --channel wordpress)
 [ "$LIVE" = "1" ] && ARGS+=(--live)
 

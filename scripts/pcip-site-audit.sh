@@ -224,6 +224,34 @@ REDIR_EOF
     *)  warn "auth_test.php returned HTTP $ATCODE" ;;
   esac
 
+  # ── 3b. Can the REST API be WRITTEN to at all? ─────────────────────────────
+  # Reads work here; writes are what fail. An unauthenticated POST should be
+  # refused with 401 rest_forbidden/rest_cannot_create — WordPress answering.
+  # A 404, or an empty body, means the write never reached WordPress: the host
+  # or a security plugin is blocking POST to the REST API, which no credential
+  # can fix and which reads identically to a wrong URL.
+  WPOST="$("${CURL[@]}" -X POST -o /dev/null -w '%{http_code}|%{size_download}' \
+           -H 'Content-Type: application/json' --data '{}' \
+           "https://$HOST/wp-json/wp/v2/media" 2>/dev/null || echo '000|0')"
+  WCODE="$(field "$WPOST" 1)"
+  case "$WCODE" in
+    401|403)
+        ok  "REST accepts POST (HTTP $WCODE — WordPress refusing an anonymous write)"
+        info "Writes reach WordPress; only authentication is missing." ;;
+    404)
+        bad "REST POST returns 404 — writes are BLOCKED before WordPress"
+        info "Reads work on this host, so this is not a wrong hostname."
+        info "Something is blocking POST to /wp-json: a security plugin"
+        info "(Wordfence has a REST/POST rule) or a host-level WAF."
+        info "Check Wordfence → Firewall → Blocking, and its activity log for"
+        info "this request." ;;
+    405)
+        warn "REST POST returns 405 — the method is not allowed here" ;;
+    000)
+        warn "could not probe a REST write" ;;
+    *)  info "REST POST returned HTTP $WCODE" ;;
+  esac
+
   # ── 4. Files that must never be served ─────────────────────────────────────
   # .backup / .bak / .old are not PHP extensions, so a web server hands them
   # out as plain text — database credentials included.
