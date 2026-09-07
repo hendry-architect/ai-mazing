@@ -90,6 +90,30 @@ for HOST in $HOSTS; do
         AUTHED="$("${CURL[@]}" -u "header-probe:not-a-real-password" \
                   "https://$HOST/auth_test.php" 2>/dev/null)"
 
+        # ── Control: is the probe even running, and does this server forward
+        # custom headers at all? X-Auth-Probe becomes $_SERVER['HTTP_X_AUTH_PROBE'],
+        # whose name contains AUTH, so a live loop must print it. Without this,
+        # "the loop found nothing" and "the loop is not live" look identical —
+        # and they lead to opposite conclusions.
+        CTRL="$("${CURL[@]}" -H "X-Auth-Probe: pcip-control" \
+                "https://$HOST/auth_test.php" 2>/dev/null)"
+        printf '\n'
+        if printf '%s' "$CTRL" | grep -qi "X_AUTH_PROBE"; then
+            ok  "control header arrived — the probe is live and this server"
+            info "does forward custom request headers to PHP."
+            info "So Authorization specifically is being dropped, not headers"
+            info "in general. That is the classic PHP-FPM case: the fastcgi"
+            info "parameter set simply does not include HTTP_AUTHORIZATION."
+            CONTROL_OK=1
+        else
+            warn "control header did NOT arrive"
+            info "Either the edited probe is not live (SiteGround caching —"
+            info "purge the cache and re-run), or this server forwards no"
+            info "custom headers at all. Resolve this before drawing any"
+            info "conclusion from the Authorization result below."
+            CONTROL_OK=0
+        fi
+
         printf '\n'
         info "every AUTH-related variable PHP can see, with a credential sent:"
         printf '%s' "$AUTHED" | grep -i "auth" | sed 's/^/        /' || true
@@ -126,12 +150,18 @@ for HOST in $HOSTS; do
             info "re-prefixed the variable, and WordPress never reads that name."
             info "This is the case the must-use plugin's stage 1 exists for,"
             info "and installing it here is justified."
-        else
+        elif [ "${CONTROL_OK:-0}" = "1" ]; then
             bad "no Authorization value under ANY variable name"
-            info "The credential was sent and nothing on the box received it,"
-            info "so it is gone upstream of Apache — nginx or the PHP-FPM"
-            info "parameter set. No .htaccess rule and no plugin can recover"
-            info "a header that never arrives. This needs SiteGround support."
+            info "The control header proved the probe is live and that custom"
+            info "headers do reach PHP — so this is not a broken test."
+            info "Authorization is being dropped upstream of Apache. No"
+            info ".htaccess rule and no plugin can recover a header that never"
+            info "arrives. This needs SiteGround support; see"
+            info "pcip/PUBLISHING-BLOCKER.md for the ticket text."
+        else
+            warn "no Authorization value found, but the control also failed"
+            info "Do not conclude anything yet: purge the SiteGround cache,"
+            info "confirm the edited auth_test.php is live, and re-run."
         fi ;;
     403|401)
         ok  "auth_test.php exists but is access-restricted (HTTP $ATCODE)" ;;

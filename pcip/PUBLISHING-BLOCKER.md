@@ -61,6 +61,35 @@ happening.
 - `/wp-json/wp/v2/users` is publicly enumerable. Unrelated to this blocker,
   worth closing separately.
 
+## Ticket text for SiteGround support
+
+Send this once the control test confirms the probe is live and custom headers
+do reach PHP. It gives support the finding rather than the symptom.
+
+> On my account (passqual.com / wp.passqual.com, shared document root), the
+> HTTP `Authorization` request header is not reaching PHP. This breaks the
+> WordPress REST API with Application Passwords: every authenticated request
+> returns `401 rest_not_logged_in` because `$_SERVER['PHP_AUTH_USER']` and
+> `$_SERVER['PHP_AUTH_PW']` are never populated.
+>
+> What I have already verified:
+>
+> - A PHP probe in the web root shows `HTTP_AUTHORIZATION` empty and
+>   `PHP_AUTH_USER` unset for a request that definitely sent a Basic
+>   credential, and no `REDIRECT_HTTP_AUTHORIZATION` either.
+> - All three documented `.htaccess` remedies are present simultaneously
+>   (`SetEnvIf Authorization`, and two `RewriteRule ... [E=HTTP_AUTHORIZATION]`
+>   variants). None has any effect, which is consistent with the header being
+>   dropped before Apache processes the rules.
+> - A control header (`X-Auth-Probe`) on the same request *does* reach PHP, so
+>   custom headers are forwarded in general — `Authorization` specifically is
+>   not.
+>
+> Please pass the `Authorization` header through to PHP for this account —
+> typically by including `HTTP_AUTHORIZATION` in the PHP-FPM fastcgi
+> parameters, or the equivalent in the proxy configuration. I do not need any
+> file changed on my side; this is at a layer I cannot reach from Site Tools.
+
 ## The remaining options, in order of preference
 
 1. **SiteGround support.** They can inspect and change the proxy and PHP-FPM
