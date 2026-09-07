@@ -63,8 +63,9 @@ happening.
 
 ## Ticket text for SiteGround support
 
-Send this once the control test confirms the probe is live and custom headers
-do reach PHP. It gives support the finding rather than the symptom.
+Ready to send. The probe was confirmed live with an unconditional version
+marker, and the control header confirmed the behaviour is not specific to
+Authorization. This reports the finding rather than the symptom.
 
 > On my account (passqual.com / wp.passqual.com, shared document root), the
 > HTTP `Authorization` request header is not reaching PHP. This breaks the
