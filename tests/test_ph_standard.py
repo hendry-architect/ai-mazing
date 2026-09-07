@@ -194,3 +194,20 @@ def test_hero_is_only_advisory_before_the_export_step():
     a = good_article(featured_image="")
     assert check_article(a, stage="draft").passed
     assert not check_article(a, stage="publish").passed
+
+
+def test_the_generation_target_sits_above_the_floor():
+    """A model told to write "at least 600" stops near 600, which lands under
+    the floor once markup is stripped — a near-miss that is not a quality
+    difference. The target carries margin so that class of failure cannot
+    happen."""
+    assert PH.TARGET_BODY_WORDS > PH.MIN_BODY_WORDS
+    assert PH.TARGET_BODY_WORDS - PH.MIN_BODY_WORDS >= 100
+
+
+def test_a_near_miss_still_fails_the_floor():
+    """The floor does not bend for a close call — that is what a floor is."""
+    a = good_article()
+    a["bodies"]["en"] = "<h2>A</h2><p>" + ("word " * 592) + "</p><h2>B</h2><h2>C</h2>"
+    check = check_article(a)
+    assert any(v.rule == "depth" for v in check.required)

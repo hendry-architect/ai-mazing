@@ -60,7 +60,17 @@ class PH:
 
     # An article shorter than this is a social caption wearing a headline. The
     # first PCIP article shipped at ~120 words and read as thin.
+    #
+    # This floor is PCIP's, not the command registry's — the /PHSEO spec asks
+    # for "bilingual, patient-plain language" without naming a length. It is
+    # set here so the bar is explicit and reviewable rather than living in
+    # whoever is editing that day.
     MIN_BODY_WORDS = 600
+    # What generation aims for. A model told to write "at least 600" counts as
+    # it goes and stops near 600, which lands under the floor once markup is
+    # stripped — the run then fails on a near-miss that is not a quality
+    # difference. Asking for margin costs nothing and removes the whole class.
+    TARGET_BODY_WORDS = 800
     MIN_H2_SECTIONS = 3
     MIN_FAQ_ITEMS = 3
 
