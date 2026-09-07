@@ -83,6 +83,11 @@ class PCIPConfig:
     # which itself requires an explicit constant in wp-config.php.
     wordpress_auth_mirror_header: bool = False
 
+    # Which write path to use. "auto" tries the REST API and falls back to
+    # XML-RPC when the host strips the Authorization header, which is the one
+    # failure REST cannot recover from on its own. "rest" and "xmlrpc" pin it.
+    wordpress_transport: str = "auto"
+
     # ── Social channels (each optional; unconfigured = channel disabled) ─
     # Direct platform APIs are first-class (full capability + resilience);
     # Buffer is a scheduling provider, not the only publishing path.
@@ -278,6 +283,7 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         wordpress_com_token=_env("WORDPRESS_COM_TOKEN"),
         vercel_revalidate_url=_env("VERCEL_REVALIDATE_URL"),
         wp_revalidate_secret=_env("WP_REVALIDATE_SECRET"),
+        wordpress_transport=(_env("WORDPRESS_TRANSPORT", "auto").lower() or "auto"),
         wordpress_auth_mirror_header=_env(
             "WORDPRESS_AUTH_MIRROR_HEADER", "0"
         ).lower() in ("1", "true", "yes"),

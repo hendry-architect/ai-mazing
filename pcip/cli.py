@@ -320,6 +320,8 @@ def cmd_prepare(cfg: PCIPConfig, args: argparse.Namespace) -> int:
 def cmd_publish(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     from pcip.publish.router import PublishRouter
 
+    if getattr(args, "transport", ""):
+        cfg.wordpress_transport = args.transport
     with _graph(cfg) as g:
         pub = PublishRouter(cfg, g).publish(
             args.output_id,
@@ -466,6 +468,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("publish", help="publish an output to a channel")
     sp.add_argument("output_id")
+    sp.add_argument("--transport", choices=("auto", "rest", "xmlrpc"), default="",
+                    help="WordPress write path (default: auto — REST, falling "
+                         "back to XML-RPC when the host strips Authorization)")
     sp.add_argument("--channel", required=True)
     sp.add_argument("--title", default="")
     sp.add_argument("--text", default="")

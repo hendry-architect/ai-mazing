@@ -241,8 +241,28 @@ REDIR_EOF
   ok "checked for exposed config/backup files (only failures are printed above)"
 
   # ── 5. Routine hardening observations ──────────────────────────────────────
-  X="$(probe "https://$HOST/xmlrpc.php")"
-  [ "$(field "$X" 1)" = "200" ] && warn "xmlrpc.php is open (common brute-force target)"
+  # XML-RPC answers 405 to GET by design, so a GET probe says nothing about
+  # whether it is enabled. POST a system.listMethods call instead — and this
+  # matters beyond hardening: XML-RPC carries credentials in the request BODY,
+  # so it is unaffected by the header stripping that breaks the REST API.
+  XR="$("${CURL[@]}" -X POST -H 'Content-Type: text/xml' \
+        --data '<?xml version="1.0"?><methodCall><methodName>system.listMethods</methodName><params></params></methodCall>' \
+        "https://$HOST/xmlrpc.php" 2>/dev/null)"
+  case "$XR" in
+    *wp.newPost*)
+        ok  "XML-RPC is ENABLED and exposes wp.newPost"
+        info "This is a working automated publishing path: XML-RPC sends the"
+        info "credentials in the request body, so the stripped Authorization"
+        info "header does not affect it. No plugin, no server change."
+        info "Use: pcip publish <output> --channel wordpress --live --transport xmlrpc" ;;
+    *methodResponse*)
+        warn "XML-RPC responds but did not list wp.newPost"
+        info "It may be filtered by a security plugin (Wordfence can do this)." ;;
+    *methodName*|*faultCode*)
+        warn "XML-RPC returned a fault:"
+        info "  $(printf '%s' "$XR" | tr -d '\n' | head -c 200)" ;;
+    *)  info "XML-RPC does not appear to be enabled here" ;;
+  esac
 
   U="$("${CURL[@]}" "https://$HOST/wp-json/wp/v2/users" 2>/dev/null | head -c 120)"
   case "$U" in

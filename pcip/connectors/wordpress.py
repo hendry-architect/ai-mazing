@@ -328,6 +328,92 @@ class WordPressPublisher:
             self._post(f"/media/{media['id']}", json={"alt_text": alt_text})
         return media
 
+    def _publish_via_xmlrpc(
+        self,
+        title: str,
+        content_html: str,
+        *,
+        status: str,
+        excerpt: str,
+        slug: str,
+        language: str,
+        scheduled_gmt: str,
+        media_paths: Optional[List[str]],
+        alt_texts: Optional[List[str]],
+    ) -> Publication:
+        """Publish over XML-RPC and return the same Publication shape as REST.
+
+        Callers must not have to care which transport carried the article, so
+        this records the identical metadata, derives the same reader-facing URL
+        and fires the same revalidation. The only difference is ``transport``,
+        recorded so the distribution record stays truthful about how it went.
+        """
+        from pcip.connectors.wordpress_xmlrpc import WordPressXMLRPC
+
+        rpc = WordPressXMLRPC(self.cfg)
+        if not rpc.available():
+            raise WordPressAuthHeaderError(
+                "WordPress REST cannot authenticate on this host (the "
+                "Authorization header is stripped before PHP), and XML-RPC — "
+                "which would not be affected, because it sends credentials in "
+                "the request body — is not enabled or does not expose "
+                "wp.newPost.\n\n"
+                "Either enable XML-RPC on the site, or ask the host to pass "
+                "the Authorization header through to PHP.\n"
+                + AUTH_HEADER_FIX
+            )
+
+        media_ids: List[str] = []
+        media_html: List[str] = []
+        for i, path in enumerate(media_paths or []):
+            alt = (alt_texts or [])[i] if alt_texts and i < len(alt_texts) else ""
+            uploaded = rpc.upload_file(path)
+            attachment_id = str(uploaded.get("id") or uploaded.get("attachment_id") or "")
+            if attachment_id:
+                media_ids.append(attachment_id)
+                rpc.set_alt_text(attachment_id, alt)
+            if i == 0:
+                continue      # first becomes the featured image, as in REST
+            src = html.escape(uploaded.get("url", ""), quote=True)
+            media_html.append(
+                f'<figure><img src="{src}" alt="{html.escape(alt, quote=True)}" /></figure>'
+            )
+
+        body_html = content_html + ("\n" + "\n".join(media_html) if media_html else "")
+        post_id, link = rpc.new_post(
+            title,
+            body_html,
+            excerpt=excerpt,
+            slug=slug,
+            status="future" if scheduled_gmt else status,
+            date_iso=scheduled_gmt,
+            thumbnail_id=media_ids[0] if media_ids else "",
+        )
+
+        wp_status = "future" if scheduled_gmt else status
+        public_url = self.public_url_for(slug, language)
+        meta: Dict[str, Any] = {
+            "wp_status": wp_status,
+            "wp_link": link,
+            "media_ids": media_ids,
+            "language": language,
+            "transport": "xmlrpc",
+            "transport_reason": (
+                "REST unavailable: this host strips the Authorization header "
+                "before PHP"
+            ),
+        }
+        if wp_status == "publish":
+            meta.update(self.revalidate(slug, language))
+
+        return Publication(
+            channel=self.channel,
+            url=public_url,
+            external_id=str(post_id),
+            status="scheduled" if wp_status == "future" else "published",
+            metadata=meta,
+        )
+
     def publish_post(
         self,
         title: str,
@@ -383,7 +469,21 @@ class WordPressPublisher:
         if tags:
             body["tags"] = tags
 
-        post = self._post("/posts", json=body)
+        try:
+            post = self._post("/posts", json=body)
+        except WordPressAuthHeaderError:
+            # The host strips the Authorization header, so REST can never
+            # authenticate here. XML-RPC carries the credentials in the request
+            # body and is unaffected. Fall back rather than fail: the operator
+            # asked for the article to be published, not for a particular
+            # transport to be used.
+            if self.cfg.wordpress_transport == "rest":
+                raise
+            return self._publish_via_xmlrpc(
+                title, content_html, status=body["status"], excerpt=excerpt,
+                slug=slug, language=language, scheduled_gmt=scheduled_gmt,
+                media_paths=media_paths, alt_texts=alt_texts,
+            )
         wp_status = post.get("status", body["status"])
         public_url = self.public_url_for(post.get("slug", slug), language)
 
@@ -392,6 +492,7 @@ class WordPressPublisher:
             "wp_link": post.get("link", ""),
             "media_ids": media_ids,
             "language": language,
+            "transport": "rest",
         }
         if wp_status == "publish":
             meta.update(self.revalidate(post.get("slug", slug), language))
