@@ -68,14 +68,19 @@ for HOST in $HOSTS; do
   esac
 
   # ── 3. auth_test.php — what is it, and is it public? ───────────────────────
-  AT="$(probe "https://$HOST/auth_test.php")"
+  # Unique query string per run: a server-side cache keys on the full URL, so
+  # this forces the edited file to actually execute rather than replaying a
+  # cached copy of the version that existed before it was changed.
+  NOCACHE="pcipcb=$(date +%s)$$"
+  AT_URL="https://$HOST/auth_test.php?$NOCACHE"
+  AT="$(probe "$AT_URL")"
   ATCODE="$(field "$AT" 1)"
   case "$ATCODE" in
     200)
         warn "auth_test.php is PUBLICLY REACHABLE (HTTP 200)"
         info "type: $(field "$AT" 2)   bytes: $(field "$AT" 3)"
         info "unauthenticated output:"
-        "${CURL[@]}" "https://$HOST/auth_test.php" 2>/dev/null \
+        "${CURL[@]}" "$AT_URL" 2>/dev/null \
             | head -c 400 | sed 's/^/        /'
         echo
         info "NOTE: this is the file's OUTPUT, not its source. Read the source"
@@ -88,7 +93,7 @@ for HOST in $HOSTS; do
         # with a stripped header AND with WordPress declining it for its own
         # reasons; this is not.
         AUTHED="$("${CURL[@]}" -u "header-probe:not-a-real-password" \
-                  "https://$HOST/auth_test.php" 2>/dev/null)"
+                  "$AT_URL" 2>/dev/null)"
 
         # ── Control: is the probe even running, and does this server forward
         # custom headers at all? X-Auth-Probe becomes $_SERVER['HTTP_X_AUTH_PROBE'],
@@ -96,9 +101,32 @@ for HOST in $HOSTS; do
         # "the loop found nothing" and "the loop is not live" look identical —
         # and they lead to opposite conclusions.
         CTRL="$("${CURL[@]}" -H "X-Auth-Probe: pcip-control" \
-                "https://$HOST/auth_test.php" 2>/dev/null)"
+                "$AT_URL" 2>/dev/null)"
         printf '\n'
-        if printf '%s' "$CTRL" | grep -qi "X_AUTH_PROBE"; then
+        CACHEHDRS="$("${CURL[@]}" -s -D - -o /dev/null "$AT_URL" 2>/dev/null \
+                     | grep -iE '^(x-cache|x-proxy-cache|age|cf-cache-status|x-sg)' || true)"
+        if [ -n "$CACHEHDRS" ]; then
+            info "cache headers on this response:"
+            printf '%s' "$CACHEHDRS" | sed 's/^/        /'
+        else
+            info "no cache headers advertised on this response"
+        fi
+
+        # Is the edited file the one this URL executes? The marker prints
+        # unconditionally, so its absence means the edit is not live —
+        # which is otherwise indistinguishable from "headers were stripped".
+        if printf '%s' "$CTRL" | grep -qi "PCIP-PROBE"; then
+            LIVE=1
+        else
+            LIVE=0
+            warn "probe version marker NOT found"
+            info "auth_test.php is not executing the edited version at this"
+            info "URL. Add this line to it and re-run — everything below is"
+            info "uninterpretable until it appears:"
+            info "    echo \"PCIP-PROBE: 2\" . PHP_EOL;"
+        fi
+
+        if [ "$LIVE" = "1" ] && printf '%s' "$CTRL" | grep -qi "X_AUTH_PROBE"; then
             ok  "control header arrived — the probe is live and this server"
             info "does forward custom request headers to PHP."
             info "So Authorization specifically is being dropped, not headers"
@@ -106,12 +134,15 @@ for HOST in $HOSTS; do
             info "parameter set simply does not include HTTP_AUTHORIZATION."
             CONTROL_OK=1
         else
-            warn "control header did NOT arrive"
-            info "Either the edited probe is not live (SiteGround caching —"
-            info "purge the cache and re-run), or this server forwards no"
-            info "custom headers at all. Resolve this before drawing any"
-            info "conclusion from the Authorization result below."
             CONTROL_OK=0
+            if [ "$LIVE" = "1" ]; then
+                warn "probe IS live, but the control header did not reach PHP"
+                info "This server strips custom request headers before PHP —"
+                info "not just Authorization. That is itself the finding, and"
+                info "it is a stronger one: report it to the host as-is."
+            else
+                info "(control result cannot be read until the marker appears)"
+            fi
         fi
 
         printf '\n'
