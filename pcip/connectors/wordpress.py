@@ -287,18 +287,43 @@ class WordPressPublisher:
 
     # ── Reader-facing URLs ───────────────────────────────────────────────
 
-    def public_url_for(self, slug: str, language: str = "en") -> str:
+    def public_url_for(
+        self, slug: str, language: str = "en", wp_link: str = ""
+    ) -> str:
         """The URL a reader visits, on the public site — not the WP link.
 
-        Locale comes from the brief (PCIP already carries it) rather than from
-        the REST payload, because whether the translation plugin exposes a
-        language field over REST is deployment-specific; guessing wrong would
-        record a 404 as the permanent distribution record.
+        WordPress returns the post's real permalink, which already reflects
+        whatever permalink and translation structure the site actually uses.
+        Reusing that path and only swapping the hostname is exact; deriving it
+        from the slug plus a locale rule is a guess about someone else's
+        configuration.
+
+        That guess was wrong here: it assumed a translation plugin prefixes
+        Spanish posts with /es/, recorded a URL that 404s, and did so in a
+        method whose own docstring warned that guessing wrong would record a
+        404 as the permanent distribution record.
+
+        The slug-and-locale construction remains only as a fallback for callers
+        that have no link to work from.
         """
+        base = self.cfg.wordpress_public_site.rstrip("/")
+        origin = self.cfg.wordpress_url.rstrip("/")
+
+        link = (wp_link or "").strip()
+        if link:
+            from urllib.parse import urlsplit
+
+            parts = urlsplit(link)
+            if parts.path:
+                path = parts.path if parts.path.startswith("/") else "/" + parts.path
+                # A query-string permalink (?p=123) is an id, not a readable
+                # path, and does not resolve on the public site.
+                if not parts.query or "p=" not in parts.query:
+                    return f"{base}{path}"
+
         slug = (slug or "").strip("/")
         if not slug:
             return ""
-        base = self.cfg.wordpress_public_site.rstrip("/")
         if str(language or "").lower().startswith("es"):
             return f"{base}/es/{slug}/"
         return f"{base}/{slug}/"
@@ -423,7 +448,7 @@ class WordPressPublisher:
         )
 
         wp_status = "future" if scheduled_gmt else status
-        public_url = self.public_url_for(slug, language)
+        public_url = self.public_url_for(slug, language, wp_link=link)
         meta: Dict[str, Any] = {
             "wp_status": wp_status,
             "wp_link": link,
@@ -553,7 +578,9 @@ class WordPressPublisher:
 
         post = self._post("/posts", json=body)
         wp_status = post.get("status", body["status"])
-        public_url = self.public_url_for(post.get("slug", slug), language)
+        public_url = self.public_url_for(
+            post.get("slug", slug), language, wp_link=post.get("link", "")
+        )
 
         meta: Dict[str, Any] = {
             "wp_status": wp_status,

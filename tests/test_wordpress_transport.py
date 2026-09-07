@@ -464,3 +464,55 @@ def test_a_genuine_wordpress_404_is_not_confused_with_it():
     with pytest.raises(WordPressError) as exc:
         classify_response(resp, "GET /nope")
     assert not isinstance(exc.value, WordPressOriginError)
+
+
+# ── the reader-facing URL ────────────────────────────────────────────────────
+
+
+def _pub():
+    return WordPressPublisher(cfg(), session=FakeSession(lambda *a: Resp()))
+
+
+def test_public_url_reuses_the_permalink_wordpress_returned():
+    """The site's real structure beats any rule we invent about it.
+
+    The previous version assumed a translation plugin prefixes Spanish posts
+    with /es/. WordPress's own permalink had no prefix, so the recorded URL
+    404'd — in a method whose docstring warned about exactly that.
+    """
+    url = _pub().public_url_for(
+        "ignored", "es",
+        wp_link="https://wp.passqual.com/tres-habitos-diarios/",
+    )
+    assert url == "https://passqual.com/tres-habitos-diarios/"
+
+
+def test_a_nested_permalink_structure_is_preserved():
+    url = _pub().public_url_for(
+        "post", "en", wp_link="https://wp.passqual.com/2026/09/post/"
+    )
+    assert url == "https://passqual.com/2026/09/post/"
+
+
+def test_a_query_string_permalink_is_not_used():
+    """?p=123 is an id, not a path — it does not resolve on the public site."""
+    url = _pub().public_url_for(
+        "real-slug", "es", wp_link="https://wp.passqual.com/?p=3364"
+    )
+    assert url == "https://passqual.com/es/real-slug/"
+
+
+def test_falls_back_to_slug_when_there_is_no_link():
+    assert _pub().public_url_for("s", "es") == "https://passqual.com/es/s/"
+    assert _pub().public_url_for("s", "en") == "https://passqual.com/s/"
+
+
+def test_publish_records_the_url_wordpress_actually_assigned():
+    session = FakeSession(lambda *a: Resp(payload={
+        "id": 9, "slug": "mi-slug", "status": "publish",
+        "link": "https://wp.passqual.com/mi-slug/",
+    }))
+    wp = WordPressPublisher(cfg(), session=session)
+    pub = wp.publish_post("T", "<p>b</p>", status="publish", slug="mi-slug",
+                          language="es")
+    assert pub.url == "https://passqual.com/mi-slug/"
