@@ -267,6 +267,45 @@ def load_dotenv(
     return {}
 
 
+def env_shadowing(path: Optional[Path | str] = None) -> Dict[str, tuple]:
+    """Keys whose exported value differs from what .env says.
+
+    A non-empty exported variable deliberately wins over the file — but when it
+    silently disagrees with a value the operator just saved, the platform reads
+    one thing while the file plainly shows another, and every report about it
+    is confusing rather than wrong. This surfaces that disagreement so it can
+    be stated instead of debugged.
+
+    Returns {key: (shell_length, file_length)}. Values are never returned.
+    """
+    if path is not None:
+        candidates = [Path(path)]
+    else:
+        candidates = [Path.cwd() / ".env", _REPO_ROOT / ".env"]
+    for candidate in candidates:
+        if not candidate.is_file():
+            continue
+        out: Dict[str, tuple] = {}
+        for raw in candidate.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            if line.startswith("export "):
+                line = line[len("export "):].lstrip()
+            key, _, value = line.partition("=")
+            key = key.strip()
+            if not key.isidentifier():
+                continue
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            shell = os.environ.get(key)
+            if value and shell and shell != value:
+                out[key] = (len(shell), len(value))
+        return out
+    return {}
+
+
 def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 

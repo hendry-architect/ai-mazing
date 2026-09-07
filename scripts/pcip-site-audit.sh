@@ -167,7 +167,7 @@ for HOST in $HOSTS; do
               | sed 's/\xe2\x80\xa6//g; s/\.\.\.//g' \
               | tr -d '\r' \
               | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' \
-              | grep -viE '^(\(none\)|\(not set\)|no|)$' || true
+              | grep -viE '^(\(none\)|\(not set\)|no)$' || true
         }
         V_STD="$(val_of 'HTTP_AUTHORIZATION')"
         [ -z "$V_STD" ] && V_STD="$(val_of 'Authorization')"

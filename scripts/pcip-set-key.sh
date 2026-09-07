@@ -93,25 +93,38 @@ if [ "${REMOVED:-0}" -gt 0 ] 2>/dev/null; then
     printf '  (replaced %s earlier line(s) for this key)\n' "$REMOVED"
 fi
 
-# Prove it round-trips through the loader the platform actually uses, rather
-# than trusting that writing the file was enough.
-if ! KEY="$KEY" python3 - <<'PYEOF'
+# Verify what the platform will ACTUALLY resolve — not what it would resolve in
+# a cleaned-up environment. An earlier version popped the key before checking,
+# so it validated a situation the real run never encounters and reported
+# "verified" while every command still read a stale exported value.
+PCIP_SET_KEY="$KEY" python3 - <<'PYEOF'
 import os, sys
 sys.path.insert(0, os.getcwd())
+key = os.environ["PCIP_SET_KEY"]
 try:
-    from pcip.config import load_dotenv
+    from pcip.config import load_dotenv, env_shadowing
 except Exception:
-    sys.exit(0)                      # not runnable from here; writing succeeded
-os.environ.pop(os.environ["KEY"], None)
+    sys.exit(0)                      # not runnable from here; the write succeeded
+
+shadowed = env_shadowing()
 load_dotenv()
-sys.exit(0 if os.environ.get(os.environ["KEY"]) else 1)
+resolved = os.environ.get(key, "")
+
+if key in shadowed:
+    shell_len, file_len = shadowed[key]
+    print("\033[31m  ✗ saved, but PCIP will NOT use it\033[0m")
+    print(f"    {key} is exported in your shell ({shell_len} chars) and that")
+    print(f"    wins over the {file_len} characters just written to .env.")
+    print("    Clear it in this terminal and the file value takes effect:")
+    print(f"        unset {key}")
+    sys.exit(1)
+if not resolved:
+    print(f"\033[31m  ✗ saved, but PCIP cannot read {key} back\033[0m")
+    print("    Check .env for another line assigning it.")
+    sys.exit(1)
+print("  verified: PCIP resolves this value")
 PYEOF
-then
-    printf '\033[31m  ✗ saved, but PCIP still cannot read %s back\033[0m\n' "$KEY"
-    printf '    Check .env for another line assigning it.\n'
-    exit 1
-fi
-printf '  verified: PCIP reads it back\n'
+
 unset VALUE
 echo
 echo "next:  bash scripts/pcip-bringup.sh"

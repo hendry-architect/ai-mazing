@@ -132,12 +132,21 @@ fi
 # Print the resolved target before sending. Three rounds were lost to
 # inferring where the request went from the error it came back with.
 "$PY" - <<'PYEOF'
-from pcip.config import load_config
+from pcip.config import env_shadowing, load_config
+
+shadowed = env_shadowing()
 cfg = load_config()
 print(f"    origin      : {cfg.wordpress_url}")
 print(f"    REST base   : {cfg.wordpress_url}/wp-json/wp/v2")
 print(f"    public site : {cfg.wordpress_public_site}")
 print(f"    transport   : {cfg.wordpress_transport}")
+if shadowed:
+    print()
+    print("    \033[33m⚠ these are exported in your shell and OVERRIDE .env:\033[0m")
+    for key, (shell_len, file_len) in sorted(shadowed.items()):
+        print(f"        {key}: shell {shell_len} chars, .env {file_len} chars")
+    print("    If the values above look wrong, that is why. Clear them:")
+    print("        unset " + " ".join(sorted(shadowed)))
 PYEOF
 
 ARGS=(-m pcip --data-dir "$DATA" publish "$OUT" --channel wordpress)

@@ -172,3 +172,34 @@ def test_the_full_failure_the_operator_actually_hit(tmp_path, monkeypatch):
     assert cfg.wordpress_user == "editor"
     assert cfg.wordpress_app_password == "abcd efgh ijkl"
     assert cfg.wordpress_configured is True
+
+
+def test_env_shadowing_reports_a_disagreement_without_values(monkeypatch, tmp_path):
+    """A non-empty export beats the file by design — but say so out loud.
+
+    Silently reading one value while the file plainly shows another makes every
+    subsequent report confusing rather than wrong, and cost several rounds of
+    debugging a setting that had been saved correctly.
+    """
+    from pcip.config import env_shadowing
+
+    monkeypatch.setenv("WORDPRESS_URL", "https://passqual.com")
+    env = write(tmp_path, "WORDPRESS_URL=https://wp.passqual.com\n")
+    report = env_shadowing(env)
+    assert report == {"WORDPRESS_URL": (20, 23)}
+    assert "passqual" not in str(report)          # lengths only, never values
+
+
+def test_agreement_is_not_reported_as_shadowing(monkeypatch, tmp_path):
+    from pcip.config import env_shadowing
+
+    monkeypatch.setenv("WORDPRESS_URL", "https://wp.passqual.com")
+    assert env_shadowing(write(tmp_path, "WORDPRESS_URL=https://wp.passqual.com\n")) == {}
+
+
+def test_an_empty_export_is_not_shadowing(monkeypatch, tmp_path):
+    """Empty exports are handled by load_dotenv; they are not a disagreement."""
+    from pcip.config import env_shadowing
+
+    monkeypatch.setenv("WORDPRESS_URL", "")
+    assert env_shadowing(write(tmp_path, "WORDPRESS_URL=https://wp.passqual.com\n")) == {}
