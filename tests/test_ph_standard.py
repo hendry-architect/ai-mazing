@@ -168,3 +168,29 @@ def test_report_lists_findings_with_fixes():
     text = check.report()
     assert "PH standard" in text
     assert "→" in text          # each finding carries a fix
+
+
+def test_a_pdf_cannot_be_the_featured_image():
+    """patient_education exported PDF, which the check accepted silently.
+
+    A PDF is a fine handout and cannot be a hero image; a post shipped with one
+    has no image at all in the feed or in search.
+    """
+    a = good_article(featured_image="/tmp/prevencion.pdf")
+    check = check_article(a)
+    assert any(v.rule == "featured_image" for v in check.required)
+    assert "PDF cannot be a featured image" in check.report()
+
+
+def test_an_image_hero_passes():
+    for suffix in (".png", ".jpg", ".webp"):
+        a = good_article(featured_image=f"/tmp/hero{suffix}")
+        assert check_article(a).passed, suffix
+
+
+def test_hero_is_only_advisory_before_the_export_step():
+    """At draft the design has not been exported, so demanding it would fail
+    every run before a reviewer could see it."""
+    a = good_article(featured_image="")
+    assert check_article(a, stage="draft").passed
+    assert not check_article(a, stage="publish").passed

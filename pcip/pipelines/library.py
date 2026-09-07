@@ -439,7 +439,9 @@ PIPELINES: Dict[str, Pipeline] = {
         "patient education handout/carousel",
         [Step("plain_language", plain_language_check, "Reading-level guard")],
         ["medical_review", "brand_review"],   # medical_review can NEVER auto-approve
-        export_format="pdf",
+        # PNG, not PDF: the exported file becomes the article's featured image,
+        # and a PDF cannot be one. The printable handout is a separate export.
+        export_format="png",
     ),
     "marketing_asset": _standard(
         "marketing_asset",

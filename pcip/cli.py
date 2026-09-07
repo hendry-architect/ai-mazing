@@ -184,6 +184,26 @@ def _run_summary(run: Any) -> dict:
     return summary
 
 
+def _resolve_run_id(graph: Any, run_id: str) -> str:
+    """Turn 'latest' into a real run id.
+
+    Every instruction that contained a placeholder for this has cost a round —
+    someone pastes <RUN_ID> literally, because that is what the instruction
+    said. Preferring a run that is actually waiting on a handoff makes the
+    common case need no id at all.
+    """
+    if run_id and run_id != "latest":
+        return run_id
+    runs = graph.nodes_by_kind(NodeKind.PIPELINE_RUN, limit=50)
+    if not runs:
+        raise SystemExit("error: no pipeline runs exist yet — start one with `pcip run`")
+    waiting = [r for r in runs
+               if (r["payload"].get("status") or "") in ("awaiting_handoff",
+                                                         "awaiting_review")]
+    chosen = (waiting or runs)[0]
+    return chosen["id"]
+
+
 def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     """Fulfil a handoff: attach the Canva design or exported files, then resume."""
     from pcip.pipelines.library import get_pipeline
@@ -271,6 +291,7 @@ def _load_run_and_brief(cfg: PCIPConfig, g: KnowledgeGraph, run_id: str):
 
 def cmd_approve(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     with _graph(cfg) as g:
+        args.run_id = _resolve_run_id(g, args.run_id)
         runner, run, brief = _load_run_and_brief(cfg, g, args.run_id)
         if not runner:
             return 1
@@ -285,6 +306,7 @@ def cmd_approve(cfg: PCIPConfig, args: argparse.Namespace) -> int:
 
 def cmd_reject(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     with _graph(cfg) as g:
+        args.run_id = _resolve_run_id(g, args.run_id)
         runner, run, brief = _load_run_and_brief(cfg, g, args.run_id)
         if not runner:
             return 1
@@ -297,6 +319,7 @@ def cmd_resume(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     from pcip.pipelines.library import get_pipeline
 
     with _graph(cfg) as g:
+        args.run_id = _resolve_run_id(g, args.run_id)
         runner, run, brief = _load_run_and_brief(cfg, g, args.run_id)
         if not runner:
             return 1
@@ -417,23 +440,27 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--limit", type=int, default=20)
 
     sp = sub.add_parser("approve", help="approve a review gate and continue")
-    sp.add_argument("run_id")
+    sp.add_argument("run_id", nargs="?", default="latest",
+                    help="run id, or omit for the run awaiting review")
     sp.add_argument("--gate", default=None)
     sp.add_argument("--reviewer", default="")
 
     sp = sub.add_parser("reject", help="reject a review gate")
-    sp.add_argument("run_id")
+    sp.add_argument("run_id", nargs="?", default="latest",
+                    help="run id, or omit for the run awaiting review")
     sp.add_argument("--gate", default=None)
     sp.add_argument("--reason", default="")
 
     sp = sub.add_parser("resume", help="resume a paused/failed run")
-    sp.add_argument("run_id")
+    sp.add_argument("run_id", nargs="?", default="latest",
+                    help="run id, or omit for the most recent run")
 
     sp = sub.add_parser(
         "attach",
         help="fulfil a Canva handoff (attach the design or exported files) and resume",
     )
-    sp.add_argument("run_id")
+    sp.add_argument("run_id", nargs="?", default="latest",
+                    help="run id, or omit for the run awaiting a handoff")
     sp.add_argument("--design-id", default="", help="Canva design id created for this run")
     sp.add_argument("--design-url", default="", help="the design's view URL")
     sp.add_argument("--design-title", default="")

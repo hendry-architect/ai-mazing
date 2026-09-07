@@ -142,6 +142,8 @@ class ArticleCheck:
         }
 
 
+IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif")
+
 _TAG_RE = re.compile(r"<[^>]+>")
 _H1_RE = re.compile(r"<h1\b", re.I)
 _H2_RE = re.compile(r"<h2\b", re.I)
@@ -254,7 +256,15 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
         ))
 
     # ── Visual ───────────────────────────────────────────────────────────
-    if not (article.get("featured_image") or "").strip():
+    hero = (article.get("featured_image") or "").strip()
+    if hero and not hero.lower().endswith(IMAGE_SUFFIXES):
+        add(Violation(
+            "featured_image", "advisory" if stage == "draft" else "required",
+            f"the exported file is not an image ({hero.rsplit('.', 1)[-1]})",
+            "a PDF cannot be a featured image — export a PNG of the design and "
+            "keep the PDF as a downloadable handout",
+        ))
+    if not hero:
         add(Violation(
             "featured_image", "advisory" if stage == "draft" else "required",
             "no featured image",
