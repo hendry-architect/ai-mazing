@@ -140,6 +140,30 @@ for HOST in $HOSTS; do
   esac
 done
 
+# ── 6. Is there a route that avoids this host's web server entirely? ────────
+# WordPress.com's public API proxies to a Jetpack-connected site. Requests go
+# to WordPress.com, not to this host's Apache/nginx, so a stripped
+# Authorization header cannot affect them — there is nothing on the server to
+# fix. Worth knowing before editing any server file.
+hdr "Alternate publishing route (no server changes)"
+for HOST in $HOSTS; do
+  JP="$("${CURL[@]}" "https://public-api.wordpress.com/rest/v1.1/sites/$HOST" 2>/dev/null)"
+  case "$JP" in
+    *'"unknown_blog"'*|*'"not_found"'*|*'"authorization_required"'*)
+        info "$HOST — not reachable via WordPress.com public API"
+        info "  (Jetpack not connected, or the site is private)" ;;
+    *'"ID"'*|*'"id"'*)
+        SITEID="$(printf '%s' "$JP" | sed -n 's/.*"ID":[ ]*\([0-9]*\).*/\1/p' | head -1)"
+        ok  "$HOST IS connected to WordPress.com (site ID ${SITEID:-unknown})"
+        info "PCIP can publish through this route with WORDPRESS_COM_TOKEN and"
+        info "never touch the origin server. This bypasses the stripped header"
+        info "entirely — there is nothing to fix on the host." ;;
+    "") info "$HOST — no response from the WordPress.com API" ;;
+    *)  info "$HOST — unrecognised response:"
+        info "  $(printf '%s' "$JP" | head -c 160)" ;;
+  esac
+done
+
 hdr "What this cannot tell you"
 cat <<'EOF'
     HTTP cannot show you the SOURCE of a PHP file — only what it prints.
