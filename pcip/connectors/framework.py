@@ -97,6 +97,12 @@ class ConnectorDescriptor:
     docs_url: str = ""
     setup_ref: str = ""                # pointer into pcip/SETUP.md
     mcp_managed: bool = False
+    # Some connectors are MCP-managed only in certain configurations. Canva is
+    # the case: in "mcp" mode an agent session holds the credentials and PCIP
+    # holds none, so reporting "missing_credentials" describes a deliberate
+    # design as a fault. A callable keeps that decision with the connector
+    # rather than special-casing names in the manager.
+    mcp_managed_when: Optional[Callable[[Any], bool]] = None
     # Optional live probe: returns {capability_name: status_override}; raises
     # ConnectorAuthError / EntitlementError to signal auth or plan problems.
     probe: Optional[Callable[[PCIPConfig], Dict[str, str]]] = None
@@ -209,7 +215,9 @@ class ConnectorManager:
 
         if not self.manifest.desired(desc.name):
             base_status, detail = "disabled", "not requested in bootstrap.yaml"
-        elif desc.mcp_managed:
+        elif desc.mcp_managed or (
+            desc.mcp_managed_when is not None and desc.mcp_managed_when(self.cfg)
+        ):
             base_status, detail = "mcp_managed", (
                 "credentials held by the MCP host, not PCIP"
             )

@@ -176,6 +176,12 @@ CATALOG = [
         docs_url="https://www.canva.dev/docs/connect/",
         setup_ref="pcip/SETUP.md Phase 1",
         probe=probe_canva,
+        # In "mcp" mode the Canva work runs through the MCP connector held by
+        # an agent session, and PCIP holds no Canva credentials by design. That
+        # is the configuration this deployment actually runs — the live design
+        # and export were produced that way — so reporting the absent Connect
+        # credentials as "missing" describes a deliberate choice as a fault.
+        mcp_managed_when=lambda cfg: cfg.canva_mode == "mcp",
         capabilities=(
             CapabilitySpec("create_design", "POST /designs"),
             CapabilitySpec(
