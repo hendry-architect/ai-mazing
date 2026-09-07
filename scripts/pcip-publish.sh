@@ -109,6 +109,44 @@ if [ -z "$OUT" ]; then
     info "Run the pipeline first:  bash scripts/pcip-bringup.sh"
     exit 1
 fi
+# Is a newer run still in flight? Publishing here would ship the previous
+# run's deliverable while the one being reviewed is unfinished — which is
+# exactly what happened: a completed PDF from an earlier run was selected
+# while the current run sat at a review gate with nothing exported.
+INFLIGHT="$("$PY" - "$DATA" "$OUT" <<'PYEOF'
+import pathlib, sys
+from pcip.graph.store import KnowledgeGraph
+data, out_id = sys.argv[1], sys.argv[2]
+g = KnowledgeGraph(str(pathlib.Path(data) / "graph.db"))
+runs = g.nodes_by_kind("pipeline_run", limit=50)
+waiting = [r for r in runs
+           if (r["payload"].get("status") or "") in ("awaiting_review",
+                                                     "awaiting_handoff")]
+if not waiting:
+    raise SystemExit
+run = waiting[0]["payload"]
+# Does that run already own this output? Then it is not stale.
+produced = {dst for _, dst in g.neighbors(run["id"], "produced")}
+if out_id in produced:
+    raise SystemExit
+step = next((s.get("step") for s in run.get("steps", [])
+             if s.get("status") in ("awaiting_review", "awaiting_handoff")), "?")
+print(f"{run['id']}|{run.get('status')}|{step}")
+PYEOF
+)"
+if [ -n "$INFLIGHT" ]; then
+    R="$(printf '%s' "$INFLIGHT" | cut -d'|' -f1)"
+    ST="$(printf '%s' "$INFLIGHT" | cut -d'|' -f2)"
+    STEP="$(printf '%s' "$INFLIGHT" | cut -d'|' -f3)"
+    bad "a newer run is still in progress — refusing to publish an older deliverable"
+    info "run $R is $ST at: $STEP"
+    info "The output above ($OUT) came from an EARLIER run. Publishing it now"
+    info "would ship the previous version while the new one is unfinished."
+    info ""
+    info "Finish the current run first:"
+    info "  bash scripts/pcip-next.sh"
+    exit 1
+fi
 ok "output: $OUT"
 "$PY" - "$DATA" "$OUT" <<'PYEOF'
 import sys, pathlib
