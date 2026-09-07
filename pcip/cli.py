@@ -353,6 +353,7 @@ def cmd_publish(cfg: PCIPConfig, args: argparse.Namespace) -> int:
             text=args.text,
             live=args.live,
             schedule_at=args.schedule_at,
+            republish=getattr(args, "republish", False),
         )
         _print(pub.to_dict())
     return 0
@@ -372,6 +373,19 @@ def cmd_record(cfg: PCIPConfig, args: argparse.Namespace) -> int:
             published_at=args.published_at,
         )
         _print(pub.to_dict())
+    return 0
+
+
+def cmd_retract(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Trash every published copy of an output and mark the record retracted."""
+    from pcip.publish.router import PublishRouter
+
+    with _graph(cfg) as g:
+        pubs = PublishRouter(cfg, g).retract(args.output_id, reason=args.reason)
+        if not pubs:
+            print(f"nothing published for {args.output_id} — nothing to retract")
+            return 0
+        _print([p.to_dict() for p in pubs])
     return 0
 
 
@@ -493,8 +507,18 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--note", default="", help="why it was published by hand")
     sp.add_argument("--published-at", default="", help="ISO timestamp (default: now)")
 
+    sp = sub.add_parser(
+        "retract",
+        help="move published copies of an output to the WordPress trash",
+    )
+    sp.add_argument("output_id")
+    sp.add_argument("--reason", default="", help="why it is being retracted")
+
     sp = sub.add_parser("publish", help="publish an output to a channel")
     sp.add_argument("output_id")
+    sp.add_argument("--republish", action="store_true",
+                    help="publish again even though this output is already live "
+                         "(creates a second copy competing for the same terms)")
     sp.add_argument("--transport", choices=("auto", "rest", "xmlrpc"), default="",
                     help="WordPress write path (default: auto — REST, falling "
                          "back to XML-RPC when the host strips Authorization)")
@@ -527,6 +551,7 @@ COMMANDS = {
     "resume": cmd_resume,
     "attach": cmd_attach,
     "prepare": cmd_prepare,
+    "retract": cmd_retract,
     "record": cmd_record,
     "publish": cmd_publish,
 }

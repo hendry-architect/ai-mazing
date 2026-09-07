@@ -513,6 +513,15 @@ class WordPressPublisher:
         ))
         return "".join(p for p in parts if p)
 
+    def trash_post(self, post_id: str) -> Dict[str, Any]:
+        """Move a post to the trash.
+
+        Not a hard delete: WordPress keeps a trashed post recoverable, and an
+        irreversible retraction is a worse failure than the duplicate it is
+        meant to fix.
+        """
+        return self._post(f"/posts/{post_id}", json={"status": "trash"})
+
     def update_post(self, post_id: str, **fields: Any) -> Dict[str, Any]:
         """Patch an existing post. Used to cross-link the two languages once
         both exist and their URLs are known."""
@@ -563,6 +572,10 @@ class WordPressPublisher:
                 "content": body,          # patched with schema once URLs exist
                 "status": status,
                 "excerpt": excerpt if lang == PH_PRIMARY else "",
+                # Polylang reads this. Without it a post has NO language, and a
+                # site that filters by language shows it under every one — which
+                # is how Spanish articles ended up in the English listing.
+                "lang": lang,
             }
             if slugs.get(lang):
                 payload["slug"] = slugs[lang]
@@ -610,6 +623,9 @@ class WordPressPublisher:
                 "translation_of": (created.get(other) or {}).get("id", ""),
                 "translation_url": other_public,
                 "seo_meta_sent": bool(seo.seo_meta_fields(meta_title, meta_description)),
+                # Read back rather than assume: `lang` is only honoured when
+                # Polylang exposes it over REST, and silently dropped otherwise.
+                "language_assigned": (updated.get("lang") or post.get("lang") or "") == lang,
                 "schema": "MedicalWebPage+MedicalClinic+Physician"
                           + ("+FAQPage" if faq else ""),
             }
@@ -723,6 +739,9 @@ class WordPressPublisher:
             body["status"] = "future"
         if slug:
             body["slug"] = slug
+        # A post with no language shows under every language on a bilingual
+        # site. Send it; Polylang honours it where it is exposed over REST.
+        body["lang"] = (language or "en")[:2]
         if media_ids:
             body["featured_media"] = media_ids[0]
         if categories:
@@ -741,6 +760,7 @@ class WordPressPublisher:
             "wp_link": post.get("link", ""),
             "media_ids": media_ids,
             "language": language,
+            "language_assigned": (post.get("lang") or "") == (language or "en")[:2],
             "transport": "rest",
         }
         if wp_status == "publish":

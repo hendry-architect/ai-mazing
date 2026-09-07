@@ -235,6 +235,35 @@ class PublishRouter:
         }
         return primary
 
+    def _check_not_already_published(
+        self, output_id: str, channel: Channel, republish: bool
+    ) -> None:
+        """Refuse to publish the same deliverable to the same channel twice.
+
+        A scheduled run and a manual run both publishing produced two live
+        articles competing for one topic — which splits the ranking signal and
+        leaves a reader wondering which is current. The graph already knows
+        where everything went; this makes it consult that before writing again.
+        """
+        if republish:
+            return
+        already = [
+            p for p in self.where_did_it_go(output_id)
+            if p.get("channel") == channel.value
+            and p.get("status") in ("published", "scheduled")
+        ]
+        if not already:
+            return
+        where = ", ".join(p.get("url") or p.get("external_id", "?") for p in already)
+        raise PublishError(
+            f"{output_id} is already published to {channel.value}: {where}\n\n"
+            "Publishing again creates a second live copy of the same article, "
+            "which competes with the first for the same search terms.\n\n"
+            "To replace it, retract the existing one first:\n"
+            f"  pcip retract {output_id}\n"
+            "or, if you genuinely want a second copy, pass --republish."
+        )
+
     def _check_ph_standard(
         self, output_id: str, payload: Dict[str, Any], output: Asset
     ) -> None:
@@ -303,8 +332,10 @@ class PublishRouter:
         live: bool = False,
         schedule_at: str = "",
         media_urls: Optional[List[str]] = None,
+        republish: bool = False,
     ) -> Publication:
         channel = Channel(channel) if isinstance(channel, str) else channel
+        self._check_not_already_published(output_id, channel, republish)
         output = self._load_output_asset(output_id)
         self._check_run_state(output_id)
         self._check_license(output)
@@ -535,6 +566,46 @@ class PublishRouter:
             pub.published_at = published_at
         self._record(pub)
         return pub
+
+    def retract(self, output_id: str, *, reason: str = "") -> List[Publication]:
+        """Move every published copy of an output to the trash and record it.
+
+        Trash rather than delete: WordPress keeps it recoverable, and a
+        retraction that cannot be undone is a worse failure than the duplicate
+        it fixes. The publication record is kept and marked retracted, because
+        the fact that something was live for a while is part of the
+        distribution history, not an embarrassment to erase.
+        """
+        from pcip.connectors.wordpress import WordPressPublisher
+
+        out: List[Publication] = []
+        for record in self.where_did_it_go(output_id):
+            if record.get("status") not in ("published", "scheduled"):
+                continue
+            if record.get("channel") != Channel.WORDPRESS.value:
+                continue
+            post_id = record.get("external_id", "")
+            if not post_id:
+                continue
+            wp = WordPressPublisher(self.cfg)
+            wp.trash_post(post_id)
+
+            record = dict(record)
+            record["status"] = "retracted"
+            meta = dict(record.get("metadata") or {})
+            meta["retracted_reason"] = reason or "replaced"
+            record["metadata"] = meta
+            self.graph.upsert_node(
+                record["id"], NodeKind.PUBLICATION,
+                f"{record['channel']}: retracted {record.get('url', '')}",
+                record,
+            )
+            out.append(Publication(**{
+                k: v for k, v in record.items()
+                if k in ("id", "output_id", "url", "external_id",
+                         "published_at", "status", "metadata")
+            } | {"channel": Channel(record["channel"])}))
+        return out
 
     # ── Reporting ────────────────────────────────────────────────────────
 
