@@ -53,7 +53,10 @@ for step in run.get("steps", []):
         break
 print(f"{run.get('id','')}|{status}|{need}")
 for step in run.get("steps", []):
-    print(f"STEP|{step.get('step')}|{step.get('status')}|{(step.get('detail') or '')[:96]}")
+    detail = (step.get("detail") or "").replace("\n", "⏎")
+    if step.get("status") != "failed":
+        detail = detail[:96]
+    print(f"STEP|{step.get('step')}|{step.get('status')}|{detail}")
 PYEOF
 )"
 LINE1="$(printf '%s' "$STATE" | head -1)"
@@ -130,10 +133,46 @@ case "$STATUS::$NEED" in
         info "  python3 -m pcip --data-dir pcip_data reject $RUN \\"
         info "      --gate $NEED --reason \"...\"" ;;
     failed::*)
-        bad "the run failed — see the step detail above"
-        info "If it stopped at ph_standard, the copy is below the PassQual"
-        info "Health article standard and the message lists every finding."
-        info "Re-run the pipeline to regenerate:"
+        bad "the run failed"
+        # Print the failure in full. Truncating it hides the only actionable
+        # content the step produced.
+        "$PY" - "$DATA" "$RUN" <<'PYEOF'
+import pathlib, sys, textwrap
+from pcip.graph.store import KnowledgeGraph
+g = KnowledgeGraph(str(pathlib.Path(sys.argv[1]) / "graph.db"))
+run = (g.get_node(sys.argv[2]) or {}).get("payload", {})
+for step in run.get("steps", []):
+    if step.get("status") != "failed":
+        continue
+    print(f"\n    why {step.get('step')} failed:\n")
+    for line in (step.get("detail") or "").splitlines():
+        print("      " + line if line.strip() else "")
+
+    # What did the copy step actually produce? A standard failure is usually
+    # a shape problem, and the field inventory says which.
+    fields = (run.get("context") or {}).get("copy_fields") or {}
+    if fields:
+        print("\n    what the copy step produced:")
+        bodies = fields.get("bodies") or {}
+        if bodies:
+            for lang, body in bodies.items():
+                words = len(body.split())
+                print(f"      bodies[{lang}]: {words} words")
+        else:
+            print("      bodies: EMPTY — the model did not return the")
+            print("              bilingual shape, so everything fell back")
+        legacy = fields.get("body_html") or ""
+        if legacy:
+            print(f"      body_html (legacy single-language): {len(legacy.split())} words")
+        for key in ("meta_title", "meta_description"):
+            val = fields.get(key) or ""
+            print(f"      {key}: {len(val)} chars" if val else f"      {key}: MISSING")
+        print(f"      faq: {len(fields.get('faq') or [])} item(s)")
+        print(f"      titles: {sorted((fields.get('titles') or {}).keys()) or 'MISSING'}")
+    break
+PYEOF
+        printf '\n'
+        info "Re-run to regenerate:"
         info "  python3 -m pcip --data-dir pcip_data run patient_education \\"
         info "      --brief examples/brief-diabetes-es.json" ;;
     done::*)

@@ -119,3 +119,57 @@ def test_plain_language_check_flags_dense_copy():
     ctx = {"copy": "Take your medicine each day. Ask us if you have questions."}
     plain_language_check(ctx)
     assert not ctx["plain_language_issues"]
+
+
+# ── the copy package the standard needs ──────────────────────────────────────
+
+
+def test_parse_copy_fields_keeps_the_bilingual_shape():
+    """The generated block carries bodies/titles per language, not one blob."""
+    from pcip.generate.orchestrator import parse_copy_fields
+
+    fields = parse_copy_fields('''```json
+{"titles": {"es": "T ES", "en": "T EN"},
+ "bodies": {"es": "<p>es</p>", "en": "<p>en</p>"},
+ "meta_title": "MT", "meta_description": "MD",
+ "faq": [{"q": "a", "a": "b"}],
+ "alt_texts_by_language": {"es": "ae", "en": "ai"}}
+```''')
+    assert fields["bodies"]["es"] == "<p>es</p>"
+    assert fields["titles"]["en"] == "T EN"
+    assert fields["meta_title"] == "MT"
+    assert fields["faq"] == [{"q": "a", "a": "b"}]
+    assert fields["alt_texts_by_language"]["en"] == "ai"
+
+
+def test_a_truncated_block_does_not_masquerade_as_empty_copy():
+    """A cut-off JSON block used to parse as 'no fields', which failed the
+    standard for the wrong reason — the article existed, the ceiling was too
+    low. Falling back to the raw text keeps the content visible."""
+    from pcip.generate.orchestrator import parse_copy_fields
+
+    fields = parse_copy_fields('```json\n{"bodies": {"es": "<p>empieza')
+    assert not fields.get("bodies")
+    assert fields["body_html"]        # the text survives somewhere
+
+
+def test_structured_faq_survives_parsing():
+    """faq is a list of {q, a} objects; stringifying them turned every
+    question into the repr of a dict, and the FAQPage schema with it."""
+    from pcip.generate.orchestrator import parse_copy_fields
+
+    fields = parse_copy_fields(
+        '```json\n{"faq": [{"q": "¿Cuánto?", "a": "Treinta minutos."}]}\n```'
+    )
+    assert fields["faq"][0]["q"] == "¿Cuánto?"
+    assert isinstance(fields["faq"][0], dict)
+
+
+def test_the_raw_block_is_not_copied_into_the_legacy_body():
+    """With the bilingual shape present, body_html must stay empty — otherwise
+    the whole fenced JSON gets published as the article."""
+    from pcip.generate.orchestrator import parse_copy_fields
+
+    fields = parse_copy_fields('```json\n{"bodies": {"es": "<p>real</p>"}}\n```')
+    assert fields["bodies"]["es"] == "<p>real</p>"
+    assert "```" not in fields["body_html"]

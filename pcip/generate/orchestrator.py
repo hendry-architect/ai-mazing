@@ -80,15 +80,26 @@ def parse_copy_fields(text: str) -> Dict[str, Any]:
         for key, default in COPY_FIELDS.items():
             value = parsed.get(key, default)
             if isinstance(default, list):
-                fields[key] = [str(v) for v in value] if isinstance(value, list) else []
+                # Coerce scalars to text but leave structured items intact:
+                # `faq` is a list of {q, a} objects, and stringifying those
+                # turned every question into the repr of a dict.
+                fields[key] = [
+                    v if isinstance(v, (dict, list)) else str(v)
+                    for v in value
+                ] if isinstance(value, list) else []
             elif isinstance(default, dict):
-                fields[key] = {str(k): str(v) for k, v in value.items()} if isinstance(value, dict) else {}
+                fields[key] = {
+                    str(k): v if isinstance(v, (dict, list)) else str(v)
+                    for k, v in value.items()
+                } if isinstance(value, dict) else {}
             else:
                 fields[key] = str(value or "")
         break
 
-    if not fields["body_html"]:
+    if not fields["body_html"] and not fields.get("bodies"):
         # Nothing usable parsed — the prose itself is the best body we have.
+        # Only when the bilingual shape is absent too: otherwise this would
+        # copy the whole fenced block into the legacy body field and publish it.
         fields["body_html"] = text.strip()
     return fields
 
@@ -249,8 +260,12 @@ class GenerationOrchestrator:
             "print 988 and 911. Flag anything needing clinician sign-off with "
             "[MEDICAL-REVIEW] — those notes are stripped before publication, "
             "so never put patient-facing content inside one.\n\n"
-            "Write the prose first for the human reviewer. Then, at the very "
-            "end, repeat the publishable parts as a single fenced JSON block:\n\n"
+            "Reply with ONE fenced JSON block and nothing else — no preamble, "
+            "no commentary, no repetition of the article outside it. Writing "
+            "the article twice (once as prose, once as JSON) doubles the "
+            "length and truncates the block, which loses everything.\n\n"
+            "The reviewer reads the parsed body, so the JSON is the "
+            "deliverable, not a summary of it:\n\n"
             "```json\n"
             "{\n"
             '  "titles": {"es": "titular en español", "en": "English headline"},\n'
@@ -267,7 +282,25 @@ class GenerationOrchestrator:
             "```"
         )
         result = self.generate("copy", prompt, brief)
-        result.metadata["fields"] = parse_copy_fields(result.text)
+        fields = parse_copy_fields(result.text)
+        result.metadata["fields"] = fields
+
+        # The gate and the human reviewer both read `text`. When the model
+        # returns only the JSON block — which is what we now ask for — that
+        # text is a wall of escaped markup. Render the parsed article back into
+        # something a person can actually read at the review gate.
+        bodies = fields.get("bodies") or {}
+        if bodies:
+            titles = fields.get("titles") or {}
+            parts = []
+            for lang, body in bodies.items():
+                parts.append(f"# {titles.get(lang, '')} [{lang.upper()}]\n\n{body}")
+            faq = fields.get("faq") or []
+            if faq:
+                parts.append("\n".join(
+                    f"Q: {f.get('q','')}\nA: {f.get('a','')}" for f in faq
+                ))
+            result.text = "\n\n---\n\n".join(parts)
         return result
 
     # ── Graph recording ──────────────────────────────────────────────────

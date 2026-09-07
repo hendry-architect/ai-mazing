@@ -150,7 +150,10 @@ class ClaudeCopyProvider(GenerationProvider):
         ).format(lang=request.language)
         msg = client.messages.create(
             model=self.cfg.anthropic_model,
-            max_tokens=request.params.get("max_tokens", 8000),
+            # A bilingual article at the PH standard is ~1200 words plus a
+            # structured block. 8000 truncated it mid-JSON, which parsed as
+            # "no fields" and failed the standard for the wrong reason.
+            max_tokens=request.params.get("max_tokens", 32000),
             system=system,
             thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": request.prompt}],
