@@ -19,7 +19,7 @@ from typing import Any, Dict, List
 
 from pcip.licensing import LicensePolicy
 from pcip.models import Asset, EdgeKind, NodeKind, new_id
-from pcip.pipelines.base import Pipeline, ReviewGate, Step
+from pcip.pipelines.base import HandoffRequired, Pipeline, ReviewGate, Step
 
 
 # ─── Shared step handlers ────────────────────────────────────────────────────
@@ -42,10 +42,50 @@ def gather_context(ctx: Dict[str, Any]) -> str:
 
 def generate_copy(ctx: Dict[str, Any]) -> str:
     from pcip.generate.orchestrator import GenerationOrchestrator
+    from pcip.generate.providers import ProviderNotConfigured
 
-    orch = GenerationOrchestrator(ctx["cfg"], ctx["graph"])
+    cfg, brief = ctx["cfg"], ctx["brief"]
+
+    # Copy already supplied (a handoff was fulfilled, or an operator passed it).
+    if ctx.get("copy_fields") or ctx.get("copy"):
+        text = ctx.get("copy", "")
+        ctx.setdefault("copy_fields", {})
+        ctx["copy_flagged_medical"] = "[MEDICAL-REVIEW]" in text
+        return "Copy supplied via handoff."
+
+    orch = GenerationOrchestrator(cfg, ctx["graph"])
     deliverable = ctx.get("deliverable", "creative deliverable")
-    result = orch.copy_for_brief(ctx["brief"], deliverable)
+    try:
+        result = orch.copy_for_brief(brief, deliverable)
+    except ProviderNotConfigured:
+        if cfg.canva_mode != "mcp":
+            raise
+        # No copy provider configured, but an agent session is driving this
+        # run and can write the copy itself. Ask for it rather than dying.
+        raise HandoffRequired("copy", {
+            "deliverable": deliverable,
+            "brand": brief.brand,
+            "language": brief.language,
+            "objective": brief.objective,
+            "audience": brief.audience,
+            "key_messages": brief.key_messages,
+            "tone": brief.tone,
+            "constraints": brief.constraints,
+            "wanted_shape": {
+                "title": "headline, plain text",
+                "excerpt": "1-2 sentence summary",
+                "body_html": "body as simple HTML, no hashtags",
+                "alt_texts": ["one per visual"],
+                "hashtags": ["#example"],
+                "captions": {"instagram": "..."},
+            },
+            "how": (
+                "Write the copy package for this brief, save it as JSON in the "
+                "shape above, then attach it:\n"
+                f"  pcip attach {ctx['run'].id} --copy-file <path.json>\n"
+                "Flag anything needing clinician sign-off with [MEDICAL-REVIEW]."
+            ),
+        })
     ctx["copy"] = result.text
     # The prose is what a human reads at the review gate; the parsed fields are
     # what the publisher places (body in the body, hashtags in the caption).
@@ -55,44 +95,96 @@ def generate_copy(ctx: Dict[str, Any]) -> str:
     return "Copy generated" + (" — flagged for medical review." if needs_medical else ".")
 
 
-def assemble_in_canva(ctx: Dict[str, Any]) -> str:
-    """Autofill the chosen brand template with the generated copy/assets.
+def _record_design(ctx: Dict[str, Any], design_id: str, *, title: str = "",
+                   view_url: str = "", template_id: str = "") -> str:
+    """Put an assembled design into the graph and wire its provenance."""
+    graph, brief = ctx["graph"], ctx["brief"]
+    node_id = f"canva:design:{design_id}"
+    graph.upsert_node(
+        node_id,
+        NodeKind.DESIGN,
+        title or brief.title,
+        {"canva_id": design_id, "urls": {"view_url": view_url},
+         "brand_template_id": template_id},
+    )
+    if template_id:
+        graph.add_edge(node_id, EdgeKind.FROM_TEMPLATE,
+                       f"canva:brand_template:{template_id}")
+    graph.add_edge(node_id, EdgeKind.FROM_BRIEF, brief.id)
+    ctx["design_id"] = design_id
+    ctx["design_node"] = node_id
+    ctx.setdefault("_step_outputs", []).append(node_id)
+    return node_id
 
-    Requires ``brief.references`` to carry a ``canva:brand_template:<id>``
-    node id (or ctx["brand_template_id"]). Without Canva configured this step
-    fails cleanly and the run stays resumable.
-    """
-    from pcip.connectors.canva import CanvaClient
 
-    cfg, graph, brief = ctx["cfg"], ctx["graph"], ctx["brief"]
+def _template_id_from(ctx: Dict[str, Any]) -> str:
     template_id = ctx.get("brand_template_id", "")
-    for ref in brief.references:
+    for ref in ctx["brief"].references:
         if ref.startswith("canva:brand_template:"):
             template_id = ref.split(":", 2)[2]
+    return template_id
+
+
+def assemble_in_canva(ctx: Dict[str, Any]) -> str:
+    """Produce the on-brand design for this brief.
+
+    Two execution modes, same governance either way (see PCIPConfig.canva_mode):
+
+    - ``mcp``     — PCIP cannot call the Canva MCP tools itself, so it pauses
+      with a handoff describing exactly what to create. An agent session holding
+      the connector creates the design from a brand template and attaches it
+      back with ``pcip attach``. Works with ordinary brand templates.
+    - ``connect`` — direct brand-template autofill through the Connect API.
+      Needs templates that define autofill fields.
+    """
+    cfg, brief = ctx["cfg"], ctx["brief"]
+    template_id = _template_id_from(ctx)
+
+    # A handoff was fulfilled (or the design was supplied up front): record it.
+    if ctx.get("design_id"):
+        _record_design(ctx, ctx["design_id"], title=ctx.get("design_title", ""),
+                       view_url=ctx.get("design_url", ""), template_id=template_id)
+        return f"Design {ctx['design_id']} recorded from the Canva handoff."
+
+    if cfg.canva_mode == "mcp":
+        fields = ctx.get("copy_fields") or {}
+        raise HandoffRequired("assembly", {
+            "brand": brief.brand,
+            "language": brief.language,
+            "title": fields.get("title") or brief.title,
+            "brand_template_id": template_id,
+            "deliverable": ctx.get("deliverable", ""),
+            "copy_fields": fields,
+            "how": (
+                "Create the design in Canva from a brand template (MCP: "
+                "search-brand-templates → create-design-from-brand-template, "
+                "then edit-design to place the copy), then attach it:\n"
+                f"  pcip attach {ctx['run'].id} --design-id <id> --design-url <view_url>"
+            ),
+        })
+
+    # ── connect mode: brand-template autofill ────────────────────────────
+    from pcip.connectors.canva import CanvaClient
+
     if not template_id:
         raise ValueError(
             "No brand template selected. Add 'canva:brand_template:<id>' to "
             "brief.references (find ids with: pcip search --kind brand_template)."
         )
-
     client = CanvaClient(cfg)
     dataset = client.get_brand_template_dataset(template_id).get("dataset", {})
+    if not dataset:
+        raise ValueError(
+            f"Brand template {template_id} defines no autofill fields, so the "
+            "Connect API cannot fill it. Either add data fields to the template "
+            "in Canva, or set PCIP_CANVA_MODE=mcp to assemble through the Canva "
+            "connector instead (works with ordinary templates)."
+        )
     data = _map_copy_to_dataset(ctx.get("copy", ""), brief.title, dataset)
     design = client.autofill(template_id, data=data, title=brief.title)
-
-    node_id = f"canva:design:{design['id']}"
-    graph.upsert_node(
-        node_id,
-        NodeKind.DESIGN,
-        design.get("title", brief.title),
-        {"canva_id": design["id"], "urls": design.get("urls", {}),
-         "brand_template_id": template_id},
-    )
-    graph.add_edge(node_id, EdgeKind.FROM_TEMPLATE, f"canva:brand_template:{template_id}")
-    graph.add_edge(node_id, EdgeKind.FROM_BRIEF, brief.id)
-    ctx["design_id"] = design["id"]
-    ctx["design_node"] = node_id
-    ctx.setdefault("_step_outputs", []).append(node_id)
+    _record_design(ctx, design["id"], title=design.get("title", brief.title),
+                   view_url=(design.get("urls") or {}).get("view_url", ""),
+                   template_id=template_id)
     return f"Design {design['id']} assembled from brand template {template_id}."
 
 
@@ -115,24 +207,43 @@ def _map_copy_to_dataset(copy_text: str, title: str, dataset: Dict[str, Any]) ->
 
 
 def export_deliverable(ctx: Dict[str, Any]) -> str:
-    """Export the assembled design via the official Canva export API."""
-    from pcip.connectors.canva import CanvaClient
+    """Export the assembled design through Canva's official export workflow.
 
+    Premium content leaves Canva only this way — as a rendered design, with
+    the account's entitlements applied by Canva. That holds in both modes:
+    the MCP connector's export-design tool is the same supported workflow,
+    just invoked by an agent session rather than by PCIP directly.
+    """
     cfg, graph = ctx["cfg"], ctx["graph"]
     design_id = ctx.get("design_id")
     if not design_id:
         raise ValueError("No design to export — assemble step did not run.")
     fmt = ctx.get("export_format", "png")
-    client = CanvaClient(cfg)
-    urls = client.export_design(design_id, fmt=fmt)
-
     cfg.ensure_dirs()
     output_id = new_id("out")
     paths: List[str] = []
-    for n, url in enumerate(urls):
-        dest = Path(cfg.exports_dir) / f"{output_id}_{n}.{fmt}"
-        client.download_export(url, dest)
-        paths.append(str(dest))
+
+    attached = [p for p in (ctx.get("export_files") or []) if p]
+    if attached:
+        paths = [str(p) for p in attached]
+    elif cfg.canva_mode == "mcp":
+        raise HandoffRequired("export", {
+            "design_id": design_id,
+            "format": fmt,
+            "how": (
+                "Export the design through Canva (MCP: export-design), download "
+                "the file(s), then attach them:\n"
+                f"  pcip attach {ctx['run'].id} --export-file <path> [--export-file <path>]"
+            ),
+        })
+    else:
+        from pcip.connectors.canva import CanvaClient
+
+        client = CanvaClient(cfg)
+        for n, url in enumerate(client.export_design(design_id, fmt=fmt)):
+            dest = Path(cfg.exports_dir) / f"{output_id}_{n}.{fmt}"
+            client.download_export(url, dest)
+            paths.append(str(dest))
 
     # Real per-visual alt text from the copy step, aligned to the exported
     # pages; without this every image inherits the deliverable's filename.
@@ -157,20 +268,45 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
     return f"Exported {len(paths)} file(s) → {cfg.exports_dir} (output {output_id})."
 
 
+# Share of long words that reads as "dense" for patient-facing copy. Spanish
+# words are systematically longer than English ones, so one threshold across
+# both languages fails bilingual material that is in fact plain.
+_LONG_WORD_LIMITS = {"en": 0.06, "es": 0.11}
+
+
 def plain_language_check(ctx: Dict[str, Any]) -> str:
-    """Heuristic reading-level guard for patient-facing copy."""
-    text = ctx.get("copy", "")
-    if not text:
+    """Heuristic reading-level guard for patient-facing copy.
+
+    Measures the prose, not the markup: HTML tags and entities are stripped
+    first, otherwise every ``<p>`` counts as a word and inflates the result.
+    """
+    import html as _html
+    import re as _re
+
+    raw = ctx.get("copy", "") or (ctx.get("copy_fields") or {}).get("body_html", "")
+    if not raw:
         return "No copy to check."
+    text = _html.unescape(_re.sub(r"<[^>]+>", " ", raw))
+    # Reviewer annotations are instructions to a human, not patient copy.
+    text = _re.sub(r"\[MEDICAL-REVIEW[^\]]*\]", " ", text)
+
     words = text.split()
-    long_words = sum(1 for w in words if len(w.strip(".,;:!?")) >= 13)
+    if not words:
+        return "No copy to check."
+    language = str(getattr(ctx.get("brief"), "language", "en") or "en").lower()[:2]
+    limit = _LONG_WORD_LIMITS.get(language, _LONG_WORD_LIMITS["en"])
+
+    long_words = sum(1 for w in words if len(w.strip(".,;:!?¿¡()\"'")) >= 13)
     sentences = max(text.count(".") + text.count("!") + text.count("?"), 1)
     avg_len = len(words) / sentences
     issues = []
     if avg_len > 22:
         issues.append(f"average sentence length {avg_len:.0f} words (target ≤ 22)")
-    if words and long_words / len(words) > 0.06:
-        issues.append("dense vocabulary (>6% long words)")
+    share = long_words / len(words)
+    if share > limit:
+        issues.append(
+            f"dense vocabulary ({share:.0%} long words, {language} target ≤ {limit:.0%})"
+        )
     ctx["plain_language_issues"] = issues
     return "Plain-language check: " + ("; ".join(issues) if issues else "passed.")
 

@@ -82,6 +82,18 @@ class PCIPConfig:
     youtube_token: str = ""            # YouTube Data API v3 OAuth token
     tiktok_token: str = ""             # TikTok Content Posting API token
 
+    # ── Canva execution mode ─────────────────────────────────────────────
+    # "mcp"     — assembly and export run through the Canva MCP connector
+    #             (an agent session holds the credentials). Works with plain
+    #             brand templates: no autofill dataset, no Enterprise plan.
+    #             PCIP still owns the graph, licensing and every review gate;
+    #             it pauses at a handoff and resumes once the design or the
+    #             exported file is attached back to the run.
+    # "connect" — direct Canva Connect API with brand-template autofill.
+    #             Fully unattended, but requires templates that define autofill
+    #             fields and the plan entitlement that exposes that API.
+    canva_mode: str = "mcp"
+
     # ── Behavior ─────────────────────────────────────────────────────────
     default_brand: str = "PassQual"
     auto_approve_gates: List[str] = field(default_factory=list)
@@ -184,6 +196,7 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         threads_user_id=_env("THREADS_USER_ID"),
         youtube_token=_env("YOUTUBE_TOKEN"),
         tiktok_token=_env("TIKTOK_TOKEN"),
+        canva_mode=(_env("PCIP_CANVA_MODE", "mcp").lower() or "mcp"),
         default_brand=_env("PCIP_DEFAULT_BRAND", "PassQual"),
         auto_approve_gates=[
             g.strip()

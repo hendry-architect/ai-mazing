@@ -246,3 +246,10 @@ class PipelineRun:
             if s.status == "awaiting_review":
                 return s.step
         return None
+
+    @property
+    def pending_handoff(self) -> Optional[Dict[str, Any]]:
+        """What this run needs from outside PCIP before it can continue."""
+        if self.status == "awaiting_handoff":
+            return self.context.get("handoff")
+        return None

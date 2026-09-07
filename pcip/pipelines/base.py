@@ -39,6 +39,21 @@ StepHandler = Callable[[Dict[str, Any]], str]
 NEVER_AUTO_APPROVE = frozenset({"medical_review"})
 
 
+class HandoffRequired(Exception):
+    """A step needs work done outside PCIP before it can complete.
+
+    Raised by steps that run through the Canva MCP connector: PCIP cannot
+    call those tools itself, so it pauses the run, states exactly what it
+    needs, and continues once ``pcip attach`` supplies the result. This is a
+    pause, not a failure — every later gate still applies.
+    """
+
+    def __init__(self, needs: str, spec: Dict[str, Any]) -> None:
+        super().__init__(f"handoff required: {needs}")
+        self.needs = needs
+        self.spec = spec
+
+
 @dataclass
 class Step:
     name: str
@@ -152,6 +167,18 @@ class PipelineRunner:
                 sr.detail = spec.handler(ctx) or ""
                 sr.outputs = list(ctx.pop("_step_outputs", []))
                 sr.status = "done"
+            except HandoffRequired as handoff:
+                # Not a failure: work is owed from outside PCIP. Record what
+                # is needed so `pcip runs` / `pcip attach` can act on it.
+                sr.status = "awaiting_handoff"
+                sr.detail = f"needs {handoff.needs}"
+                sr.finished_at = ""
+                run.status = "awaiting_handoff"
+                run.context["handoff"] = {"needs": handoff.needs,
+                                          "step": sr.step, **handoff.spec}
+                self._persist_context(run, ctx)
+                self._save(run)
+                return run
             except Exception as exc:  # persist failures; runs are resumable
                 sr.status = "failed"
                 sr.detail = f"{type(exc).__name__}: {exc}"

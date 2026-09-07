@@ -11,6 +11,7 @@
     python -m pcip approve <run_id> [--gate medical_review] [--reviewer name]
     python -m pcip reject  <run_id> [--reason "..."]
     python -m pcip resume  <run_id>              # continue after approval
+    python -m pcip attach <run_id> --design-id <id>   # fulfil a Canva handoff
     python -m pcip prepare <output_id>            # article for manual publishing
     python -m pcip publish <output_id> --channel wordpress --title "..." [--live]
 """
@@ -19,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import pathlib
 import sys
 from typing import Any
 
@@ -168,7 +170,7 @@ def cmd_pipelines(cfg: PCIPConfig, args: argparse.Namespace) -> int:
 
 
 def _run_summary(run: Any) -> dict:
-    return {
+    summary = {
         "run_id": run.id,
         "pipeline": run.pipeline,
         "status": run.status,
@@ -176,6 +178,49 @@ def _run_summary(run: Any) -> dict:
         "steps": [{"step": s.step, "status": s.status, "detail": s.detail}
                   for s in run.steps],
     }
+    handoff = run.pending_handoff
+    if handoff:
+        summary["awaiting_handoff"] = handoff
+    return summary
+
+
+def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Fulfil a handoff: attach the Canva design or exported files, then resume."""
+    from pcip.pipelines.library import get_pipeline
+
+    with _graph(cfg) as g:
+        runner, run, brief = _load_run_and_brief(cfg, g, args.run_id)
+        if not runner:
+            return 1
+        supplied = {
+            "design_id": args.design_id,
+            "design_url": args.design_url,
+            "design_title": args.design_title,
+            "brand_template_id": args.template_id,
+        }
+        for key, value in supplied.items():
+            if value:
+                run.context[key] = value
+        if args.export_file:
+            run.context["export_files"] = list(args.export_file)
+        if args.copy_file:
+            fields = json.loads(pathlib.Path(args.copy_file).read_text(encoding="utf-8"))
+            run.context["copy_fields"] = fields
+            run.context["copy"] = fields.get("body_html", "") or run.context.get("copy", "")
+        if not any(supplied.values()) and not args.export_file and not args.copy_file:
+            print("error: nothing to attach — pass --copy-file, --design-id "
+                  "and/or --export-file",
+                  file=sys.stderr)
+            return 1
+        # Let the paused step run again now that its input exists.
+        for sr in run.steps:
+            if sr.status == "awaiting_handoff":
+                sr.status = "pending"
+        run.context.pop("handoff", None)
+        runner._save(run)
+        run = runner.resume(get_pipeline(run.pipeline), run, brief)
+        _print(_run_summary(run))
+    return 0 if run.status not in ("failed", "rejected") else 1
 
 
 def cmd_run(cfg: PCIPConfig, args: argparse.Namespace) -> int:
@@ -362,6 +407,19 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("run_id")
 
     sp = sub.add_parser(
+        "attach",
+        help="fulfil a Canva handoff (attach the design or exported files) and resume",
+    )
+    sp.add_argument("run_id")
+    sp.add_argument("--design-id", default="", help="Canva design id created for this run")
+    sp.add_argument("--design-url", default="", help="the design's view URL")
+    sp.add_argument("--design-title", default="")
+    sp.add_argument("--template-id", default="", help="brand template it was built from")
+    sp.add_argument("--copy-file", default="", help="JSON file of copy fields")
+    sp.add_argument("--export-file", action="append", default=[],
+                    help="path to an exported file (repeatable, one per page)")
+
+    sp = sub.add_parser(
         "prepare",
         help="produce a reviewed article for manual publishing (no network)",
     )
@@ -399,6 +457,7 @@ COMMANDS = {
     "approve": cmd_approve,
     "reject": cmd_reject,
     "resume": cmd_resume,
+    "attach": cmd_attach,
     "prepare": cmd_prepare,
     "publish": cmd_publish,
 }
