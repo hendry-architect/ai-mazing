@@ -190,10 +190,23 @@ class WordPressPublisher:
             # Some hosts (SiteGround among them) strip the standard
             # Authorization header before PHP sees it, so WordPress reports
             # rest_not_logged_in no matter how correct the credentials are.
-            # A differently-named header survives; a tiny must-use plugin on
-            # the site copies it back into place. Same credentials, same host,
-            # same TLS session — no additional exposure — and it is simply
-            # ignored where the standard header already works.
+            #
+            # The remedies, in the order they should be tried:
+            #   1. An .htaccess SetEnvIf rule on the site — configuration, not
+            #      code, and trivially reversible.
+            #   2. The WordPress.com / Jetpack route above
+            #      (WORDPRESS_COM_TOKEN), which never traverses the host's
+            #      Apache at all and so cannot be affected by this.
+            #   3. Only then, this mirror header, paired with a must-use
+            #      plugin that copies it back into place.
+            #
+            # (3) is off unless explicitly enabled. It is not free: a second
+            # header carrying the credential widens where it can be logged,
+            # and accepting a non-standard header as an auth source re-opens a
+            # REST path the stripping was incidentally closing. It grants
+            # nothing by itself — WordPress still validates what it receives —
+            # but it is a change to the site's exposure and belongs to the
+            # operator to choose.
             if config.wordpress_auth_mirror_header:
                 import base64 as _b64
 
