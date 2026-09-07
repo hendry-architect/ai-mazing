@@ -4,6 +4,7 @@
 #
 #   bash scripts/pcip-publish.sh            # draft (safe, reversible)
 #   bash scripts/pcip-publish.sh --live     # publish for real
+#   bash scripts/pcip-publish.sh --replace  # retract what is live, publish this
 #
 # Finds the output itself, checks credentials before touching the network,
 # publishes, and — when live — verifies the article actually resolves on the
@@ -19,7 +20,14 @@ cd "$REPO" || exit 1
 PY="$REPO/.venv/bin/python"; [ -x "$PY" ] || PY="$(command -v python3)"
 DATA="${PCIP_DATA_DIR:-$REPO/pcip_data}"
 LIVE=0
-[ "${1:-}" = "--live" ] && LIVE=1
+REPLACE=0
+case "${1:-}" in
+    --live)    LIVE=1 ;;
+    # Retract what is live and publish this in its place, in one step.
+    # Splitting it into "retract, then publish" meant the retract got skipped
+    # and the duplicate guard blocked the publish — correctly, and uselessly.
+    --replace) LIVE=1; REPLACE=1 ;;
+esac
 
 ok()   { printf '\033[32m  ✓ %s\033[0m\n' "$*"; }
 bad()  { printf '\033[31m  ✗ %s\033[0m\n' "$*"; }
@@ -186,6 +194,33 @@ if shadowed:
     print("    If the values above look wrong, that is why. Clear them:")
     print("        unset " + " ".join(sorted(shadowed)))
 PYEOF
+
+if [ "$REPLACE" = "1" ]; then
+    info ""
+    info "--replace: retracting what is currently live for this output first"
+    RET="$("$PY" -m pcip --data-dir "$DATA" retract "$OUT" \
+           --reason "replaced by a new publish" 2>&1)"
+    RET_STATUS=$?
+    COUNT="$(printf '%s' "$RET" | grep -c '"status": "retracted"' || true)"
+    if [ "$RET_STATUS" -ne 0 ]; then
+        # A failed retract must stop here. Continuing publishes a second copy
+        # beside the one that was meant to be withdrawn, and the duplicate
+        # guard then reports that as the problem — which it is not.
+        bad "retract failed — not publishing"
+        printf '%s\n' "$RET" | sed 's/^/    /'
+        exit 1
+    fi
+    if [ "${COUNT:-0}" -gt 0 ]; then
+        ok "retracted $COUNT existing post(s) — their slugs are free again"
+    elif printf '%s' "$RET" | grep -q "nothing published"; then
+        info "nothing was live for this output; publishing fresh"
+    else
+        bad "retract returned nothing recognisable — not publishing"
+        printf '%s\n' "$RET" | sed 's/^/    /'
+        exit 1
+    fi
+    printf '\n'
+fi
 
 ARGS=(-m pcip --data-dir "$DATA" publish "$OUT" --channel wordpress)
 [ "$LIVE" = "1" ] && ARGS+=(--live)
