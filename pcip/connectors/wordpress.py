@@ -272,6 +272,9 @@ class WordPressPublisher:
     def _post(self, path: str, **kwargs: Any) -> Dict[str, Any]:
         return self._request("POST", path, **kwargs)
 
+    def _delete(self, path: str, **kwargs: Any) -> Dict[str, Any]:
+        return self._request("DELETE", path, **kwargs)
+
     def can_write_posts(self) -> bool:
         """Whether this account may create posts — without creating one.
 
@@ -516,11 +519,16 @@ class WordPressPublisher:
     def trash_post(self, post_id: str) -> Dict[str, Any]:
         """Move a post to the trash.
 
-        Not a hard delete: WordPress keeps a trashed post recoverable, and an
-        irreversible retraction is a worse failure than the duplicate it is
-        meant to fix.
+        DELETE, not a status update: "trash" is not one of the statuses the
+        REST API accepts (publish, future, draft, pending, private), so setting
+        it returns rest_invalid_param. An unforced DELETE is what moves a post
+        to the trash.
+
+        Deliberately not `force=true`: WordPress keeps a trashed post
+        recoverable, and an irreversible retraction is a worse failure than the
+        duplicate it is meant to fix.
         """
-        return self._post(f"/posts/{post_id}", json={"status": "trash"})
+        return self._delete(f"/posts/{post_id}")
 
     def update_post(self, post_id: str, **fields: Any) -> Dict[str, Any]:
         """Patch an existing post. Used to cross-link the two languages once

@@ -516,3 +516,30 @@ def test_publish_records_the_url_wordpress_actually_assigned():
     pub = wp.publish_post("T", "<p>b</p>", status="publish", slug="mi-slug",
                           language="es")
     assert pub.url == "https://passqual.com/mi-slug/"
+
+
+# ── trashing ─────────────────────────────────────────────────────────────────
+
+
+def test_trash_uses_delete_not_a_status_update():
+    """"trash" is not an accepted REST status (publish, future, draft, pending,
+    private), so setting it returns rest_invalid_param. An unforced DELETE is
+    what moves a post to the trash."""
+    session = FakeSession(lambda *a: Resp(payload={"id": 5, "status": "trash"}))
+    wp = WordPressPublisher(cfg(), session=session)
+    wp.trash_post("3377")
+
+    method, url, kwargs = session.calls[-1]
+    assert method == "DELETE"
+    assert url.endswith("/posts/3377")
+    assert "json" not in kwargs, "a body would be a status update, not a trash"
+
+
+def test_trash_is_recoverable_not_a_hard_delete():
+    """force=true would delete permanently. An irreversible retraction is a
+    worse failure than the duplicate it fixes."""
+    session = FakeSession(lambda *a: Resp(payload={"id": 5}))
+    WordPressPublisher(cfg(), session=session).trash_post("3377")
+    _, url, kwargs = session.calls[-1]
+    assert "force" not in url
+    assert "force" not in str(kwargs.get("params", {}))
