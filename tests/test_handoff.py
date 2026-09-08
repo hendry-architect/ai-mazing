@@ -166,3 +166,26 @@ def test_reviewer_annotations_are_not_counted_as_patient_copy():
            "brief": Brief(language="es")}
     plain_language_check(ctx)
     assert ctx["plain_language_issues"] == []
+
+
+# ── the account's first autofill-capable template ────────────────────────────
+
+
+def test_the_account_default_template_is_used_when_a_brief_names_none():
+    """Unattended runs have nobody to ask. A scheduled pipeline that stops to
+    request a template id is a pipeline that does not run."""
+    from pcip.pipelines.library import _template_id_from
+
+    cfg = PCIPConfig()
+    brief = Brief(id="b", title="T", references=[])
+    assert _template_id_from({"cfg": cfg, "brief": brief}) == cfg.canva_brand_template_id
+    assert cfg.canva_brand_template_id      # a real id, not empty
+
+
+def test_a_brief_reference_still_wins():
+    from pcip.pipelines.library import _template_id_from
+
+    brief = Brief(id="b", title="T",
+                  references=["canva:brand_template:EAHOtherTemplate"])
+    got = _template_id_from({"cfg": PCIPConfig(), "brief": brief})
+    assert got == "EAHOtherTemplate"

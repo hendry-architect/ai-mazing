@@ -125,11 +125,18 @@ def _record_design(ctx: Dict[str, Any], design_id: str, *, title: str = "",
 
 
 def _template_id_from(ctx: Dict[str, Any]) -> str:
+    """Which brand template to build from, most specific source first.
+
+    An explicit reference on the brief wins, then anything attached to the run,
+    then the account default. The default exists because unattended runs have
+    no one to ask: a scheduled pipeline that stops to request a template id is
+    a pipeline that does not run.
+    """
     template_id = ctx.get("brand_template_id", "")
     for ref in ctx["brief"].references:
         if ref.startswith("canva:brand_template:"):
             template_id = ref.split(":", 2)[2]
-    return template_id
+    return template_id or ctx["cfg"].canva_brand_template_id
 
 
 def assemble_in_canva(ctx: Dict[str, Any]) -> str:

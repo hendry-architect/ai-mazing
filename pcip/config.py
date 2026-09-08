@@ -114,6 +114,13 @@ class PCIPConfig:
     #             fields and the plan entitlement that exposes that API.
     canva_mode: str = "mcp"
 
+    # The brand template `connect` mode autofills when a brief names none.
+    # Until 2026-09-08 the account had no autofill-capable template at all —
+    # every one had its headline baked into the artwork, which is why the
+    # dataset came back empty and why unattended assembly was impossible.
+    # EAHUkk84ubc is the first with real fields: hero_image, headline, body, cta.
+    canva_brand_template_id: str = "EAHUkk84ubc"
+
     # ── Behavior ─────────────────────────────────────────────────────────
     default_brand: str = "PassQual"
     auto_approve_gates: List[str] = field(default_factory=list)
@@ -360,6 +367,7 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         youtube_token=_env("YOUTUBE_TOKEN"),
         tiktok_token=_env("TIKTOK_TOKEN"),
         canva_mode=(_env("PCIP_CANVA_MODE", "mcp").lower() or "mcp"),
+        canva_brand_template_id=_env("CANVA_BRAND_TEMPLATE_ID", "EAHUkk84ubc"),
         default_brand=_env("PCIP_DEFAULT_BRAND", "PassQual"),
         auto_approve_gates=[
             g.strip()
