@@ -36,11 +36,37 @@ def test_a_claim_inside_a_longer_word_is_not_a_claim(text):
     "Nunca garantizamos un resultado.",
     "Ningún resultado está garantizado.",
     "Esto no es un milagro.",
+    "We cannot promise a cure.",
 ])
 def test_denying_a_claim_is_not_making_one(text):
     """"There is no cure for diabetes" is exactly the careful sentence a
     physician should write."""
     assert claims(text) == []
+
+
+@pytest.mark.parametrize("text", [
+    # Verbatim from the run this rule blocked.
+    "No direct care agreement can promise cures or specific results.",
+    "Ningún acuerdo de atención directa puede prometer curas ni resultados "
+    "específicos.",
+    "No clinic can guarantee that you will feel better.",
+    "Ninguna membresía de atención directa puede prometer un milagro.",
+])
+def test_a_denial_governs_the_whole_sentence_not_the_last_few_words(text):
+    """A fixed word-count lookback missed "No direct care agreement can
+    promise cures" by one word and the Spanish by three. A clause can put
+    any number of words between the denial and the thing denied."""
+    assert claims(text) == []
+
+
+def test_a_denial_does_not_launder_the_next_sentence():
+    """"We do not cut corners. We cure diabetes." must still be refused —
+    the denial belongs to the previous sentence."""
+    assert "cure" in claims("We do not cut corners. We cure diabetes.")
+
+
+def test_a_denial_after_the_claim_does_not_excuse_it():
+    assert "cure" in claims("We cure diabetes. No, really.")
 
 
 # ── copy that must be refused ────────────────────────────────────────────

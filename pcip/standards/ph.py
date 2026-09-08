@@ -107,8 +107,9 @@ class PH:
     # diabetes" is exactly the careful sentence a physician should write, and
     # a keyword blocker that refuses it teaches the writer to be vaguer.
     CLAIM_NEGATIONS = (
-        "no", "not", "n't", "never", "sin", "nunca", "ninguna", "ningún",
-        "tampoco", "hay",
+        "no", "not", "cannot", "n't", "never", "neither", "nor",
+        "sin", "nunca", "ninguna", "ningún", "ningun", "nada", "tampoco",
+        "jamás", "jamas", "hay",
     )
 
     # The membership is a direct-pay arrangement, not an insurance product.
@@ -199,10 +200,12 @@ _H2_RE = re.compile(r"<h2\b", re.I)
 _IMG_RE = re.compile(r"<img\b", re.I)
 
 
-#: Words allowed to sit immediately before a claim without negating it, when
-#: scanning back for a denial. Kept small on purpose: the further the search
-#: reaches, the more likely it finds a negation belonging to another clause.
-_NEGATION_WINDOW = 5
+#: Sentence boundaries. Negation is scoped to the sentence containing the
+#: claim: a fixed word-count lookback missed "No direct care agreement can
+#: promise cures" by one word, and "Ningún acuerdo de atención directa puede
+#: prometer curas" by three. A clause can put any number of words between the
+#: denial and the thing denied; a sentence is the unit that actually governs.
+_SENTENCE_SPLIT = re.compile(r"[.!?;\n\u00a1\u00bf]+")
 
 
 def claim_hits(text: str) -> List[Tuple[str, str]]:
@@ -219,14 +222,28 @@ def claim_hits(text: str) -> List[Tuple[str, str]]:
     for claim in PH.FORBIDDEN_CLAIMS:
         # ``s?`` catches the Spanish plural; the gendered forms are listed.
         for match in re.finditer(rf"\b{re.escape(claim)}s?\b", lowered):
-            before = lowered[: match.start()].split()[-_NEGATION_WINDOW:]
-            if any(w.strip(",.;:¡!¿?") in PH.CLAIM_NEGATIONS for w in before):
+            if _negated_in_sentence(lowered, match.start()):
                 continue
             start = max(0, match.start() - 45)
             quote = " ".join(text[start : match.end() + 45].split())
             hits.append((claim, quote))
             break
     return hits
+
+
+def _negated_in_sentence(lowered: str, at: int) -> bool:
+    """Whether a denial governs the claim found at ``at``.
+
+    Only text earlier in the same sentence counts. "We do not cut corners.
+    We cure diabetes." must still be refused — the denial belongs to the
+    previous sentence and says nothing about the claim in this one.
+    """
+    starts = [m.end() for m in _SENTENCE_SPLIT.finditer(lowered, 0, at)]
+    clause = lowered[(starts[-1] if starts else 0) : at]
+    return any(
+        word.strip(",:¡!¿?()\"\u201c\u201d") in PH.CLAIM_NEGATIONS
+        for word in clause.split()
+    )
 
 
 def _text_of(html: str) -> str:
