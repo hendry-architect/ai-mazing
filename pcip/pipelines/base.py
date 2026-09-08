@@ -81,9 +81,24 @@ class Pipeline:
 class PipelineRunner:
     """Executes pipelines, persisting run state to the graph at every step."""
 
-    def __init__(self, config: PCIPConfig, graph: KnowledgeGraph) -> None:
+    def __init__(
+        self,
+        config: PCIPConfig,
+        graph: KnowledgeGraph,
+        on_step: Optional[Callable[[str, str, str], None]] = None,
+    ) -> None:
         self.cfg = config
         self.graph = graph
+        # A run prints nothing until it finishes, and generate_copy alone can
+        # take minutes: an operator watching a silent terminal reasonably
+        # concludes it has hung. ``on_step(name, status, detail)`` is called
+        # as each step starts and settles so a caller can say what is
+        # happening. Default None keeps library and test callers silent.
+        self.on_step = on_step
+
+    def _report(self, name: str, status: str, detail: str = "") -> None:
+        if self.on_step:
+            self.on_step(name, status, detail)
 
     # ── Persistence ──────────────────────────────────────────────────────
 
@@ -179,6 +194,7 @@ class PipelineRunner:
                     continue
                 sr.status = "awaiting_review"
                 sr.detail = spec.description
+                self._report(sr.step, "awaiting_review", spec.description)
                 run.status = "awaiting_review"
                 self._save(run)
                 return run
@@ -187,15 +203,18 @@ class PipelineRunner:
             sr.status = "running"
             sr.started_at = now_iso()
             self._save(run)
+            self._report(sr.step, "running", spec.description)
             try:
                 sr.detail = spec.handler(ctx) or ""
                 sr.outputs = list(ctx.pop("_step_outputs", []))
                 sr.status = "done"
+                self._report(sr.step, "done", sr.detail)
             except HandoffRequired as handoff:
                 # Not a failure: work is owed from outside PCIP. Record what
                 # is needed so `pcip runs` / `pcip attach` can act on it.
                 sr.status = "awaiting_handoff"
                 sr.detail = f"needs {handoff.needs}"
+                self._report(sr.step, "awaiting_handoff", sr.detail)
                 sr.finished_at = ""
                 run.status = "awaiting_handoff"
                 run.context["handoff"] = {"needs": handoff.needs,
@@ -206,6 +225,7 @@ class PipelineRunner:
             except Exception as exc:  # persist failures; runs are resumable
                 sr.status = "failed"
                 sr.detail = redact_urls(f"{type(exc).__name__}: {exc}")
+                self._report(sr.step, "failed", sr.detail)
                 run.status = "failed"
                 sr.finished_at = now_iso()
                 self._save(run)

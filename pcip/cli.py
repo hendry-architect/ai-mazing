@@ -299,13 +299,51 @@ def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     return 0 if run.status not in ("failed", "rejected") else 1
 
 
+def _step_printer():
+    """Say what a run is doing, on stderr, while it does it.
+
+    A pipeline printed nothing until it finished, and generate_copy alone
+    takes minutes — an operator watching a silent terminal reasonably
+    concludes it has hung, and there is no way to tell that apart from a
+    process that really is stuck. Progress goes to stderr so the JSON
+    summary on stdout stays pipeable.
+    """
+    import time
+
+    started: Dict[str, float] = {}
+    # Overwriting the in-progress line needs a terminal. Piped to a file or
+    # a pager, a carriage return prints as a control character and leaves
+    # both lines, so there the step is announced only once it settles.
+    live = sys.stderr.isatty()
+
+    def report(name: str, status: str, detail: str = "") -> None:
+        if status == "running":
+            started[name] = time.monotonic()
+            if live:
+                print(f"  ... {name}", end="", flush=True, file=sys.stderr)
+            return
+        secs = time.monotonic() - started.pop(name, time.monotonic())
+        mark = {"done": "ok", "failed": "FAILED",
+                "awaiting_handoff": "PAUSED", "awaiting_review": "REVIEW"}
+        line = (f"  {mark.get(status, status):<7}{name} ({secs:.0f}s)"
+                + (f" - {detail.splitlines()[0][:60]}" if detail else ""))
+        print((f"\r{line:<100}" if live else line), file=sys.stderr, flush=True)
+
+    return report
+
+
 def cmd_run(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     from pcip.pipelines.base import PipelineRunner
     from pcip.pipelines.library import get_pipeline
 
     brief = Brief.from_json_file(args.brief)
+    pipeline = get_pipeline(args.pipeline)
+    print(f"{pipeline.name}: {len(pipeline.steps)} steps. Copy and imagery "
+          "call external APIs and take minutes.", file=sys.stderr)
     with _graph(cfg) as g:
-        run = PipelineRunner(cfg, g).start(get_pipeline(args.pipeline), brief)
+        runner = PipelineRunner(cfg, g, on_step=None if args.quiet
+                                else _step_printer())
+        run = runner.start(pipeline, brief)
         _print(_run_summary(run))
     return 0 if run.status in ("done", "awaiting_review") else 1
 
@@ -550,6 +588,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("run", help="run a pipeline from a brief JSON file")
     sp.add_argument("pipeline")
     sp.add_argument("--brief", required=True, help="path to brief JSON")
+    sp.add_argument("--quiet", action="store_true",
+                    help="suppress the per-step progress lines on stderr")
 
     sp = sub.add_parser("runs", help="list pipeline runs")
     sp.add_argument("--limit", type=int, default=20)
