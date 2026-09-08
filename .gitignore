@@ -63,3 +63,6 @@ htmlcov/
 *.ipynb
 Icon
 Icon?
+
+# Rolling .env backups — credentials, never committed
+.pcip-backups/

@@ -81,6 +81,21 @@ fi
 
 # ── Phase 4 — credentials present (names only, never values) ─────────────────
 phase "Phase 4/9  Credentials"
+# Keep a rolling backup before anything touches .env. It went missing once
+# between runs — gitignored, so not a checkout, and the template copy below
+# uses cp -n and cannot overwrite — and every credential in it had to be
+# re-entered. The cause is unknown; the recovery should not be.
+if [ -f "$REPO/.env" ]; then
+    mkdir -p "$REPO/.pcip-backups" && chmod 700 "$REPO/.pcip-backups"
+    BACKUP="$REPO/.pcip-backups/env-$(date +%Y%m%d-%H%M%S)"
+    if cp "$REPO/.env" "$BACKUP" 2>/dev/null; then
+        chmod 600 "$BACKUP"
+        note "backed up .env → .pcip-backups/$(basename "$BACKUP")"
+    fi
+    # Keep the last 20; a credentials file's history should not grow forever.
+    ls -1t "$REPO/.pcip-backups"/env-* 2>/dev/null | tail -n +21 \
+        | while read -r stale; do rm -f "$stale"; done
+fi
 if [ -f "$REPO/.env" ]; then
   PERMS="$(stat -f '%Lp' "$REPO/.env" 2>/dev/null || stat -c '%a' "$REPO/.env" 2>/dev/null)"
   [ "$PERMS" = "600" ] || { chmod 600 "$REPO/.env" 2>/dev/null && note ".env permissions tightened to 600"; }
@@ -106,9 +121,20 @@ for k in watch:
 PYEOF
   ok ".env present (values never printed)"
 else
-  warn "no .env — copy .env.example to .env and fill in what you have"
-  cp -n "$REPO/.env.example" "$REPO/.env" 2>/dev/null && chmod 600 "$REPO/.env" \
-    && note "created .env from the template — edit it, then re-run this script"
+  if cp -n "$REPO/.env.example" "$REPO/.env" 2>/dev/null; then
+    chmod 600 "$REPO/.env"
+    bad "CREATED A NEW .env FROM THE TEMPLATE"
+    note "Every credential in it is blank. If you had credentials before, they"
+    note "are NOT in this file — a quiet note here once cost several rounds of"
+    note "debugging a WordPress publish against an empty username."
+    note ""
+    note "Look for a backup:"
+    note "  ls -1t .pcip-backups/ 2>/dev/null | head -5"
+    note "and restore the newest with:"
+    note "  cp .pcip-backups/<file> .env && chmod 600 .env"
+  else
+    warn "no .env and the template could not be copied"
+  fi
 fi
 
 # ── Phase 5 — offline self-test ──────────────────────────────────────────────
