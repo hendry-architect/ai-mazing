@@ -23,13 +23,16 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
+import os
 import secrets
 import threading
+import time
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 
@@ -139,22 +142,17 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         pass
 
 
-def _read_pasted_code(expected_state: str) -> str:
-    """Take the authorization code from the operator.
+def parse_code(raw: str, expected_state: str = "") -> str:
+    """Pull the authorization code out of whatever the operator carried back.
 
-    A hosted redirect URL sends the code to a web address, not to this
-    machine, so there is no local callback to catch. The code is visible in the
-    browser's address bar either way, and pasting either the whole redirected
-    URL or the bare code is enough to finish the exchange.
+    Accepts the whole redirected URL or the bare code. Pure, so the checks
+    below are testable without a terminal.
     """
     from urllib.parse import parse_qs, urlparse
 
-    print("\nAfter approving, your browser lands on the redirect URL.")
-    print("Copy the whole address from the address bar (or just the code=... "
-          "value), paste it below, then press Return.\n")
-    raw = input("Redirected URL or code (paste, then press Return): ").strip()
+    raw = (raw or "").strip()
     if not raw:
-        raise RuntimeError("Nothing pasted — authorization not completed.")
+        raise RuntimeError("Nothing supplied — authorization not completed.")
 
     code, state = raw, ""
     if "code=" in raw:
@@ -186,8 +184,131 @@ def _read_pasted_code(expected_state: str) -> str:
             "Run the command again rather than continuing with this code."
         )
     if not code:
-        raise RuntimeError(f"Could not find an authorization code in: {raw[:60]}")
+        raise RuntimeError("No code= value found in what was supplied.")
     return code
+
+
+#: Where --start leaves the PKCE verifier for --finish to pick up. Not a
+#: credential on its own — it is the proof-of-possession secret for one
+#: in-flight authorization — but it is written 0600 and deleted after use.
+PENDING_NAME = "canva_auth_pending.json"
+
+#: Canva authorization codes are good for about ten minutes. A verifier older
+#: than that cannot complete a flow, so it is refused with the real reason
+#: rather than left to fail at the token endpoint.
+PENDING_TTL_SECONDS = 900
+
+
+def _pending_path(cfg: PCIPConfig) -> Path:
+    return Path(cfg.data_dir) / PENDING_NAME
+
+
+def read_code_from(
+    explicit: str = "", code_file: str = "", stdin: Optional[Any] = None
+) -> str:
+    """Take the code from an argument, a file, a pipe, or the terminal.
+
+    The terminal is deliberately last. macOS gives a tty a 1024-byte
+    canonical input buffer, and a Canva redirect URL is longer than that, so
+    pasting one at a prompt silently does nothing — Return never submits the
+    line. That is a property of the terminal, not of this program, and no
+    prompt wording fixes it; the other three sources bypass it entirely.
+    """
+    import sys
+
+    stream = stdin if stdin is not None else sys.stdin
+    if explicit:
+        return explicit
+    if code_file:
+        return Path(code_file).read_text(encoding="utf-8")
+    if not stream.isatty():
+        return stream.read()
+    print("\nPaste the redirected URL below, then press Return.")
+    print("If Return appears to do nothing, the URL is longer than this "
+          "terminal's input buffer — press Ctrl-C and pipe it instead:")
+    print("  pbpaste | python -m pcip canva-auth --finish\n")
+    return input("Redirected URL or code: ")
+
+
+def start_manual_flow(
+    cfg: PCIPConfig,
+    redirect_uri: str,
+    scopes: str = DEFAULT_SCOPES,
+    open_browser: bool = True,
+) -> Path:
+    """Print the authorization URL and remember this flow's PKCE verifier."""
+    _require_client(cfg)
+    verifier, challenge = make_pkce_pair()
+    state = secrets.token_urlsafe(24)
+    url = build_authorize_url(
+        cfg.canva_client_id, redirect_uri, challenge, state, scopes
+    )
+
+    path = _pending_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({
+            "verifier": verifier,
+            "state": state,
+            "redirect_uri": redirect_uri,
+            "created_at": time.time(),
+        }),
+        encoding="utf-8",
+    )
+    os.chmod(path, 0o600)
+
+    print("Authorize in the browser:\n\n  " + url + "\n")
+    if open_browser:
+        webbrowser.open(url)
+    print("Then copy the address bar (Cmd-A, Cmd-C) and finish with:\n")
+    print("  pbpaste | python -m pcip canva-auth --finish        # macOS")
+    print("  python -m pcip canva-auth --finish --code-file /path/to/url.txt\n")
+    return path
+
+
+def finish_manual_flow(
+    cfg: PCIPConfig,
+    *,
+    code: str = "",
+    code_file: str = "",
+    write_env: Optional[str] = ".env",
+    stdin: Optional[Any] = None,
+) -> Dict[str, str]:
+    """Complete the flow started by ``start_manual_flow``."""
+    _require_client(cfg)
+    path = _pending_path(cfg)
+    if not path.exists():
+        raise RuntimeError(
+            "No authorization in progress. Start one first:\n"
+            "  python -m pcip canva-auth --redirect-uri <URL> --start"
+        )
+    pending = json.loads(path.read_text(encoding="utf-8"))
+    age = time.time() - float(pending.get("created_at", 0))
+    if age > PENDING_TTL_SECONDS:
+        path.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"That authorization was started {age / 60:.0f} minutes ago and has "
+            "expired — Canva codes are good for about ten. Start a new one:\n"
+            "  python -m pcip canva-auth --redirect-uri <URL> --start"
+        )
+
+    raw = read_code_from(code, code_file, stdin)
+    authorization_code = parse_code(raw, pending.get("state", ""))
+    tokens = exchange_code(
+        cfg, authorization_code, pending["verifier"], pending["redirect_uri"]
+    )
+    # The verifier has served its purpose and the code is spent; leaving the
+    # file behind would only invite a confusing retry.
+    path.unlink(missing_ok=True)
+    return _store_tokens(tokens, write_env)
+
+
+def _require_client(cfg: PCIPConfig) -> None:
+    if not (cfg.canva_client_id and cfg.canva_client_secret):
+        raise RuntimeError(
+            "Set CANVA_CLIENT_ID and CANVA_CLIENT_SECRET first (from your "
+            "integration's Configuration tab at canva.com/developers)."
+        )
 
 
 def run_flow(
@@ -207,11 +328,7 @@ def run_flow(
     — Canva requires a non-localhost URL to review a *public* integration, and
     the code then arrives in a browser rather than on this machine.
     """
-    if not (cfg.canva_client_id and cfg.canva_client_secret):
-        raise RuntimeError(
-            "Set CANVA_CLIENT_ID and CANVA_CLIENT_SECRET first (from your "
-            "integration's Configuration tab at canva.com/developers)."
-        )
+    _require_client(cfg)
     local = not (redirect_uri or manual)
     redirect_uri = redirect_uri or f"http://127.0.0.1:{port}/callback"
     verifier, challenge = make_pkce_pair()
@@ -222,7 +339,7 @@ def run_flow(
         print("Authorize in the browser:\n\n  " + url + "\n")
         if open_browser:
             webbrowser.open(url)
-        code = _read_pasted_code(state)
+        code = parse_code(read_code_from(), state)
         tokens = exchange_code(cfg, code, verifier, redirect_uri)
         return _store_tokens(tokens, write_env)
 

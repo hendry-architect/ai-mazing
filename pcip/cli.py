@@ -96,12 +96,30 @@ def cmd_graph(cfg: PCIPConfig, args: argparse.Namespace) -> int:
 
 def cmd_canva_auth(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     """One-command Canva OAuth (PKCE) — writes tokens into .env."""
-    from pcip.connectors.canva_auth import run_flow
+    from pcip.connectors.canva_auth import (
+        finish_manual_flow,
+        run_flow,
+        start_manual_flow,
+    )
+
+    write_env = None if args.no_write else args.env_file
+    if args.start:
+        if not args.redirect_uri:
+            print("error: --start needs --redirect-uri (the URL registered on "
+                  "your Canva integration)", file=sys.stderr)
+            return 1
+        start_manual_flow(cfg, args.redirect_uri,
+                          open_browser=not args.no_browser)
+        return 0
+    if args.finish:
+        finish_manual_flow(cfg, code=args.code, code_file=args.code_file,
+                           write_env=write_env)
+        return 0
 
     run_flow(
         cfg,
         port=args.port,
-        write_env=None if args.no_write else args.env_file,
+        write_env=write_env,
         open_browser=not args.no_browser,
         redirect_uri=args.redirect_uri,
         manual=args.manual,
@@ -454,6 +472,21 @@ def build_parser() -> argparse.ArgumentParser:
                     help="paste the authorization code instead of catching it "
                          "locally — required with a hosted redirect, since the "
                          "code arrives in a browser, not on this machine")
+    sp.add_argument("--start", action="store_true",
+                    help="step 1 of the hosted-redirect flow: print the "
+                         "authorization URL and remember this flow's PKCE "
+                         "verifier, so the code can arrive by pipe or file "
+                         "rather than through a terminal prompt")
+    sp.add_argument("--finish", action="store_true",
+                    help="step 2: complete the flow started by --start, "
+                         "reading the redirected URL from --code/--code-file "
+                         "or from stdin (e.g. pbpaste | python -m pcip "
+                         "canva-auth --finish)")
+    sp.add_argument("--code", default="",
+                    help="the redirected URL or bare code, for --finish")
+    sp.add_argument("--code-file", default="",
+                    help="a file holding the redirected URL, for --finish — "
+                         "keeps the code out of shell history")
 
     sp = sub.add_parser("doctor", help="diagnose connectors from bootstrap.yaml")
     sp.add_argument("--live", action="store_true",

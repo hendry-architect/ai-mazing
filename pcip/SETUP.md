@@ -48,14 +48,43 @@ python -m pcip status
    `brandtemplate:content:read` if the portal offers them on your plan).
 3. On **Configuration**: copy the **Client ID**, click **Generate secret**
    (shown once) → `.env` → `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`.
-4. Under **Redirect URLs**, add exactly: `http://127.0.0.1:8080/callback`
-5. Run the built-in OAuth helper — it opens the consent screen, catches the
-   callback, exchanges the code, and writes the tokens into `.env`:
+4. Under **Redirect URLs**, add the callback. A **private** integration can
+   use `http://127.0.0.1:8080/callback`; a **public** one cannot — Canva
+   requires a non-localhost URL to review it, so use
+   `https://passqual.com/canva/callback`.
+5. Run the OAuth helper. Which form depends on the redirect you registered.
+
+   **Localhost redirect** — one command; it opens the consent screen, catches
+   the callback, exchanges the code, and writes the tokens into `.env`:
 
    ```bash
    export $(grep -v '^#' .env | xargs)
    python -m pcip canva-auth
    ```
+
+   **Hosted redirect** — the code lands in a browser rather than on this
+   machine, so it comes back in two steps:
+
+   ```bash
+   export $(grep -v '^#' .env | xargs)
+   python -m pcip canva-auth --redirect-uri https://passqual.com/canva/callback --start
+   # authorize in the browser, then select the address bar (Cmd-A, Cmd-C)
+   pbpaste | python -m pcip canva-auth --finish
+   ```
+
+   The two steps exist because of the terminal, not the protocol: macOS gives
+   a tty a **1024-byte** canonical input buffer, and Canva issues the
+   authorization code as a JWT that makes the redirect URL longer than that.
+   Pasted at an interactive prompt it silently does nothing — Return never
+   submits the line. A pipe has no such limit. `--code-file <path>` works
+   too, and keeps the code out of shell history.
+
+   The callback page itself will 404 (nothing serves that route on
+   passqual.com). That is expected — the code is in the address bar either
+   way. `--start` writes the flow's PKCE verifier to
+   `pcip_data/canva_auth_pending.json` (mode 600) and `--finish` deletes it;
+   an authorization older than 15 minutes is refused, since Canva codes are
+   good for about ten.
 
 6. Verify and run your first sync:
 
