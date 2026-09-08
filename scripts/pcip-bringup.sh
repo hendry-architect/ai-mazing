@@ -197,18 +197,41 @@ fi
 
 # ── Phase 8 — export ─────────────────────────────────────────────────────────
 phase "Phase 8/9  Export"
-# Newest PDF in Downloads, so "download it and re-run" needs no file paths.
-PDF="$(ls -t "$HOME/Downloads"/*.pdf 2>/dev/null | head -1)"
-if [ -n "$RUN" ] && [ -n "$PDF" ]; then
-  if "$PY" -m pcip --data-dir "$DATA" attach "$RUN" --export-file "$PDF" >/dev/null 2>&1; then
-    ok "export attached: $(basename "$PDF")"
+# Match the file to the deliverable rather than taking the newest one.
+# Newest-wins once selected a confidential patient appeal from Downloads as
+# the media for a public article. pcip.exports returns nothing when it cannot
+# tell, which is the correct answer.
+EXPORT_PICK="$("$PY" - "$DATA" "${RUN:-}" <<'PYEOF'
+import pathlib, sys
+if not sys.argv[2]:
+    raise SystemExit
+from pcip.exports import best_export
+from pcip.graph.store import KnowledgeGraph
+
+g = KnowledgeGraph(str(pathlib.Path(sys.argv[1]) / "graph.db"))
+run = (g.get_node(sys.argv[2]) or {}).get("payload", {})
+ctx = run.get("context") or {}
+title = ctx.get("design_title") or ""
+if not title:
+    brief = g.get_node(run.get("brief_id", "")) or {}
+    title = (brief.get("payload") or {}).get("title", "")
+best = best_export(title, "~/Downloads")
+print(best.path if best else "")
+PYEOF
+)"
+if [ -n "$RUN" ] && [ -n "$EXPORT_PICK" ]; then
+  if "$PY" -m pcip --data-dir "$DATA" attach "$RUN" --export-file "$EXPORT_PICK" >/dev/null 2>&1; then
+    ok "export attached: $(basename "$EXPORT_PICK")"
   else
-    warn "could not attach $(basename "$PDF") — check: pcip runs"
+    warn "could not attach $(basename "$EXPORT_PICK") — check: pcip runs"
   fi
 else
-  warn "no PDF in ~/Downloads — open the design, Share > Download > PDF Print:"
+  warn "no file in ~/Downloads matches this deliverable"
+  note "Open the design and use Share > Download > PNG:"
   note "https://www.canva.com/d/hZsWYCvlC6IDoCn"
-  note "then re-run this script; it picks the file up automatically"
+  note "Keep Canva's filename — it is what identifies the file as yours."
+  note "Nothing is attached on a guess: your Downloads folder holds unrelated"
+  note "files, and guessing once selected a confidential document."
 fi
 
 # ── Phase 9 — deliver ────────────────────────────────────────────────────────

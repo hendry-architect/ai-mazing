@@ -108,10 +108,29 @@ case "$STATUS::$NEED" in
                 || bad "could not attach the design"
         fi ;;
     awaiting_handoff::export)
-        FILE="$(ls -t "$HOME/Downloads"/*.png "$HOME/Downloads"/*.pdf 2>/dev/null | head -1)"
+        EXPORT_PICK="$("$PY" - "$DATA" "${RUN:-}" <<'PYEOF'
+import pathlib, sys
+if not sys.argv[2]:
+    raise SystemExit
+from pcip.exports import best_export
+from pcip.graph.store import KnowledgeGraph
+
+g = KnowledgeGraph(str(pathlib.Path(sys.argv[1]) / "graph.db"))
+run = (g.get_node(sys.argv[2]) or {}).get("payload", {})
+ctx = run.get("context") or {}
+title = ctx.get("design_title") or ""
+if not title:
+    brief = g.get_node(run.get("brief_id", "")) or {}
+    title = (brief.get("payload") or {}).get("title", "")
+best = best_export(title, "~/Downloads")
+print(best.path if best else "")
+PYEOF
+)"
+        FILE="$EXPORT_PICK"
         if [ -z "$FILE" ]; then
-            warn "waiting for the exported file"
-            info "Open the design and use Share → Download → PNG:"
+            warn "no file in ~/Downloads matches this deliverable"
+            info "Open the design and use Share → Download → PNG, keeping"
+            info "Canva's filename — it is what identifies the file as yours:"
             info "  $DESIGN_URL"
             info "Leave it in ~/Downloads and run this script again."
             info "(PNG, not PDF: the standard requires a hero image, and a PDF"
@@ -204,7 +223,7 @@ path.write_text("\n".join(parts), encoding="utf-8")
 print(path)
 PYEOF
 )"
-        if [ -n "$REVIEWFILE" ] && [ -f "$REVIEWFILE" ]; then
+        if [ -n "${REVIEWFILE:-}" ] && [ -f "${REVIEWFILE:-}" ]; then
             info ""
             info "Read it first — this opens in your browser:"
             info "  open \"$REVIEWFILE\""
