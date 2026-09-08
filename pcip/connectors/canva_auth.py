@@ -151,8 +151,8 @@ def _read_pasted_code(expected_state: str) -> str:
 
     print("\nAfter approving, your browser lands on the redirect URL.")
     print("Copy the whole address from the address bar (or just the code=... "
-          "value) and paste it here.\n")
-    raw = input("Redirected URL or code: ").strip()
+          "value), paste it below, then press Return.\n")
+    raw = input("Redirected URL or code (paste, then press Return): ").strip()
     if not raw:
         raise RuntimeError("Nothing pasted — authorization not completed.")
 
@@ -162,6 +162,21 @@ def _read_pasted_code(expected_state: str) -> str:
         params = parse_qs(query)
         code = (params.get("code") or [""])[0]
         state = (params.get("state") or [""])[0]
+
+    # Canva issues the code as a JWT, and it is long enough that a clipboard
+    # or terminal can cut it. A truncated code is rejected by the token
+    # endpoint with a generic error that reads like a configuration problem,
+    # so it is worth naming here while the operator still has the browser open.
+    if "." in code:
+        parts = code.split(".")
+        if len(parts) != 3 or not all(parts):
+            raise RuntimeError(
+                f"That code looks truncated — {len(code)} characters in "
+                f"{len(parts)} segment(s), where Canva issues three. Long URLs "
+                "are easy to cut when copying. Select the address bar and use "
+                "Select All (Cmd-A) before copying, then run the command again "
+                "— a code is single-use, so this one cannot be retried."
+            )
 
     if state and expected_state and state != expected_state:
         # The CSRF check still applies when the operator carries the code by
