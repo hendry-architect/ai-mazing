@@ -5,6 +5,7 @@ from pcip.standards.ph import (
     ArticleCheck,
     Violation,
     check_article,
+    check_social_post,
 )
 
-__all__ = ["PH", "ArticleCheck", "Violation", "check_article"]
+__all__ = ["PH", "ArticleCheck", "Violation", "check_article", "check_social_post"]

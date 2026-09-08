@@ -49,6 +49,23 @@ def slugify(title: str) -> str:
     return re.sub(r"-{2,}", "-", re.sub(r"[^a-z0-9]+", "-", text)).strip("-")[:80]
 
 
+def plain_text(html: str) -> str:
+    """Flatten article HTML into the text a social caption should carry.
+
+    Social APIs take plain text. Handing them ``body_html`` posts the markup
+    verbatim, so block-level tags become line breaks and everything else is
+    dropped, entities included.
+    """
+    import html as _html
+
+    text = re.sub(r"(?is)<(script|style)\b.*?</\1>", "", html or "")
+    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+    text = re.sub(r"(?i)</(p|div|h[1-6]|li|tr|blockquote)>", "\n\n", text)
+    text = _html.unescape(re.sub(r"<[^>]+>", "", text))
+    text = re.sub(r"[ \t]+", " ", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
 def _handoff_readme(meta: Dict[str, Any], wp_origin: str) -> str:
     media_lines = "\n".join(
         f"   - `media/{name}` — alt text: {alt!r}"
@@ -394,8 +411,15 @@ class PublishRouter:
         schedule_at: str = "",
         media_urls: Optional[List[str]] = None,
         republish: bool = False,
+        dry_run: bool = False,
     ) -> Publication:
         channel = Channel(channel) if isinstance(channel, str) else channel
+        if dry_run and channel == Channel.WORDPRESS:
+            raise PublishError(
+                "--dry-run covers the social channels. WordPress already has an "
+                "offline path that produces the real article:\n"
+                f"  pcip prepare {output_id}"
+            )
         self._check_not_already_published(output_id, channel, republish)
 
         # Promoting a draft flips a status; it does not change the article,
@@ -415,7 +439,7 @@ class PublishRouter:
         self._check_license(output)
 
         payload = self.payload_for(output, title=title, text=text)
-        if not text:
+        if not text and channel == Channel.WORDPRESS:
             self._check_ph_standard(output_id, payload, output)
 
         if channel == Channel.WORDPRESS:
@@ -457,15 +481,27 @@ class PublishRouter:
 
             # Decision engine: immediate → direct API; scheduled → scheduler.
             prefer = "scheduler" if schedule_at else "direct"
-            adapter = adapter_for(channel, self.cfg, prefer=prefer)
+            # The article body is a last resort and it is *HTML*. Posting the
+            # markup to Instagram would be worse than posting nothing, so it
+            # is flattened to the text a reader would see.
             caption = (
                 text
                 or payload["captions"].get(channel.value)
-                or payload["body_html"]
+                or plain_text(payload["body_html"])
                 or payload["title"]
             )
             if payload["hashtags"] and not text:
                 caption = f"{caption}\n\n{' '.join(payload['hashtags'])}"
+            self._check_ph_social(
+                channel, caption, media_urls, payload["language"],
+                operator_written=bool(text),
+            )
+            if dry_run:
+                return self._dry_run_social(
+                    output_id, channel, caption, prefer,
+                    media_urls=media_urls, schedule_at=schedule_at,
+                )
+            adapter = adapter_for(channel, self.cfg, prefer=prefer)
             pub = adapter.publish(
                 channel,
                 caption,
@@ -481,6 +517,109 @@ class PublishRouter:
 
         pub.output_id = output_id
         self._record(pub)
+        return pub
+
+    def _check_ph_social(
+        self,
+        channel: Channel,
+        caption: str,
+        media_urls: Optional[List[str]],
+        language: str,
+        *,
+        operator_written: bool,
+    ) -> None:
+        """Hold a social post to the part of the standard that applies to it.
+
+        The article standard used to run on every channel, which no caption
+        could ever satisfy — social publishing was gated shut and nobody had
+        noticed, because no social post had ever been attempted.
+
+        ``--text`` waives the required-level findings, the same escape hatch
+        articles have: an operator writing the caption has taken it on. It
+        does **not** waive the blockers. Pediatric content, an outcome
+        guarantee, or a mental-health post without 988 and 911 are not
+        matters of editorial preference, and a caption reaches a patient
+        exactly as directly as an article does.
+        """
+        from pcip.connectors.social import CAPTION_LIMITS
+        from pcip.standards import check_social_post
+
+        check = check_social_post(
+            {
+                "caption": caption,
+                "channel": channel.value,
+                "media": list(media_urls or []),
+                "language": language,
+            },
+            limit=CAPTION_LIMITS.get(channel),
+        )
+        failures = check.blockers if operator_written else (
+            check.blockers + check.required
+        )
+        if failures:
+            raise PublishError(
+                f"Refusing to publish {channel.value}: the caption does not "
+                f"meet the PassQual Health standard.\n\n" + check.report()
+            )
+
+    def _dry_run_social(
+        self,
+        output_id: str,
+        channel: Channel,
+        caption: str,
+        prefer: str,
+        *,
+        media_urls: Optional[List[str]] = None,
+        schedule_at: str = "",
+    ) -> Publication:
+        """Run the real adapter against a recording transport.
+
+        Every gate above this point has already run, so a dry run answers the
+        whole question — is this output publishable, and what exactly would
+        leave the building — without a token and without a post. The result
+        is deliberately *not* recorded: the graph is the record of what was
+        published, and a rehearsal is not a publication.
+        """
+        from pcip.connectors.dryrun import DryRunSession, dryrun_config
+        from pcip.connectors.social import adapter_for
+
+        cfg, _ = dryrun_config(self.cfg)
+        session = DryRunSession()
+        adapter = adapter_for(
+            channel, cfg, prefer=prefer,
+            session=session, require_available=False,
+        )
+        # Report what *this* adapter needs, not every social credential in the
+        # config: a Threads preview listing YOUTUBE_TOKEN as missing sends the
+        # operator to fix something unrelated to what they just previewed.
+        missing = type(adapter)(self.cfg).missing_credentials()
+        error = ""
+        try:
+            pub = adapter.publish(
+                channel, caption, media_urls=media_urls, schedule_at=schedule_at
+            )
+        except Exception as exc:                      # noqa: BLE001 — reported
+            pub = Publication(channel=channel, status="failed")
+            error = f"{type(exc).__name__}: {exc}"
+
+        pub.output_id = output_id
+        pub.external_id = ""
+        pub.status = "dry_run"
+        pub.metadata = {
+            "dry_run": True,
+            "adapter": type(adapter).__name__,
+            "mode": adapter.mode,
+            "preferred_mode": prefer,
+            "fallback_used": adapter.mode != prefer,
+            "caption": caption,
+            "caption_chars": len(caption),
+            "media_urls": list(media_urls or []),
+            "schedule_at": schedule_at,
+            "requests": session.requests,
+            "missing_credentials": missing,
+            "would_fail": bool(error),
+            "error": error,
+        }
         return pub
 
     def prepare(

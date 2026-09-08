@@ -350,9 +350,32 @@ def cmd_publish(cfg: PCIPConfig, args: argparse.Namespace) -> int:
             live=args.live,
             schedule_at=args.schedule_at,
             republish=getattr(args, "republish", False),
+            dry_run=getattr(args, "dry_run", False),
         )
         _print(pub.to_dict())
+        if pub.metadata.get("dry_run"):
+            _report_dry_run(pub)
     return 0
+
+
+def _report_dry_run(pub) -> None:
+    """Say plainly what a rehearsal did and did not establish."""
+    meta = pub.metadata
+    print(f"\nDRY RUN — nothing was posted to {pub.channel.value}.")
+    print(f"  adapter        {meta['adapter']} ({meta['mode']} mode"
+          + (", fallback" if meta["fallback_used"] else "") + ")")
+    print(f"  caption        {meta['caption_chars']} characters")
+    print(f"  requests       {len(meta['requests'])} would have been sent")
+    if meta["missing_credentials"]:
+        print("  NOT CONFIGURED " + ", ".join(meta["missing_credentials"]))
+        print("                 the request shape above is real; the "
+              "credentials in it are placeholders, so a live run would stop "
+              "at authentication.")
+    if meta["would_fail"]:
+        print(f"  WOULD FAIL     {meta['error']}")
+    elif not meta["missing_credentials"]:
+        print("  ready          every credential is set and the adapter "
+              "completed against the recording transport.")
 
 
 def cmd_record(cfg: PCIPConfig, args: argparse.Namespace) -> int:
@@ -533,6 +556,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--live", action="store_true",
                     help="WordPress: publish live instead of draft")
     sp.add_argument("--schedule-at", default="")
+    sp.add_argument("--dry-run", action="store_true",
+                    help="social channels: run the real adapter against a "
+                         "recording transport and print the exact request "
+                         "instead of sending it (no token required)")
 
     return p
 
@@ -570,3 +597,7 @@ def main(argv: list | None = None) -> int:
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+
+
+if __name__ == "__main__":                          # python -m pcip.cli …
+    sys.exit(main())

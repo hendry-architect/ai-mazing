@@ -32,19 +32,71 @@ class ChannelNotConfigured(Exception):
     pass
 
 
+class ChannelError(RuntimeError):
+    """A platform answered, but not with what it promised."""
+
+
+class CaptionTooLong(ValueError):
+    """The caption exceeds what the platform accepts.
+
+    PCIP refuses rather than truncating. A post cut mid-sentence carries a
+    physician's name and a clinic's phone number; publishing half a medical
+    message is worse than publishing none, and the operator can always pass
+    a channel-specific caption.
+    """
+
+
+#: Hard limits published by each platform, applied before anything is sent.
+CAPTION_LIMITS: Dict[Channel, int] = {
+    Channel.X: 280,
+    Channel.THREADS: 500,
+    Channel.INSTAGRAM: 2200,
+    Channel.TIKTOK: 2200,
+    Channel.LINKEDIN: 3000,
+    Channel.YOUTUBE: 5000,          # description field
+    Channel.FACEBOOK: 63206,
+}
+
+
 class SocialAdapter(ABC):
     channels: List[Channel] = []
     mode: str = "direct"               # "direct" | "scheduler"
+
+    #: Config fields this adapter cannot work without. Declared rather than
+    #: re-implemented per adapter so ``available()``, the doctor's capability
+    #: report and the dry run's "not configured" list all read the same
+    #: source — they used to be three separate hand-maintained lists.
+    CREDENTIALS: tuple = ()
 
     def __init__(self, config: PCIPConfig, session: Optional[requests.Session] = None) -> None:
         self.cfg = config
         self.http = session or requests.Session()
 
-    @abstractmethod
-    def available(self) -> bool: ...
+    def available(self) -> bool:
+        return all(getattr(self.cfg, f, "") for f in self.CREDENTIALS)
+
+    def missing_credentials(self) -> List[str]:
+        """Which of this adapter's credentials are unset, in env-var form."""
+        return [f.upper() for f in self.CREDENTIALS if not getattr(self.cfg, f, "")]
+
+    def publish(
+        self,
+        channel: Channel,
+        text: str,
+        media_urls: Optional[List[str]] = None,
+        schedule_at: str = "",
+    ) -> Publication:
+        """Validate, then delegate to the adapter.
+
+        Concrete here rather than on each adapter so no caller — router,
+        script, or future adapter — can reach a platform without the caption
+        having been checked first.
+        """
+        self._check_caption(channel, text)
+        return self._publish(channel, text, media_urls, schedule_at)
 
     @abstractmethod
-    def publish(
+    def _publish(
         self,
         channel: Channel,
         text: str,
@@ -52,10 +104,42 @@ class SocialAdapter(ABC):
         schedule_at: str = "",
     ) -> Publication: ...
 
-    def _check(self, resp: requests.Response, what: str) -> Dict[str, Any]:
+    def _check_caption(self, channel: Channel, text: str) -> None:
+        limit = CAPTION_LIMITS.get(channel)
+        if limit is not None and len(text) > limit:
+            raise CaptionTooLong(
+                f"{channel.value} accepts {limit} characters; this caption is "
+                f"{len(text)}. Give the channel its own caption instead of "
+                f"letting it fall back to the article body:\n"
+                f"  pcip publish <output> --channel {channel.value} "
+                f"--text '<caption under {limit} chars>'"
+            )
+
+    def _check(self, resp: Any, what: str) -> Dict[str, Any]:
+        """Turn a platform response into JSON, or into a useful error.
+
+        ``resp.json()`` on its own is a trap shared by every social API: a
+        gateway error page, a rate-limit notice or a login redirect all come
+        back as HTML, and decoding one raises a bare JSONDecodeError with no
+        indication of which channel failed or why.
+        """
+        if resp.status_code == 429:
+            retry = resp.headers.get("Retry-After", "")
+            raise ChannelError(
+                f"{what} → rate limited by the platform"
+                + (f"; retry after {retry}s" if retry else "")
+            )
         if resp.status_code >= 400:
-            raise RuntimeError(f"{what} → {resp.status_code}: {resp.text[:300]}")
-        return resp.json()
+            raise ChannelError(f"{what} → {resp.status_code}: {resp.text[:300]}")
+        ctype = resp.headers.get("content-type", "")
+        try:
+            return resp.json()
+        except ValueError as exc:
+            raise ChannelError(
+                f"{what} → {resp.status_code} with a {ctype or 'non-JSON'} body, "
+                f"not the JSON the API documents. First 200 characters: "
+                f"{resp.text[:200]!r}"
+            ) from exc
 
 
 class BufferAdapter(SocialAdapter):
@@ -71,8 +155,20 @@ class BufferAdapter(SocialAdapter):
     mode = "scheduler"
     API = "https://api.bufferapp.com/1"
 
-    def available(self) -> bool:
-        return bool(self.cfg.buffer_token)
+    #: Buffer's own service names, which are not PCIP's channel names. The
+    #: mismatch is not cosmetic: Buffer still calls X "twitter", so prefix
+    #: matching on the channel value meant every X post through Buffer found
+    #: no profile and failed.
+    SERVICES = {
+        Channel.INSTAGRAM: "instagram",
+        Channel.FACEBOOK: "facebook",
+        Channel.LINKEDIN: "linkedin",
+        Channel.X: "twitter",
+        Channel.TIKTOK: "tiktok",
+        Channel.YOUTUBE: "youtube",
+    }
+
+    CREDENTIALS = ("buffer_token",)
 
     def _profiles(self) -> List[Dict[str, Any]]:
         return self._check(
@@ -84,14 +180,18 @@ class BufferAdapter(SocialAdapter):
             "buffer profiles",
         )
 
-    def publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+    def _publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+        service = self.SERVICES.get(channel)
+        if service is None:
+            raise ChannelNotConfigured(f"Buffer does not serve {channel.value}.")
         profiles = [
             p for p in self._profiles()
-            if p.get("service", "").lower().startswith(channel.value[:6])
+            if p.get("service", "").lower() == service
         ]
         if not profiles:
             raise ChannelNotConfigured(
-                f"No Buffer profile connected for {channel.value}."
+                f"No Buffer profile connected for {channel.value} (Buffer calls "
+                f"it {service!r}). Connect it at https://publish.buffer.com."
             )
         body: Dict[str, Any] = {
             "access_token": self.cfg.buffer_token,
@@ -127,10 +227,9 @@ class MetaAdapter(SocialAdapter):
     channels = [Channel.FACEBOOK, Channel.INSTAGRAM]
     API = "https://graph.facebook.com/v21.0"
 
-    def available(self) -> bool:
-        return bool(self.cfg.meta_page_token)
+    CREDENTIALS = ("meta_page_token",)
 
-    def publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+    def _publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
         token = self.cfg.meta_page_token
         if channel == Channel.INSTAGRAM:
             if not (self.cfg.meta_ig_user_id and media_urls):
@@ -174,10 +273,9 @@ class LinkedInAdapter(SocialAdapter):
     channels = [Channel.LINKEDIN]
     API = "https://api.linkedin.com/v2"
 
-    def available(self) -> bool:
-        return bool(self.cfg.linkedin_token and self.cfg.linkedin_org_urn)
+    CREDENTIALS = ("linkedin_token", "linkedin_org_urn")
 
-    def publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+    def _publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
         body = {
             "author": self.cfg.linkedin_org_urn,
             "lifecycleState": "PUBLISHED",
@@ -214,10 +312,9 @@ class XAdapter(SocialAdapter):
     channels = [Channel.X]
     API = "https://api.x.com/2"
 
-    def available(self) -> bool:
-        return bool(self.cfg.x_user_token)
+    CREDENTIALS = ("x_user_token",)
 
-    def publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+    def _publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
         data = self._check(
             self.http.post(
                 f"{self.API}/tweets",
@@ -237,10 +334,9 @@ class ThreadsAdapter(SocialAdapter):
     channels = [Channel.THREADS]
     API = "https://graph.threads.net/v1.0"
 
-    def available(self) -> bool:
-        return bool(self.cfg.threads_token and self.cfg.threads_user_id)
+    CREDENTIALS = ("threads_token", "threads_user_id")
 
-    def publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+    def _publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
         body: Dict[str, Any] = {
             "media_type": "IMAGE" if media_urls else "TEXT",
             "text": text,
@@ -273,10 +369,9 @@ class YouTubeAdapter(SocialAdapter):
     channels = [Channel.YOUTUBE]
     API = "https://www.googleapis.com/upload/youtube/v3"
 
-    def available(self) -> bool:
-        return bool(self.cfg.youtube_token)
+    CREDENTIALS = ("youtube_token",)
 
-    def publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+    def _publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
         local_path = None
         if media_urls and media_urls[0].startswith("/"):
             local_path = media_urls[0]
@@ -295,8 +390,15 @@ class YouTubeAdapter(SocialAdapter):
             timeout=self.cfg.request_timeout,
         )
         if init.status_code >= 400:
-            raise RuntimeError(f"youtube init → {init.status_code}: {init.text[:300]}")
-        upload_url = init.headers["Location"]
+            raise ChannelError(f"youtube init → {init.status_code}: {init.text[:300]}")
+        upload_url = init.headers.get("Location", "")
+        if not upload_url:
+            raise ChannelError(
+                "youtube init → no Location header, so there is no resumable "
+                "upload session to write the video to. This is what a revoked "
+                "or insufficiently scoped OAuth token looks like; re-authorise "
+                "with the youtube.upload scope."
+            )
         with open(local_path, "rb") as fh:
             data = self._check(
                 self.http.put(upload_url, data=fh,
@@ -317,10 +419,9 @@ class TikTokAdapter(SocialAdapter):
     channels = [Channel.TIKTOK]
     API = "https://open.tiktokapis.com/v2"
 
-    def available(self) -> bool:
-        return bool(self.cfg.tiktok_token)
+    CREDENTIALS = ("tiktok_token",)
 
-    def publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+    def _publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
         if not media_urls:
             raise ChannelNotConfigured("TikTok needs a public video URL in media_urls[0].")
         data = self._check(
@@ -351,7 +452,12 @@ ADAPTERS = [
 
 
 def adapters_for(
-    channel: Channel, config: PCIPConfig, prefer: str = "direct"
+    channel: Channel,
+    config: PCIPConfig,
+    prefer: str = "direct",
+    *,
+    session: Optional[requests.Session] = None,
+    require_available: bool = True,
 ) -> List[SocialAdapter]:
     """All configured adapters serving a channel, preferred mode first.
 
@@ -359,17 +465,30 @@ def adapters_for(
     "scheduler" for scheduled campaigns. The non-preferred mode stays in the
     list as the fallback, so a Buffer outage never strands an urgent post
     and a missing native token never blocks a scheduled one.
+
+    ``session`` swaps the transport — used by tests and by ``--dry-run`` to
+    run the real publishing code without reaching a platform.
+    ``require_available`` may only be relaxed for a dry run, where the point
+    is to show what an unconfigured channel *would* send.
     """
-    instances = [cls(config) for cls in ADAPTERS if channel in cls.channels]
-    candidates = [a for a in instances if a.available()]
+    instances = [cls(config, session) for cls in ADAPTERS if channel in cls.channels]
+    candidates = [a for a in instances if a.available() or not require_available]
     return sorted(candidates, key=lambda a: a.mode != prefer)
 
 
 def adapter_for(
-    channel: Channel, config: PCIPConfig, prefer: str = "direct"
+    channel: Channel,
+    config: PCIPConfig,
+    prefer: str = "direct",
+    *,
+    session: Optional[requests.Session] = None,
+    require_available: bool = True,
 ) -> SocialAdapter:
     """Best configured adapter for the channel (see adapters_for)."""
-    candidates = adapters_for(channel, config, prefer)
+    candidates = adapters_for(
+        channel, config, prefer,
+        session=session, require_available=require_available,
+    )
     if not candidates:
         raise ChannelNotConfigured(
             f"No configured adapter for {channel.value}. Configure the native "

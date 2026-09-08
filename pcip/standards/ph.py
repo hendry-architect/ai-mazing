@@ -346,3 +346,92 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
         ))
 
     return out
+
+
+def check_social_post(
+    post: Dict[str, Any], *, limit: Optional[int] = None
+) -> ArticleCheck:
+    """The PassQual Health standard as it applies to a social caption.
+
+    ``check_article`` cannot be reused here: it requires an ES/EN pair, 600+
+    words, three H2 sections, an FAQ block and the verbatim NAP line. No
+    caption can satisfy that, so running it on social posts made every social
+    channel unpublishable — a gate that never permits anything is not a
+    standard, it is an outage.
+
+    What survives the move to social is the part that carries risk rather
+    than the part that carries SEO: the exclusions PassQual Health states
+    without exception, the crisis numbers, and the booking route back to the
+    practice.
+    """
+    violations: List[Violation] = []
+    caption = str(post.get("caption") or "")
+    channel = str(post.get("channel") or "").lower()
+    media = list(post.get("media") or [])
+    language = str(post.get("language") or PH.PRIMARY_LANGUAGE).lower()
+    lowered = caption.lower()
+
+    if not caption.strip():
+        violations.append(Violation(
+            "empty_caption", "blocker", "the caption is empty",
+            "pass --text, or re-run the pipeline so its copy step produces "
+            "a caption for this channel",
+        ))
+
+    # ── Exclusions that hold on every surface ────────────────────────────
+    for term in PH.FORBIDDEN_TOPICS:
+        if term in lowered:
+            violations.append(Violation(
+                "no_pediatrics", "blocker",
+                f"pediatric content detected ('{term}')",
+                "PassQual Health does not serve pediatrics — remove it entirely",
+            ))
+            break
+    for claim in PH.FORBIDDEN_CLAIMS:
+        if claim in lowered:
+            violations.append(Violation(
+                "claims", "blocker",
+                f"prohibited claim or superlative: '{claim}'",
+                "structure/function language only; no outcome guarantees",
+            ))
+    if any(t in lowered for t in PH.CRISIS_TRIGGERS):
+        if not all(n in caption for n in PH.CRISIS_NUMBERS):
+            violations.append(Violation(
+                "crisis_numbers", "blocker",
+                "mental-health content without 988 and 911",
+                "both numbers are mandatory on mental-health topics — a "
+                "caption reaches someone in crisis the same way an article does",
+            ))
+
+    # ── Reach and conversion ─────────────────────────────────────────────
+    if limit is not None and len(caption) > limit:
+        violations.append(Violation(
+            "caption_length", "required",
+            f"{len(caption)} characters; {channel or 'this channel'} accepts {limit}",
+            "write a channel-specific caption rather than reusing the article",
+        ))
+    if not any(p in caption for p in
+               (PH.NAP_PHONE_SOCIAL, PH.NAP_PHONE_DISPLAY, PH.SITE)):
+        violations.append(Violation(
+            "cta", "required",
+            "no route back to the practice",
+            f"end with {PH.BOOKING_ES if language.startswith('es') else PH.BOOKING_EN} "
+            f"or a link to {PH.SITE}",
+        ))
+    if channel in ("instagram", "tiktok", "youtube") and not media:
+        violations.append(Violation(
+            "media", "required",
+            f"{channel} is a media-first channel and no media was given",
+            "attach the exported design or video",
+        ))
+    if language.startswith("es") and PH.NEAR_ME_ES not in lowered:
+        violations.append(Violation(
+            "near_me", "advisory", "no 'cerca de mí' phrasing",
+            "Spanish speakers search near-me intent, not city names",
+        ))
+    if "#" not in caption:
+        violations.append(Violation(
+            "hashtags", "advisory", "no hashtags",
+            "hashtags are how a local practice is found on social",
+        ))
+    return ArticleCheck(violations=violations)
