@@ -238,13 +238,7 @@ def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
                   "--export-url and/or --export-file",
                   file=sys.stderr)
             return 1
-        # Let the paused step run again now that its input exists.
-        for sr in run.steps:
-            if sr.status == "awaiting_handoff":
-                sr.status = "pending"
-        run.context.pop("handoff", None)
-        runner._save(run)
-        run = runner.resume(get_pipeline(run.pipeline), run, brief)
+        run = runner.fulfil_handoff(get_pipeline(run.pipeline), run, brief)
         _print(_run_summary(run))
     return 0 if run.status not in ("failed", "rejected") else 1
 

@@ -115,6 +115,29 @@ class PipelineRunner:
         self.graph.add_edge(run.id, EdgeKind.FROM_BRIEF, brief.id)
         return self._advance(pipeline, run, brief)
 
+    def fulfil_handoff(
+        self,
+        pipeline: "Pipeline",
+        run: "PipelineRun",
+        brief: "Brief",
+        **context: Any,
+    ) -> "PipelineRun":
+        """Supply what a paused step was waiting for, and continue.
+
+        Resuming alone is not enough: the step that raised the handoff is still
+        marked awaiting, so the runner skips past it and the run stalls exactly
+        where it stopped. The reset belongs here rather than in whichever
+        caller happens to need it — it lived only in the CLI, which made the
+        CLI the sole thing that knew how to finish a paused run.
+        """
+        run.context.update({k: v for k, v in context.items() if v is not None})
+        for step in run.steps:
+            if step.status == "awaiting_handoff":
+                step.status = "pending"
+        run.context.pop("handoff", None)
+        self._save(run)
+        return self.resume(pipeline, run, brief)
+
     def resume(self, pipeline: Pipeline, run: PipelineRun, brief: Brief) -> PipelineRun:
         return self._advance(pipeline, run, brief)
 
