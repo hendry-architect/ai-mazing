@@ -180,6 +180,17 @@ class PCIPConfig:
         )
 
     @property
+    def canva_configured(self) -> bool:
+        """Whether PCIP itself holds Canva Connect credentials.
+
+        Distinct from ``canva_mode``: the mode says which path assembly
+        *prefers*, this says whether the Connect path is available at all.
+        Conflating the two let the doctor report "credentials held by the MCP
+        host, not PCIP" about an account whose tokens were sitting in .env.
+        """
+        return bool(self.canva_access_token or self.canva_refresh_token)
+
+    @property
     def revalidation_configured(self) -> bool:
         """Whether the instant-publish webhook can be called."""
         return bool(self.vercel_revalidate_url and self.wp_revalidate_secret)
@@ -187,7 +198,7 @@ class PCIPConfig:
     def channel_status(self) -> Dict[str, bool]:
         """Which connectors are configured (no secrets exposed)."""
         return {
-            "canva": bool(self.canva_access_token or self.canva_refresh_token),
+            "canva": self.canva_configured,
             "anthropic": bool(self.anthropic_auth_source),
             "openai_images": bool(self.openai_api_key),
             "google_ai": bool(self.google_ai_api_key),

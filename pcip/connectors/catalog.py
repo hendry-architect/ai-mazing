@@ -178,10 +178,16 @@ CATALOG = [
         probe=probe_canva,
         # In "mcp" mode the Canva work runs through the MCP connector held by
         # an agent session, and PCIP holds no Canva credentials by design. That
-        # is the configuration this deployment actually runs — the live design
-        # and export were produced that way — so reporting the absent Connect
+        # is the configuration this deployment ran first — the live design and
+        # export were produced that way — so reporting the absent Connect
         # credentials as "missing" describes a deliberate choice as a fault.
-        mcp_managed_when=lambda cfg: cfg.canva_mode == "mcp",
+        #
+        # But only while they really are absent. Once tokens are in .env the
+        # Connect path exists whatever the mode says, and claiming the
+        # credentials are "held by the MCP host, not PCIP" is simply untrue —
+        # it also skipped the live probe, so the doctor stayed silent about
+        # credentials that a sync was already using.
+        mcp_managed_when=lambda cfg: cfg.canva_mode == "mcp" and not cfg.canva_configured,
         capabilities=(
             CapabilitySpec("create_design", "POST /designs"),
             CapabilitySpec(
