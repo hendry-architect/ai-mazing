@@ -125,3 +125,65 @@ def test_the_prompt_is_built_from_the_article_not_just_the_brief(monkeypatch):
         "meta_description": "Tres hábitos diarios para cuidar su azúcar."
     }))
     assert "azúcar" in seen["prompt"], "the copy step already decided the subject"
+
+
+# ── imagery without a second subscription ────────────────────────────────────
+
+
+def test_canva_supplies_imagery_when_no_api_is_configured():
+    """The account already pays for Canva. Buying a second image API to
+    produce what the existing subscription produces is a cost with no
+    capability behind it."""
+    from pcip.generate.providers import ProviderRegistry
+
+    names = ProviderRegistry(PCIPConfig(canva_mode="mcp")).available_names("image")
+    assert "canva-images" in names
+
+
+def test_canva_imagery_is_unavailable_where_no_session_can_service_it():
+    """It works by pausing for an agent session. In connect mode there is
+    nobody to ask, so offering it would strand an unattended run."""
+    from pcip.generate.providers import ProviderRegistry
+
+    names = ProviderRegistry(PCIPConfig(canva_mode="connect")).available_names("image")
+    assert "canva-images" not in names
+
+
+def test_a_configured_api_outranks_canva():
+    """Canva needs a human in the loop; an API does not. When both are
+    available the unattended one wins."""
+    from pcip.generate.capabilities import default_registry, spec_for
+
+    ranked = default_registry().rank(
+        spec_for("healthcare_photo"), ["canva-images", "openai-images"]
+    )
+    assert ranked[0][0] == "openai-images"
+    assert "canva-images" in [name for name, _ in ranked]   # still a fallback
+
+
+def test_the_canva_provider_pauses_rather_than_failing():
+    from pcip.generate.media_providers import CanvaImageProvider
+    from pcip.generate.providers import GenerationRequest
+    from pcip.pipelines.base import HandoffRequired
+
+    provider = CanvaImageProvider(PCIPConfig(canva_mode="mcp"))
+    with pytest.raises(HandoffRequired) as exc:
+        provider.generate(GenerationRequest(capability="image", prompt="a clinic"))
+    how = exc.value.spec["how"]
+    assert "generate-design" in how
+    assert "official export workflow" in how      # the licence path, stated
+
+
+def test_a_handoff_is_not_swallowed_as_a_failed_generation(monkeypatch):
+    """A pause is not an outage. Reporting "continuing without imagery" for a
+    run that is simply waiting for someone would strand it silently."""
+    from pcip.pipelines.base import HandoffRequired
+
+    def pause(*a, **kw):
+        raise HandoffRequired("imagery", {"how": "source it in Canva"})
+
+    monkeypatch.setattr(
+        "pcip.generate.orchestrator.GenerationOrchestrator.generate_media", pause
+    )
+    with pytest.raises(HandoffRequired):
+        generate_hero_image(ctx())

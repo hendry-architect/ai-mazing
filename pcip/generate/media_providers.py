@@ -429,3 +429,47 @@ class LumaProvider(VideoGenerationProvider):
         url = _poll(check, what="luma")
         return GenerationResult(provider=self.name, capability="video",
                                 assets=[self._asset(request.prompt[:60], url=url)])
+
+
+@register_provider
+class CanvaImageProvider(GenerationProvider):
+    """Imagery sourced through Canva instead of a separate paid image API.
+
+    The account already pays for Canva, whose stock library and Magic Media
+    cover what an article hero needs, and whose licence permits that imagery to
+    leave only through a design export — which is the path PCIP already
+    enforces. Buying a second image API to produce what the existing
+    subscription produces is a cost with no capability behind it.
+
+    Canva's generation is not reachable from the Connect API, so this provider
+    pauses the run and asks the agent session holding the Canva connector to do
+    it, exactly as assembly does. That makes it unsuitable for unattended runs
+    — an external API provider ranks ahead of it whenever one is configured —
+    but it means an operator-driven run needs no extra vendor at all.
+    """
+
+    name = "canva-images"
+    capabilities = ["image"]
+
+    def available(self) -> bool:
+        # Only when an agent session can actually service the handoff.
+        return self.cfg.canva_mode == "mcp"
+
+    def generate(self, request: GenerationRequest) -> GenerationResult:
+        from pcip.pipelines.base import HandoffRequired
+
+        raise HandoffRequired("imagery", {
+            "prompt": request.prompt,
+            "brand": request.brand,
+            "language": request.language,
+            "width": request.params.get("width", 0),
+            "height": request.params.get("height", 0),
+            "how": (
+                "Source the image in Canva rather than an external generator "
+                "(MCP: generate-design for Magic Media, or place a stock image "
+                "in the design), export it, and attach the file:\n"
+                "  pcip attach <run_id> --export-file <path>\n\n"
+                "Premium Canva content leaves only through the official export "
+                "workflow — that is what makes this licence-clean."
+            ),
+        })

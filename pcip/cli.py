@@ -103,6 +103,8 @@ def cmd_canva_auth(cfg: PCIPConfig, args: argparse.Namespace) -> int:
         port=args.port,
         write_env=None if args.no_write else args.env_file,
         open_browser=not args.no_browser,
+        redirect_uri=args.redirect_uri,
+        manual=args.manual,
     )
     return 0
 
@@ -426,6 +428,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-write", action="store_true",
                     help="print instead of writing tokens to the env file")
     sp.add_argument("--no-browser", action="store_true")
+    sp.add_argument("--redirect-uri", default="",
+                    help="hosted callback registered on the integration "
+                         "(e.g. https://passqual.com/canva/callback). Canva "
+                         "requires a non-localhost URL to review a PUBLIC "
+                         "integration; a private one can keep localhost.")
+    sp.add_argument("--manual", action="store_true",
+                    help="paste the authorization code instead of catching it "
+                         "locally — required with a hosted redirect, since the "
+                         "code arrives in a browser, not on this machine")
 
     sp = sub.add_parser("doctor", help="diagnose connectors from bootstrap.yaml")
     sp.add_argument("--live", action="store_true",

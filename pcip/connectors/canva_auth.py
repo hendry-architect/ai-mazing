@@ -139,6 +139,42 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         pass
 
 
+def _read_pasted_code(expected_state: str) -> str:
+    """Take the authorization code from the operator.
+
+    A hosted redirect URL sends the code to a web address, not to this
+    machine, so there is no local callback to catch. The code is visible in the
+    browser's address bar either way, and pasting either the whole redirected
+    URL or the bare code is enough to finish the exchange.
+    """
+    from urllib.parse import parse_qs, urlparse
+
+    print("\nAfter approving, your browser lands on the redirect URL.")
+    print("Copy the whole address from the address bar (or just the code=... "
+          "value) and paste it here.\n")
+    raw = input("Redirected URL or code: ").strip()
+    if not raw:
+        raise RuntimeError("Nothing pasted — authorization not completed.")
+
+    code, state = raw, ""
+    if "code=" in raw:
+        query = urlparse(raw).query or raw.split("?", 1)[-1]
+        params = parse_qs(query)
+        code = (params.get("code") or [""])[0]
+        state = (params.get("state") or [""])[0]
+
+    if state and expected_state and state != expected_state:
+        # The CSRF check still applies when the operator carries the code by
+        # hand; a mismatched state means this is not the flow we started.
+        raise RuntimeError(
+            "The pasted state does not match the request that was started. "
+            "Run the command again rather than continuing with this code."
+        )
+    if not code:
+        raise RuntimeError(f"Could not find an authorization code in: {raw[:60]}")
+    return code
+
+
 def run_flow(
     cfg: PCIPConfig,
     port: int = 8080,
@@ -146,17 +182,34 @@ def run_flow(
     write_env: Optional[str] = ".env",
     open_browser: bool = True,
     timeout: float = 300.0,
+    redirect_uri: str = "",
+    manual: bool = False,
 ) -> Dict[str, str]:
-    """Run the full PKCE flow. Returns the token payload."""
+    """Run the full PKCE flow. Returns the token payload.
+
+    By default the redirect is caught by a local server. Pass ``redirect_uri``
+    (and ``manual``) when the integration is registered with a hosted callback
+    — Canva requires a non-localhost URL to review a *public* integration, and
+    the code then arrives in a browser rather than on this machine.
+    """
     if not (cfg.canva_client_id and cfg.canva_client_secret):
         raise RuntimeError(
             "Set CANVA_CLIENT_ID and CANVA_CLIENT_SECRET first (from your "
             "integration's Configuration tab at canva.com/developers)."
         )
-    redirect_uri = f"http://127.0.0.1:{port}/callback"
+    local = not (redirect_uri or manual)
+    redirect_uri = redirect_uri or f"http://127.0.0.1:{port}/callback"
     verifier, challenge = make_pkce_pair()
     state = secrets.token_urlsafe(24)
     url = build_authorize_url(cfg.canva_client_id, redirect_uri, challenge, state, scopes)
+
+    if not local:
+        print("Authorize in the browser:\n\n  " + url + "\n")
+        if open_browser:
+            webbrowser.open(url)
+        code = _read_pasted_code(state)
+        tokens = exchange_code(cfg, code, verifier, redirect_uri)
+        return _store_tokens(tokens, write_env)
 
     _CallbackHandler.result = {}
     _CallbackHandler.expected_state = state
@@ -182,6 +235,12 @@ def run_flow(
         raise RuntimeError(f"Authorization failed: {result['error']}")
 
     tokens = exchange_code(cfg, result["code"], verifier, redirect_uri)
+    return _store_tokens(tokens, write_env)
+
+
+def _store_tokens(
+    tokens: Dict[str, str], write_env: Optional[str]
+) -> Dict[str, str]:
     payload = {
         "CANVA_ACCESS_TOKEN": tokens.get("access_token", ""),
         "CANVA_REFRESH_TOKEN": tokens.get("refresh_token", ""),
@@ -189,9 +248,8 @@ def run_flow(
     if write_env:
         update_env_file(Path(write_env), payload)
         print(f"Tokens written to {write_env}. Next:")
-        print("  export $(grep -v '^#' .env | xargs)")
-        print("  python -m pcip doctor --live")
-        print("  python -m pcip sync")
+        print("  pcip doctor --live")
+        print("  pcip sync")
     else:
         print("Add these to your environment (values hidden from logs):")
         for key in payload:

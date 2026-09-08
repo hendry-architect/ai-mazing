@@ -4,6 +4,8 @@ import base64
 import hashlib
 import urllib.parse
 
+import pytest
+
 from pcip.connectors.canva_auth import (
     DEFAULT_SCOPES,
     build_authorize_url,
@@ -57,3 +59,46 @@ def test_update_env_file_creates_missing_file(tmp_path):
     env = tmp_path / "fresh.env"
     update_env_file(env, {"CANVA_ACCESS_TOKEN": "at"})
     assert env.read_text() == "CANVA_ACCESS_TOKEN=at\n"
+
+
+# ── hosted redirect ──────────────────────────────────────────────────────────
+
+
+def test_a_pasted_redirect_url_yields_the_code(monkeypatch):
+    """A hosted callback sends the code to a web address, not to this machine.
+    It is visible in the address bar, so pasting the URL is enough."""
+    from pcip.connectors.canva_auth import _read_pasted_code
+
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda *_: "https://passqual.com/canva/callback?code=ABC123&state=S1",
+    )
+    assert _read_pasted_code("S1") == "ABC123"
+
+
+def test_a_bare_code_is_accepted(monkeypatch):
+    from pcip.connectors.canva_auth import _read_pasted_code
+
+    monkeypatch.setattr("builtins.input", lambda *_: "ABC123")
+    assert _read_pasted_code("S1") == "ABC123"
+
+
+def test_a_mismatched_state_is_refused(monkeypatch):
+    """The CSRF check still applies when the operator carries the code by hand."""
+    from pcip.connectors.canva_auth import _read_pasted_code
+
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda *_: "https://passqual.com/canva/callback?code=ABC&state=WRONG",
+    )
+    with pytest.raises(RuntimeError) as exc:
+        _read_pasted_code("EXPECTED")
+    assert "does not match" in str(exc.value)
+
+
+def test_nothing_pasted_is_an_error(monkeypatch):
+    from pcip.connectors.canva_auth import _read_pasted_code
+
+    monkeypatch.setattr("builtins.input", lambda *_: "   ")
+    with pytest.raises(RuntimeError):
+        _read_pasted_code("S1")

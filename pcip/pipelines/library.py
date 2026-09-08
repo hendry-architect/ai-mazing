@@ -351,6 +351,12 @@ def generate_hero_image(ctx: Dict[str, Any]) -> str:
             "No image provider configured — skipped. The Canva design remains "
             "the artwork. Configure one in .env to add generated imagery."
         )
+    except HandoffRequired:
+        # The Canva provider asks an agent session to source the image. That is
+        # a pause, not a failure, and must reach the runner intact — swallowing
+        # it here would report "continuing without imagery" for a run that is
+        # simply waiting for someone.
+        raise
     except Exception as exc:                      # a vendor outage is not fatal
         ctx["media_generation"] = {"skipped": True, "reason": f"{type(exc).__name__}: {exc}"}
         return f"Image generation failed ({type(exc).__name__}) — continuing without it."
