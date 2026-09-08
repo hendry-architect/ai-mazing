@@ -17,12 +17,18 @@ pip install -r requirements.txt
 cp .env.example .env          # you will fill this in below
 ```
 
-After each phase below, load the env and re-check status:
+After each phase below, re-check status:
 
 ```bash
-export $(grep -v '^#' .env | xargs)
 python -m pcip status
 ```
+
+You do **not** need to export anything — PCIP reads `.env` itself on every
+run. Avoid the `export $(grep ... | xargs)` idiom in particular: `xargs`
+splits on whitespace, so it mangles any value containing a space (a
+WordPress Application Password, for one), and an exported empty variable
+outranks the file and produces an authentication error that looks nothing
+like "this one is blank".
 
 ---
 
@@ -58,7 +64,6 @@ python -m pcip status
    the callback, exchanges the code, and writes the tokens into `.env`:
 
    ```bash
-   export $(grep -v '^#' .env | xargs)
    python -m pcip canva-auth
    ```
 
@@ -66,7 +71,6 @@ python -m pcip status
    machine, so it comes back in two steps:
 
    ```bash
-   export $(grep -v '^#' .env | xargs)
    python -m pcip canva-auth --redirect-uri https://passqual.com/canva/callback --start
    # authorize in the browser, then select the address bar (Cmd-A, Cmd-C)
    pbpaste | python -m pcip canva-auth --finish
@@ -89,7 +93,6 @@ python -m pcip status
 6. Verify and run your first sync:
 
    ```bash
-   export $(grep -v '^#' .env | xargs)   # reload — tokens were just written
    python -m pcip init
    python -m pcip doctor --live          # canva should report ready
    python -m pcip sync                   # mirrors designs/folders → graph

@@ -118,8 +118,8 @@ governance, no license trail, and no distribution record. PCIP produces a
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env      # fill in the PCIP section, then:
-export $(grep -v '^#' .env | xargs)
+cp .env.example .env      # fill in the PCIP section — PCIP reads it
+                          # directly, no export needed
 
 python -m pcip init       # create pcip_data/ + graph.db
 python -m pcip status     # verify connectors
