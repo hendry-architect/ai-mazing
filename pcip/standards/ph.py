@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class PH:
@@ -86,11 +86,29 @@ class PH:
     )
 
     # Outcome guarantees and superlatives. Structure/function claims only.
+    # Matched on word boundaries — as a substring, "cure" fires inside
+    # "secure messaging" and "cura" inside "procura", which is how a correct
+    # article about the membership came to be rejected for a claim it never
+    # made.
+    # Spanish adjectives agree, so the feminine forms are listed alongside
+    # the masculine; a trailing plural -s is matched automatically. Word
+    # boundaries alone would have let "garantizados" through, which plain
+    # substring matching caught.
     FORBIDDEN_CLAIMS = (
         "best doctor", "mejor médico", "mejor doctor", "el mejor",
-        "guaranteed", "garantizado", "garantizamos", "cure", "cura ",
-        "curamos", "100% effective", "100% efectivo", "risk-free",
-        "sin riesgo", "milagro", "miracle", "number one", "número uno",
+        "guaranteed", "garantizado", "garantizada", "garantizamos",
+        "garantiza", "cure", "cura", "curamos", "100% effective",
+        "100% efectivo", "100% efectiva", "risk-free", "sin riesgo",
+        "milagro", "milagroso", "milagrosa", "miracle", "number one",
+        "número uno",
+    )
+
+    # Denying a claim is the opposite of making one. "There is no cure for
+    # diabetes" is exactly the careful sentence a physician should write, and
+    # a keyword blocker that refuses it teaches the writer to be vaguer.
+    CLAIM_NEGATIONS = (
+        "no", "not", "n't", "never", "sin", "nunca", "ninguna", "ningún",
+        "tampoco", "hay",
     )
 
     # The membership is a direct-pay arrangement, not an insurance product.
@@ -179,6 +197,36 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _H1_RE = re.compile(r"<h1\b", re.I)
 _H2_RE = re.compile(r"<h2\b", re.I)
 _IMG_RE = re.compile(r"<img\b", re.I)
+
+
+#: Words allowed to sit immediately before a claim without negating it, when
+#: scanning back for a denial. Kept small on purpose: the further the search
+#: reaches, the more likely it finds a negation belonging to another clause.
+_NEGATION_WINDOW = 5
+
+
+def claim_hits(text: str) -> List[Tuple[str, str]]:
+    """Prohibited claims actually *made* in ``text``, with their context.
+
+    Two things a plain substring scan gets wrong, both of which blocked
+    correct copy: it matches inside longer words ("secure", "procura"), and
+    it cannot tell a claim from its denial. Each hit comes back with the
+    surrounding phrase, because "prohibited claim: 'cure'" with no quote
+    leaves the writer hunting through 1,600 words for it.
+    """
+    lowered = (text or "").lower()
+    hits: List[Tuple[str, str]] = []
+    for claim in PH.FORBIDDEN_CLAIMS:
+        # ``s?`` catches the Spanish plural; the gendered forms are listed.
+        for match in re.finditer(rf"\b{re.escape(claim)}s?\b", lowered):
+            before = lowered[: match.start()].split()[-_NEGATION_WINDOW:]
+            if any(w.strip(",.;:¡!¿?") in PH.CLAIM_NEGATIONS for w in before):
+                continue
+            start = max(0, match.start() - 45)
+            quote = " ".join(text[start : match.end() + 45].split())
+            hits.append((claim, quote))
+            break
+    return hits
 
 
 def _text_of(html: str) -> str:
@@ -333,6 +381,12 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
         ))
 
     lowered = joined.lower()
+    for claim, quote in claim_hits(joined):
+        add(Violation(
+            "claims", "blocker",
+            f"prohibited claim or superlative: '{claim}' — \u201c{quote}\u201d",
+            "structure/function language only; no outcome guarantees",
+        ))
     for term in PH.FORBIDDEN_TOPICS:
         if term in lowered:
             add(Violation(
@@ -341,13 +395,6 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
                 "PassQual Health does not serve pediatrics — remove it entirely",
             ))
             break
-    for claim in PH.FORBIDDEN_CLAIMS:
-        if claim in lowered:
-            add(Violation(
-                "claims", "blocker",
-                f"prohibited claim or superlative: '{claim}'",
-                "structure/function language only; no outcome guarantees",
-            ))
     if any(t in lowered for t in PH.CRISIS_TRIGGERS):
         if not all(n in joined for n in PH.CRISIS_NUMBERS):
             add(Violation(
