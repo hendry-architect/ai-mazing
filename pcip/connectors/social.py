@@ -146,7 +146,18 @@ class BufferAdapter(SocialAdapter):
     """Buffer — the scheduling/queue specialist: one token covers every
     profile connected in Buffer. Great at queues, calendars, and retries;
     it is a *scheduler* provider, so the decision engine prefers it for
-    scheduled campaigns and prefers direct APIs for immediate posts."""
+    scheduled campaigns and prefers direct APIs for immediate posts.
+
+    **This adapter targets Buffer's legacy REST API, which Buffer has
+    announced will be retired on 1 February 2027.** Existing apps keep their
+    credentials until then; new ones are directed to a GraphQL API at
+    developers.buffer.com that this adapter does not speak. Treat Buffer as a
+    bridge with an expiry date, not the permanent path — the direct platform
+    adapters below have no such horizon.
+    """
+
+    #: Announced retirement of the REST API this adapter uses.
+    RETIRES = "2027-02-01"
 
     channels = [
         Channel.INSTAGRAM, Channel.FACEBOOK, Channel.LINKEDIN,

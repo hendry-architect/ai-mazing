@@ -281,6 +281,12 @@ python -m pcip route facebook --scheduled  # scheduled → Buffer first
 | **TikTok** | <https://developers.tiktok.com/> → app → Content Posting API (requires app review) | <https://developers.tiktok.com/doc/content-posting-api-get-started> | `TIKTOK_TOKEN` |
 | **Buffer** (scheduler) | <https://buffer.com/developers/api> | same | `BUFFER_TOKEN` |
 
+> **Buffer's REST API retires on 1 February 2027.** PCIP's Buffer adapter
+> speaks that API; Buffer now directs new integrations to a GraphQL API at
+> developers.buffer.com, which this adapter does not implement. Buffer is a
+> bridge with an expiry date. The direct platform adapters are the permanent
+> path — they are first-party, and nothing about them expires.
+
 Realistic sequencing advice: Meta + LinkedIn are the highest-value and most
 stable direct integrations — do those first. X is quick. TikTok requires an
 app review cycle; YouTube requires an OAuth consent screen — schedule both

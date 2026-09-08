@@ -108,8 +108,11 @@ class PH:
         "plan de salud", "aseguranza", "póliza", "poliza", "cobertura médica",
         "cobertura medica", "deducible", "copago", "in-network", "red de",
     )
-    NOT_INSURANCE_ES = "no es un seguro médico"
-    NOT_INSURANCE_EN = "is not health insurance"
+    # Both the plain phrasing and the §624.27 statutory wording count. The
+    # statute says "seguro de salud"; insisting on "seguro médico" would have
+    # rejected the exact sentence Florida requires.
+    NOT_INSURANCE_ES = ("no es un seguro médico", "no es un seguro de salud")
+    NOT_INSURANCE_EN = ("is not health insurance", "is not insurance")
 
     # Mental-health content must carry crisis numbers.
     CRISIS_TRIGGERS = (
@@ -354,6 +357,8 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
             ))
     for violation in _membership_violations(lowered):
         add(violation)
+    for violation in _membership_facts(joined):
+        add(violation)
 
     # ── Conversion ───────────────────────────────────────────────────────
     if PH.NAP_PHONE_SOCIAL not in joined and PH.NAP_PHONE_DISPLAY not in joined:
@@ -368,6 +373,14 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
     return out
 
 
+def _membership_facts(text: str) -> List[Violation]:
+    """Imported late: membership.py imports PH, so the reverse cannot be
+    a module-level import."""
+    from pcip.standards.membership import check_membership_facts
+
+    return check_membership_facts(text)
+
+
 def _membership_violations(lowered: str) -> List[Violation]:
     """The membership is not insurance, and content must not imply it is.
 
@@ -378,16 +391,18 @@ def _membership_violations(lowered: str) -> List[Violation]:
     if not any(t in lowered for t in PH.MEMBERSHIP_TERMS):
         return []
 
-    disclaimed = (
-        PH.NOT_INSURANCE_ES in lowered or PH.NOT_INSURANCE_EN in lowered
+    disclaimed = any(
+        phrase in lowered
+        for phrase in PH.NOT_INSURANCE_ES + PH.NOT_INSURANCE_EN
     )
     if disclaimed:
         return []
 
     insurance_language = [t for t in PH.INSURANCE_TERMS if t in lowered]
     fix = (
-        f'state it plainly: "{PH.BRAND} Membership {PH.NOT_INSURANCE_EN}" / '
-        f'"La Membresía de {PH.BRAND} {PH.NOT_INSURANCE_ES}"'
+        f'state it plainly: "{PH.BRAND} Membership {PH.NOT_INSURANCE_EN[0]}" / '
+        f'"La Membresía de {PH.BRAND} {PH.NOT_INSURANCE_ES[0]}" — or carry '
+        "the §624.27 statutory notice verbatim"
     )
     if insurance_language:
         return [Violation(
@@ -460,6 +475,7 @@ def check_social_post(
             ))
 
     violations.extend(_membership_violations(lowered))
+    violations.extend(_membership_facts(caption))
 
     # ── Reach and conversion ─────────────────────────────────────────────
     if limit is not None and len(caption) > limit:
