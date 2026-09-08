@@ -452,8 +452,14 @@ class CanvaImageProvider(GenerationProvider):
     capabilities = ["image"]
 
     def available(self) -> bool:
-        # Only when an agent session can actually service the handoff.
-        return self.cfg.canva_mode == "mcp"
+        # Canva's generation is out of reach of the Connect API in *either*
+        # mode, so this handoff is the only Canva imagery route regardless of
+        # how assembly runs. Gating it on canva_mode == "mcp" meant switching
+        # to connect — which added capability everywhere else — silently
+        # removed the one imagery source the account already pays for, and the
+        # run then produced an article with no hero and failed the standard at
+        # publish instead of saying what it needed.
+        return self.cfg.canva_mode == "mcp" or self.cfg.canva_configured
 
     def generate(self, request: GenerationRequest) -> GenerationResult:
         from pcip.pipelines.base import HandoffRequired
