@@ -292,6 +292,66 @@ stable direct integrations — do those first. X is quick. TikTok requires an
 app review cycle; YouTube requires an OAuth consent screen — schedule both
 as background tasks, and let Buffer cover them in the meantime.
 
+### Meta first: one app, two channels, usable today
+
+Meta is the one worth doing first, and not only because Facebook and
+Instagram are the two channels that matter for a local practice. **An app in
+development mode can already post to Pages you administer.** App Review is
+what lets you post on behalf of *other* people's Pages — which PassQual
+never needs — so the weeks-long review everyone warns about is not on your
+path. LinkedIn's Community Management API genuinely does require review;
+leave it last.
+
+1. <https://developers.facebook.com/> → **My Apps** → **Create App** →
+   type **Business**. Name it `PCIP`.
+2. Add two products: **Instagram** and **Facebook Login for Business**.
+3. **App settings → Basic** → set a **Privacy Policy URL**. Meta will not let
+   the app leave the sandbox without one.
+4. Open the **Graph API Explorer**
+   (<https://developers.facebook.com/tools/explorer/>), select the `PCIP` app,
+   and request these permissions:
+
+   ```
+   pages_show_list
+   pages_read_engagement
+   pages_manage_posts
+   instagram_basic
+   instagram_content_publish
+   business_management
+   ```
+
+5. **Generate Access Token**, approve the dialog. This gives a *user* token —
+   not what PCIP wants.
+6. In the Explorer, run `GET /me/accounts`. Find the PassQual Health Page in
+   the response; the `access_token` on that object is the **Page token**.
+   That is `META_PAGE_TOKEN`.
+7. Page tokens from the Explorer are short-lived. Exchange yours at the
+   **Access Token Tool** → *Extend Access Token* to get a long-lived one.
+8. Run `GET /{page-id}?fields=instagram_business_account`. The `id` it
+   returns is `META_IG_USER_ID`. (Instagram must be a Business or Creator
+   account and linked to that Page, or this field comes back empty.)
+9. Store both without either value touching your shell history:
+
+   ```bash
+   bash scripts/pcip-set-key.sh META_PAGE_TOKEN
+   bash scripts/pcip-set-key.sh META_IG_USER_ID
+   ```
+
+10. Confirm, then rehearse before anything goes out:
+
+    ```bash
+    python -m pcip doctor --live --table
+    python -m pcip publish <output_id> --channel instagram --dry-run
+    ```
+
+    `facebook` and `instagram` should read `OK … ready`. The dry run prints
+    the exact Graph API request with the token redacted and sends nothing.
+
+**Threads** is a separate app under the same account
+(<https://developers.facebook.com/docs/threads>) with scopes
+`threads_basic` + `threads_content_publish`, giving `THREADS_TOKEN` and
+`THREADS_USER_ID`. Same shape, do it after Meta works.
+
 ### Rehearse a post before you have any of those tokens
 
 `--dry-run` runs the **real** adapter — the same code that would post — but
