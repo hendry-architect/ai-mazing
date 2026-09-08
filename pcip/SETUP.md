@@ -323,6 +323,16 @@ FAQ-bearing Instagram caption does not exist):
 | required | media on Instagram, TikTok and YouTube |
 | advisory | `cerca de mí` phrasing in Spanish; at least one hashtag |
 
+The same not-insurance rule applies to articles and captions alike. Content
+mentioning the membership must say, in plain words, that it is not health
+insurance — `"PassQual Membership is not health insurance"` /
+`"La Membresía de PassQual no es un seguro médico"`. Saying it alongside
+insurance vocabulary (deductible, copay, plan de salud, aseguranza) without
+that sentence is a **blocker**; mentioning the membership without it is a
+required finding. Florida's direct primary care statute turns on exactly this
+distinction, so it is a regulatory question rather than a wording preference —
+have counsel review the membership's own marketing language.
+
 Passing `--text` means you wrote the caption and have taken it on, so the
 required and advisory findings are waived. **The blockers are not waived** —
 a caption reaches a patient exactly as directly as an article does.

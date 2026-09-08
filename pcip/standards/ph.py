@@ -93,6 +93,24 @@ class PH:
         "sin riesgo", "milagro", "miracle", "number one", "número uno",
     )
 
+    # The membership is a direct-pay arrangement, not an insurance product.
+    # Florida's direct primary care statute turns on exactly this distinction
+    # and requires the agreement to state it in plain terms, so marketing that
+    # blurs it is a regulatory exposure, not a wording preference. Whether a
+    # given piece needs review is a question for counsel; what PCIP enforces
+    # is that the sentence is present.
+    MEMBERSHIP_TERMS = (
+        "membresía", "membresia", "membership", "direct primary care",
+        "atención directa", "atencion directa", "pago directo", "direct pay",
+    )
+    INSURANCE_TERMS = (
+        "seguro médico", "seguro medico", "health insurance", "insurance plan",
+        "plan de salud", "aseguranza", "póliza", "poliza", "cobertura médica",
+        "cobertura medica", "deducible", "copago", "in-network", "red de",
+    )
+    NOT_INSURANCE_ES = "no es un seguro médico"
+    NOT_INSURANCE_EN = "is not health insurance"
+
     # Mental-health content must carry crisis numbers.
     CRISIS_TRIGGERS = (
         "suicid", "depres", "crisis de salud mental", "mental health crisis",
@@ -334,6 +352,8 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
                 "mental-health content without 988 and 911",
                 "both numbers are mandatory on mental-health topics",
             ))
+    for violation in _membership_violations(lowered):
+        add(violation)
 
     # ── Conversion ───────────────────────────────────────────────────────
     if PH.NAP_PHONE_SOCIAL not in joined and PH.NAP_PHONE_DISPLAY not in joined:
@@ -346,6 +366,42 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
         ))
 
     return out
+
+
+def _membership_violations(lowered: str) -> List[Violation]:
+    """The membership is not insurance, and content must not imply it is.
+
+    Shared by the article and social checks because a caption reaches a
+    prospective patient exactly as an article does, and the claim that gets a
+    practice in trouble is the same one in both places.
+    """
+    if not any(t in lowered for t in PH.MEMBERSHIP_TERMS):
+        return []
+
+    disclaimed = (
+        PH.NOT_INSURANCE_ES in lowered or PH.NOT_INSURANCE_EN in lowered
+    )
+    if disclaimed:
+        return []
+
+    insurance_language = [t for t in PH.INSURANCE_TERMS if t in lowered]
+    fix = (
+        f'state it plainly: "{PH.BRAND} Membership {PH.NOT_INSURANCE_EN}" / '
+        f'"La Membresía de {PH.BRAND} {PH.NOT_INSURANCE_ES}"'
+    )
+    if insurance_language:
+        return [Violation(
+            "not_insurance", "blocker",
+            "the membership is described alongside insurance language "
+            f"({', '.join(insurance_language[:3])}) with no statement that it "
+            "is not insurance",
+            fix,
+        )]
+    return [Violation(
+        "not_insurance", "required",
+        "membership content without the not-insurance statement",
+        fix,
+    )]
 
 
 def check_social_post(
@@ -402,6 +458,8 @@ def check_social_post(
                 "both numbers are mandatory on mental-health topics — a "
                 "caption reaches someone in crisis the same way an article does",
             ))
+
+    violations.extend(_membership_violations(lowered))
 
     # ── Reach and conversion ─────────────────────────────────────────────
     if limit is not None and len(caption) > limit:

@@ -1,0 +1,28 @@
+{
+  "title": "Médico sin seguro cerca de mí: cómo funciona la Membresía PassQual",
+  "objective": "Convertir a pacientes sin seguro o con deducible alto en Miami Gardens en miembros de pago directo, explicando qué incluye la membresía, qué cuesta y cómo se inscriben.",
+  "audience": "Adultos hispanohablantes 30-64 en Miami Gardens y alrededores, sin seguro o con deducible alto, que posponen la atención por costo e incertidumbre de precio",
+  "brand": "PassQual Health",
+  "key_messages": [
+    "REEMPLAZAR: precio mensual exacto y si hay cuota de inscripción",
+    "REEMPLAZAR: qué incluye exactamente (visitas, mensajería, laboratorios a precio de costo, etc.)",
+    "REEMPLAZAR: qué NO incluye (hospital, especialistas, emergencias, medicamentos)",
+    "La Membresía de PassQual no es un seguro médico: es un acuerdo de pago directo con el consultorio",
+    "Precio conocido de antemano, sin sorpresas de facturación ni reclamos a terceros",
+    "Atendido por Dr. Hendry Pascual, licencia ME143678, en Miami Gardens"
+  ],
+  "channels": ["wordpress", "instagram", "facebook"],
+  "topics": ["membresía", "atención directa", "sin seguro", "precios transparentes", "Miami Gardens"],
+  "language": "bilingual",
+  "tone": "claro, directo, sin jerga; explica dinero sin vergüenza y sin presionar",
+  "references": [
+    "canva:brand_template:EAHUkk84ubc"
+  ],
+  "constraints": [
+    "La membresía NO es un seguro. Decirlo explícitamente y no usar lenguaje de seguros para describirla.",
+    "No inventar precios, inclusiones ni plazos: usar únicamente los datos de key_messages.",
+    "No garantizar resultados clínicos ni ahorros específicos.",
+    "Nivel de lectura de 6.º grado, español primero, paridad completa en inglés.",
+    "Incluir el NAP textual y la licencia del médico."
+  ]
+}
