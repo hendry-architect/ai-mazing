@@ -592,7 +592,7 @@ class PublishRouter:
         # Report what *this* adapter needs, not every social credential in the
         # config: a Threads preview listing YOUTUBE_TOKEN as missing sends the
         # operator to fix something unrelated to what they just previewed.
-        missing = type(adapter)(self.cfg).missing_credentials()
+        missing = type(adapter)(self.cfg, session).missing_credentials()
         error = ""
         try:
             pub = adapter.publish(
