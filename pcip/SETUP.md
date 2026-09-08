@@ -254,6 +254,47 @@ stable direct integrations — do those first. X is quick. TikTok requires an
 app review cycle; YouTube requires an OAuth consent screen — schedule both
 as background tasks, and let Buffer cover them in the meantime.
 
+### Rehearse a post before you have any of those tokens
+
+`--dry-run` runs the **real** adapter — the same code that would post — but
+swaps the transport for a recorder. Nothing leaves the machine, no token is
+needed, and the exact request is printed with credentials redacted:
+
+```bash
+python -m pcip publish <output_id> --channel instagram --dry-run
+```
+
+It reports which adapter the decision engine picked, the caption and its
+length, every request that would have been sent, and exactly which
+environment variables are still unset. Use it to check a caption against the
+standard and to confirm a channel is wired before the first live post.
+
+Two things a dry run deliberately does **not** do: it never records a
+Publication in the graph (the graph is the history of what was published,
+and a rehearsal is not), and it does not cover WordPress — that channel has
+its own offline path, `python -m pcip prepare <output_id>`, which produces
+the real article.
+
+### What the standard requires of a social caption
+
+Social posts are held to the part of the PassQual Health standard that
+travels to a caption, not to the article rules (a 600-word, three-H2,
+FAQ-bearing Instagram caption does not exist):
+
+| Severity | Rule |
+|---|---|
+| blocker | no pediatric content — PassQual Health does not serve pediatrics |
+| blocker | no outcome guarantees or superlatives |
+| blocker | mental-health content must carry **988** and **911** |
+| required | a route back to the practice: the phone number or passqual.com |
+| required | within the platform's character limit (X 280, Threads 500, IG/TikTok 2200, LinkedIn 3000) |
+| required | media on Instagram, TikTok and YouTube |
+| advisory | `cerca de mí` phrasing in Spanish; at least one hashtag |
+
+Passing `--text` means you wrote the caption and have taken it on, so the
+required and advisory findings are waived. **The blockers are not waived** —
+a caption reaches a patient exactly as directly as an article does.
+
 ---
 
 ## Phase 7 — First end-to-end run
@@ -273,6 +314,7 @@ python -m pcip approve <run_id> --gate medical_review --reviewer "Dr. Pascual"
 # → pauses at brand_review; approve again → exports via official Canva API
 
 # 5. Publish (WordPress = draft by default; social = decision-engine routed)
+python -m pcip publish <output_id> --channel instagram --dry-run   # rehearse first
 python -m pcip publish <output_id> --channel wordpress --title "..." --text "<p>...</p>"
 python -m pcip publish <output_id> --channel instagram --text "caption #hashtags"
 python -m pcip publish <output_id> --channel linkedin --schedule-at 2026-08-10T14:00:00Z --text "..."

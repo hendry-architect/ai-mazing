@@ -76,8 +76,11 @@ governance, no license trail, and no distribution record. PCIP produces a
    decision engine routes immediate posts (healthcare alerts, physician
    announcements) direct-first and scheduled campaigns (podcasts, blogs,
    evergreen series) Buffer-first, with automatic fallback either way — a
-   scheduler outage never strands an urgent post. Preview with
-   `pcip route <channel> [--scheduled]`.
+   scheduler outage never strands an urgent post. Preview the routing with
+   `pcip route <channel> [--scheduled]`, or rehearse the whole post —
+   caption, standard, and the exact API request — with
+   `pcip publish <output> --channel <channel> --dry-run`, which needs no
+   token and sends nothing.
 6. **Distribution memory.** Publishing to passqual.com or a social channel
    records a Publication node — including which route the decision engine
    took — so "where did this asset go, and how?" has a permanent answer.
@@ -153,6 +156,10 @@ python -m pcip approve run_abc123 --gate medical_review --reviewer "Dr. Pascual"
 python -m pcip publish out_xyz789 --channel wordpress --live
 python -m pcip publish out_xyz789 --channel instagram
 
+# Rehearse a social post: the real adapter, a recording transport, no token,
+# nothing sent, and the exact request printed with credentials redacted.
+python -m pcip publish out_xyz789 --channel instagram --dry-run
+
 # ...or hand it off for manual pasting (same gates, no credentials needed)
 python -m pcip prepare out_xyz789
 
@@ -172,7 +179,11 @@ python -m pcip graph canva:design:DAF123 --depth 2
   `pcip/generate/capabilities.py` — vendor knowledge lives in that table,
   never in business logic.
 - **New channel**: add a `SocialAdapter` (set `mode = "direct"` or
-  `"scheduler"`) in `pcip/connectors/social.py` and list it in `ADAPTERS`.
+  `"scheduler"`) in `pcip/connectors/social.py`, declare its `CREDENTIALS`
+  and `channels`, implement `_publish`, and list it in `ADAPTERS`. Caption
+  limits are enforced by the base class, so a new adapter cannot skip them;
+  add a canned response for its endpoint in `pcip/connectors/dryrun.py` and
+  the whole parametrized adapter suite covers it automatically.
 - **New deliverable**: compose steps + gates in `pcip/pipelines/library.py`;
   the engine handles persistence, pause/resume, and approvals.
 
