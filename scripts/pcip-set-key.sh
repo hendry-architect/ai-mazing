@@ -26,6 +26,8 @@ if [ -z "$KEY" ]; then
   echo "  GOOGLE_AI_API_KEY        Imagen / Veo"
   echo "  WORDPRESS_USER           your WordPress login on wp.passqual.com"
   echo "  WORDPRESS_APP_PASSWORD   Application Password (not your login password)"
+  echo "  CANVA_CLIENT_ID          Canva integration, Configuration tab"
+  echo "  CANVA_CLIENT_SECRET      Canva integration, Configuration tab (shown once)"
   exit 1
 fi
 
