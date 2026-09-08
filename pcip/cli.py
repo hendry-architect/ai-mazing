@@ -133,8 +133,46 @@ def cmd_doctor(cfg: PCIPConfig, args: argparse.Namespace) -> int:
 
     manager = ConnectorManager(cfg, manifest=load_manifest(args.manifest))
     report = manager.doctor(live=args.live)
-    _print(report)
+    if args.table:
+        _doctor_table(report)
+    else:
+        _print(report)
     return 0 if not report["actions"] else 1
+
+
+#: Statuses that mean the connector can be used right now.
+_USABLE = {"ready", "mcp_managed"}
+
+
+def _doctor_table(report: dict) -> None:
+    """The same report, readable.
+
+    The JSON carries every capability and note, which is right for a machine
+    and unreadable on a terminal — the answer to "did that work?" was buried
+    hundreds of lines down. This prints the line that answers it.
+    """
+    connectors = report["connectors"]
+    wanted = {k: v for k, v in connectors.items() if v.get("desired")}
+    others = {k: v for k, v in connectors.items() if not v.get("desired")}
+
+    def rows(group: dict) -> None:
+        for name, c in sorted(group.items()):
+            mark = "OK  " if c["status"] in _USABLE else "--  "
+            detail = (c.get("detail") or "").split(";")[0][:58]
+            print(f"  {mark}{name:<12} {c['status']:<20} {detail}")
+
+    print("REQUESTED IN bootstrap.yaml")
+    rows(wanted)
+    if others:
+        print("\nAVAILABLE, NOT REQUESTED")
+        rows(others)
+
+    usable = sum(1 for c in wanted.values() if c["status"] in _USABLE)
+    print(f"\n{usable} of {len(wanted)} requested connectors usable.")
+    if report["actions"]:
+        print("\nTO FIX:")
+        for action in report["actions"]:
+            print(f"  - {action}")
 
 
 def cmd_can(cfg: PCIPConfig, args: argparse.Namespace) -> int:
@@ -491,6 +529,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("doctor", help="diagnose connectors from bootstrap.yaml")
     sp.add_argument("--live", action="store_true",
                     help="run live auth/entitlement probes")
+    sp.add_argument("--table", action="store_true",
+                    help="one line per connector instead of the full JSON")
     sp.add_argument("--manifest", default=None, help="path to bootstrap.yaml")
 
     sp = sub.add_parser("can", help="capability query, e.g. canva.export_png")
