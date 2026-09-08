@@ -26,6 +26,12 @@ from pcip.pipelines.base import HandoffRequired, Pipeline, ReviewGate, Step
 # ─── Shared step handlers ────────────────────────────────────────────────────
 
 
+from pcip.standards import PH as _PH
+
+# The clinic's geo, stated once, from the standard rather than re-typed.
+PH_GEO = _PH.GEO_PHRASE
+
+
 def gather_context(ctx: Dict[str, Any]) -> str:
     """Pull related prior work from the knowledge graph into the context."""
     graph, brief = ctx["graph"], ctx["brief"]
@@ -284,6 +290,80 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
     return f"Exported {len(paths)} file(s) → {cfg.exports_dir} (output {output_id})."
 
 
+def generate_hero_image(ctx: Dict[str, Any]) -> str:
+    """Generate the deliverable's imagery, routed by capability.
+
+    This is the step the vendor-agnostic provider layer was built for. The
+    brief asks for a capability — a 1600x900 photorealistic image under a
+    commercial licence — and the registry ranks whichever providers are
+    configured. No vendor is named here, so adding or dropping one is a
+    credential change rather than a code change.
+
+    Skipping is the correct behaviour when nothing is configured. The Canva
+    design is the deliverable's real artwork; a generated image supplements it,
+    and refusing to run without an image provider would block a pipeline that
+    worked for weeks without one. The advisory shows up in the step detail so
+    the absence is visible rather than silent.
+
+    Generated images carry a synthetic licence, so the licensing policy treats
+    them differently from Canva exports — they were never Canva's to license.
+    """
+    from pcip.generate.capabilities import spec_for
+    from pcip.generate.orchestrator import GenerationOrchestrator
+    from pcip.generate.providers import ProviderNotConfigured
+
+    cfg, brief = ctx["cfg"], ctx["brief"]
+    preset = ctx.get("media_preset", "blog_hero")
+
+    if ctx.get("media_paths"):
+        return "Imagery supplied — generation skipped."
+
+    orch = GenerationOrchestrator(cfg, ctx["graph"])
+    fields = ctx.get("copy_fields") or {}
+    # Prompt from the article itself, not the brief alone: the copy step has
+    # already decided what this piece is actually about.
+    subject = (
+        fields.get("meta_description")
+        or fields.get("excerpt")
+        or brief.objective
+        or brief.title
+    )
+    prompt = (
+        f"{subject}\n\n"
+        f"Editorial photograph for {brief.brand}, a physician-led clinic in "
+        f"{PH_GEO}. Warm, natural light; real clinical setting; no text, no "
+        "logos, no watermarks, no recognisable faces. Documentary rather than "
+        "stock-photo styling."
+    )
+
+    try:
+        result = orch.generate_media(spec_for(preset), prompt, brief)
+    except ProviderNotConfigured as exc:
+        ctx["media_generation"] = {"skipped": True, "reason": str(exc)}
+        return (
+            "No image provider configured — skipped. The Canva design remains "
+            "the artwork. Configure one in .env to add generated imagery."
+        )
+    except Exception as exc:                      # a vendor outage is not fatal
+        ctx["media_generation"] = {"skipped": True, "reason": f"{type(exc).__name__}: {exc}"}
+        return f"Image generation failed ({type(exc).__name__}) — continuing without it."
+
+    paths = [a.local_path for a in result.assets if a.local_path]
+    ctx["generated_media"] = paths
+    ctx["media_generation"] = {
+        "provider": result.provider,
+        "preset": preset,
+        "ranking": result.metadata.get("ranking", []),
+        "count": len(paths),
+    }
+    for asset in result.assets:
+        ctx.setdefault("_step_outputs", []).append(asset.id)
+    return (
+        f"Generated {len(paths)} image(s) via {result.provider} "
+        f"(preset {preset})."
+    )
+
+
 def ph_standard_check(ctx: Dict[str, Any]) -> str:
     """Hold the deliverable to the PassQual Health article standard.
 
@@ -312,6 +392,7 @@ def ph_standard_check(ctx: Dict[str, Any]) -> str:
         "meta_description": fields.get("meta_description", ""),
         "faq": fields.get("faq") or [],
         "featured_image": (ctx.get("export_paths") or [""])[0]
+                          or (ctx.get("generated_media") or [""])[0]
                           or fields.get("featured_image", ""),
         "alt_texts": fields.get("alt_texts_by_language")
                      or fields.get("alt_texts") or {},
@@ -381,16 +462,22 @@ def _named(deliverable: str):
 
 
 def _standard(name: str, description: str, deliverable: str,
-              extra_steps: List, gates: List[str], export_format: str = "png") -> Pipeline:
+              extra_steps: List, gates: List[str], export_format: str = "png",
+              media_preset: str = "blog_hero") -> Pipeline:
     def _set_format(ctx: Dict[str, Any]) -> str:
         ctx["export_format"] = export_format
-        return f"Export format: {export_format}"
+        ctx["media_preset"] = media_preset
+        return f"Export format: {export_format} · imagery: {media_preset}"
 
     steps: List = [
         Step("setup", _named(deliverable), "Configure deliverable context"),
         Step("format", _set_format, "Choose export format"),
         Step("gather_context", gather_context, "Search the knowledge graph for related work"),
         Step("generate_copy", generate_copy, "AI copy package (headlines, body, CTA, hashtags, alt-text)"),
+        # Imagery before the standard gate, so a generated hero counts toward
+        # the check rather than showing as missing until export.
+        Step("generate_media", generate_hero_image,
+             "Capability-routed image generation (vendor-agnostic)"),
         # Before any human review: a clinician should never be asked to approve
         # something the brand standard already rejects.
         Step("ph_standard", ph_standard_check, "PassQual Health article standard"),
@@ -432,6 +519,7 @@ PIPELINES: Dict[str, Pipeline] = {
         "social media campaign (per-channel sizes, captions, hashtags)",
         [],
         ["brand_review"],
+        media_preset="social_quote",
     ),
     "patient_education": _standard(
         "patient_education",
@@ -442,6 +530,7 @@ PIPELINES: Dict[str, Pipeline] = {
         # PNG, not PDF: the exported file becomes the article's featured image,
         # and a PDF cannot be one. The printable handout is a separate export.
         export_format="png",
+        media_preset="healthcare_photo",
     ),
     "marketing_asset": _standard(
         "marketing_asset",
