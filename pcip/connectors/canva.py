@@ -65,16 +65,48 @@ class CanvaClient:
         )
         if resp.status_code != 200:
             raise CanvaError(
-                f"Canva token refresh failed ({resp.status_code})",
+                f"Canva token refresh failed ({resp.status_code}). The stored "
+                "refresh token was rejected — Canva rotates it on every "
+                "refresh and invalidates the previous one, so this is what a "
+                "rotation that never got saved looks like. Re-authorise:\n"
+                "  python -m pcip canva-auth --redirect-uri "
+                "https://passqual.com/canva/callback --start\n"
+                "  pbpaste | python -m pcip canva-auth --finish",
                 resp.status_code,
                 resp.text[:500],
             )
         data = resp.json()
         self._access_token = data["access_token"]
-        # Canva rotates refresh tokens on every refresh.
+        # Canva rotates refresh tokens on every refresh and invalidates the
+        # one just used. Keeping the new value only in memory meant the
+        # rotation was lost when the process exited, .env still held the dead
+        # token, and the *next* run got a 400 — Canva access survived exactly
+        # one refresh, which for something meant to run unattended is the same
+        # as not working.
         self.cfg.canva_refresh_token = data.get(
             "refresh_token", self.cfg.canva_refresh_token
         )
+        self.cfg.canva_access_token = self._access_token
+        self._persist_tokens()
+
+    def _persist_tokens(self) -> None:
+        """Write the current tokens back to the .env they came from.
+
+        Best effort: an unwritable file must not fail a run that otherwise
+        succeeded — it only means the next process will have to refresh
+        again, which is the behaviour we had before.
+        """
+        if not self.cfg.env_file:
+            return
+        try:
+            from pcip.connectors.canva_auth import update_env_file
+
+            update_env_file(Path(self.cfg.env_file), {
+                "CANVA_ACCESS_TOKEN": self._access_token,
+                "CANVA_REFRESH_TOKEN": self.cfg.canva_refresh_token,
+            })
+        except Exception:                    # noqa: BLE001 — never fatal
+            pass
 
     def _request(
         self,

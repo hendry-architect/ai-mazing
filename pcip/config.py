@@ -113,6 +113,9 @@ class PCIPConfig:
     #             Fully unattended, but requires templates that define autofill
     #             fields and the plan entitlement that exposes that API.
     canva_mode: str = "mcp"
+    #: Where rotated credentials are written back. Empty disables persistence,
+    #: which is what a test or a library caller wants.
+    env_file: str = ""
 
     # The brand template `connect` mode autofills when a brief names none.
     # Until 2026-09-08 the account had no autofill-capable template at all —
@@ -219,6 +222,24 @@ class PCIPConfig:
         }
 
 
+def dotenv_path(path: Optional[Path | str] = None) -> Optional[Path]:
+    """The .env this platform reads — and writes rotated tokens back into.
+
+    Named separately from ``load_dotenv`` because writing needs the same
+    answer reading got. A credential that rotates (Canva's refresh token does,
+    on every refresh) is worthless if the new value cannot be put back where
+    the next process will look for it.
+    """
+    candidates = (
+        [Path(path)] if path is not None
+        else [Path.cwd() / ".env", _REPO_ROOT / ".env"]
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def load_dotenv(
     path: Optional[Path | str] = None, *, override: bool = False
 ) -> Dict[str, str]:
@@ -244,14 +265,8 @@ def load_dotenv(
     afterwards, for the life of that shell. Nothing here is logged — the
     return value is the set of keys read, never the values.
     """
-    if path is not None:
-        candidates = [Path(path)]
-    else:
-        candidates = [Path.cwd() / ".env", _REPO_ROOT / ".env"]
-
-    for candidate in candidates:
-        if not candidate.is_file():
-            continue
+    candidate = dotenv_path(path)
+    if candidate is not None:
         # Collect first, apply second, so later lines overwrite earlier ones
         # before anything reaches the environment.
         values: Dict[str, str] = {}
@@ -378,6 +393,7 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         youtube_token=_env("YOUTUBE_TOKEN"),
         tiktok_token=_env("TIKTOK_TOKEN"),
         canva_mode=(_env("PCIP_CANVA_MODE", "mcp").lower() or "mcp"),
+        env_file=str(dotenv_path() or ""),
         canva_brand_template_id=_env("CANVA_BRAND_TEMPLATE_ID", "EAHUkk84ubc"),
         default_brand=_env("PCIP_DEFAULT_BRAND", "PassQual"),
         auto_approve_gates=[
