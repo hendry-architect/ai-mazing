@@ -264,6 +264,48 @@ def _resolve_run_id(graph: Any, run_id: str) -> str:
     return chosen["id"]
 
 
+def _published_output_ids(graph: Any) -> set:
+    return {
+        (p["payload"].get("output_id") or "")
+        for p in graph.nodes_by_kind(NodeKind.PUBLICATION, limit=200)
+    }
+
+
+def _resolve_output_id(graph: Any, output_id: str) -> str:
+    """Turn 'latest' into a real output id.
+
+    Same reasoning as _resolve_run_id, and the same evidence: an instruction
+    reading `pcip publish <output_id>` gets pasted verbatim, and the shell
+    reads the angle brackets as a redirect. The id is knowable, so PCIP
+    should know it. An output nobody has published yet is preferred, since
+    that is what someone reaching for "the latest one" means.
+    """
+    if output_id and output_id != "latest":
+        return output_id
+    outputs = graph.nodes_by_kind(NodeKind.OUTPUT, limit=50)
+    if not outputs:
+        raise SystemExit(
+            "error: no outputs exist yet — run a pipeline through to export"
+        )
+    published = _published_output_ids(graph)
+    unpublished = [o for o in outputs if o["id"] not in published]
+    return (unpublished or outputs)[0]["id"]
+
+
+def cmd_outputs(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """List finished deliverables, newest first, and whether each is live."""
+    with _graph(cfg) as g:
+        outputs = g.nodes_by_kind(NodeKind.OUTPUT, limit=args.limit)
+        published = _published_output_ids(g)
+        if not outputs:
+            print("no outputs yet — run a pipeline through to export")
+            return 0
+        for o in outputs:
+            mark = "published" if o["id"] in published else "unpublished"
+            print(f"  {o['id']}  {mark:<12}{o['name'][:64]}")
+    return 0
+
+
 def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     """Fulfil a handoff: attach the Canva design or exported files, then resume."""
     from pcip.pipelines.library import get_pipeline
@@ -492,7 +534,8 @@ def cmd_prepare(cfg: PCIPConfig, args: argparse.Namespace) -> int:
 
     with _graph(cfg) as g:
         result = PublishRouter(cfg, g).prepare(
-            args.output_id, title=args.title, text=args.text, dest=args.dest
+            _resolve_output_id(g, args.output_id),
+            title=args.title, text=args.text, dest=args.dest
         )
         _print(result)
     return 0
@@ -504,6 +547,8 @@ def cmd_publish(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     if getattr(args, "transport", ""):
         cfg.wordpress_transport = args.transport
     with _graph(cfg) as g:
+        args.output_id = _resolve_output_id(g, args.output_id)
+        print(f"publishing {args.output_id}", file=sys.stderr)
         pub = PublishRouter(cfg, g).publish(
             args.output_id,
             args.channel,
@@ -632,6 +677,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="a file holding the redirected URL, for --finish — "
                          "keeps the code out of shell history")
 
+    sp = sub.add_parser("outputs", help="list finished deliverables")
+    sp.add_argument("--limit", type=int, default=10)
+
     sp = sub.add_parser("doctor", help="diagnose connectors from bootstrap.yaml")
     sp.add_argument("--live", action="store_true",
                     help="run live auth/entitlement probes")
@@ -700,7 +748,9 @@ def build_parser() -> argparse.ArgumentParser:
         "prepare",
         help="produce a reviewed article for manual publishing (no network)",
     )
-    sp.add_argument("output_id")
+    sp.add_argument("output_id", nargs="?", default="latest",
+                    help="output id, or omit for the most recent "
+                         "not-yet-published one")
     sp.add_argument("--title", default="")
     sp.add_argument("--text", default="")
     sp.add_argument("--dest", default=None, help="output folder (default: <data-dir>/handoff/<output_id>)")
@@ -724,7 +774,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--reason", default="", help="why it is being retracted")
 
     sp = sub.add_parser("publish", help="publish an output to a channel")
-    sp.add_argument("output_id")
+    sp.add_argument("output_id", nargs="?", default="latest",
+                    help="output id, or omit for the most recent "
+                         "not-yet-published one")
     sp.add_argument("--republish", action="store_true",
                     help="publish again even though this output is already live "
                          "(creates a second copy competing for the same terms)")
@@ -767,6 +819,7 @@ COMMANDS = {
     "retract": cmd_retract,
     "record": cmd_record,
     "publish": cmd_publish,
+    "outputs": cmd_outputs,
 }
 
 

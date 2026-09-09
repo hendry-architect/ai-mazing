@@ -133,9 +133,18 @@ class KnowledgeGraph:
         self._conn.commit()
 
     def nodes_by_kind(self, kind: NodeKind | str, limit: int = 200) -> List[Dict[str, Any]]:
+        """Newest first, ties broken by insertion order.
+
+        Timestamps have one-second granularity, and a pipeline routinely
+        writes several nodes inside one second — assembly, two approvals and
+        an export landed in three seconds on a real run. Ordering on
+        updated_at alone leaves those ties to SQLite, and "the latest run"
+        and "the latest output" both depend on this being deterministic.
+        """
         kind = kind.value if isinstance(kind, NodeKind) else kind
         rows = self._conn.execute(
-            "SELECT * FROM nodes WHERE kind = ? ORDER BY updated_at DESC LIMIT ?",
+            "SELECT * FROM nodes WHERE kind = ? "
+            "ORDER BY updated_at DESC, rowid DESC LIMIT ?",
             (kind, limit),
         ).fetchall()
         return [self._node_row(r) for r in rows]
