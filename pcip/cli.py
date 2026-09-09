@@ -23,7 +23,7 @@ import json
 import re
 import pathlib
 import sys
-from typing import Any
+from typing import Any, Dict
 
 from pcip.config import PCIPConfig, load_config
 from pcip.graph.store import KnowledgeGraph
@@ -392,6 +392,21 @@ def cmd_run(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     return 0 if run.status in ("done", "awaiting_review") else 1
 
 
+def _stopped_at(payload: Dict[str, Any]) -> Dict[str, str]:
+    """The step a run is sitting on, and what it said.
+
+    "failed" with no reason has now sent three separate rounds hunting for
+    the detail that was already in the record. The step that stopped the run
+    is the first thing anyone wants.
+    """
+    for sr in payload.get("steps") or []:
+        if sr.get("status") in ("failed", "awaiting_review", "awaiting_handoff",
+                                "running", "rejected"):
+            return {"step": sr.get("step", ""),
+                    "detail": (sr.get("detail") or "").splitlines()[0][:160]}
+    return {}
+
+
 def cmd_runs(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     with _graph(cfg) as g:
         runs = g.nodes_by_kind(NodeKind.PIPELINE_RUN, limit=args.limit)
@@ -402,6 +417,8 @@ def cmd_runs(cfg: PCIPConfig, args: argparse.Namespace) -> int:
                     "pipeline": r["payload"].get("pipeline"),
                     "status": r["payload"].get("status"),
                     "updated_at": r["payload"].get("updated_at"),
+                    **({"stopped_at": stopped}
+                       if (stopped := _stopped_at(r["payload"])) else {}),
                 }
                 for r in runs
             ]

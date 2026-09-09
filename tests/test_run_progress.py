@@ -97,3 +97,49 @@ def test_the_printer_reports_a_step_once_when_not_a_terminal(capsys):
     err = capsys.readouterr().err
     assert err.count("assemble") == 1
     assert "\r" not in err
+
+
+# ── why a run stopped ────────────────────────────────────────────────────
+
+
+def _payload(*steps):
+    return {"steps": [{"step": n, "status": s, "detail": d}
+                      for n, s, d in steps]}
+
+
+def test_a_failed_run_reports_the_step_and_the_reason():
+    """"failed" with no reason sent three separate rounds hunting for a
+    detail that was already in the record."""
+    from pcip.cli import _stopped_at
+
+    assert _stopped_at(_payload(
+        ("generate_copy", "done", "Copy generated."),
+        ("ph_standard", "failed", "ValueError: PH standard: 1 finding(s).\nblah"),
+    )) == {"step": "ph_standard",
+           "detail": "ValueError: PH standard: 1 finding(s)."}
+
+
+def test_a_waiting_gate_is_reported_too():
+    from pcip.cli import _stopped_at
+
+    assert _stopped_at(_payload(
+        ("assemble", "done", ""),
+        ("medical_review", "awaiting_review", "Human review: medical review"),
+    ))["step"] == "medical_review"
+
+
+def test_a_finished_run_has_nothing_to_report():
+    from pcip.cli import _stopped_at
+
+    assert _stopped_at(_payload(("export", "done", "ok"))) == {}
+
+
+def test_only_the_first_stopping_step_is_reported():
+    """Later steps stay pending behind the one that stopped; naming them all
+    buries the one that matters."""
+    from pcip.cli import _stopped_at
+
+    assert _stopped_at(_payload(
+        ("ph_standard", "failed", "first"),
+        ("assemble", "failed", "second"),
+    ))["detail"] == "first"
