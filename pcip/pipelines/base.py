@@ -255,11 +255,40 @@ class PipelineRunner:
 
     # ── Review actions ───────────────────────────────────────────────────
 
-    def approve(self, run_id: str, gate: Optional[str] = None, reviewer: str = "") -> PipelineRun:
+    def approve(
+        self,
+        run_id: str,
+        gate: Optional[str] = None,
+        reviewer: str = "",
+        how: str = "",
+    ) -> PipelineRun:
+        """Record a gate approval, and how it was obtained.
+
+        ``how`` is not decoration. A run once recorded "approved by
+        Dr. Pascual" against two gates in the same second the design was
+        assembled, because the approve commands had been pasted into a shell
+        along with the surrounding prose. Nobody had read anything, and the
+        audit trail said a physician had. The gates that exist precisely to
+        put a human in the loop now refuse an approval that cannot say which
+        human, and how.
+        """
         run = self._require_run(run_id)
         sr = self._gate_step(run, gate)
+        if sr.step in NEVER_AUTO_APPROVE and not how:
+            raise PermissionError(
+                f"{sr.step} cannot be approved without recording how it was "
+                "confirmed. Approve it through `pcip approve`, which asks the "
+                "reviewer at the terminal and records their answer."
+            )
+        if sr.step in NEVER_AUTO_APPROVE and not reviewer.strip():
+            raise PermissionError(
+                f"{sr.step} needs a named reviewer: --reviewer 'Dr. Pascual'"
+            )
         sr.status = "approved"
-        sr.detail = f"approved by {reviewer or 'reviewer'} at {now_iso()}"
+        sr.detail = (
+            f"approved by {reviewer or 'reviewer'} at {now_iso()}"
+            + (f" ({how})" if how else "")
+        )
         self._save(run)
         return run
 

@@ -88,7 +88,8 @@ def run_to_completion(name, tmp_path, hero, gates_approved_by="Dr. Pascual"):
             run = runner.fulfil_handoff(pipeline, run, brief)
         elif run.status == "awaiting_review":
             gate = run.current_gate
-            runner.approve(run.id, gate, gates_approved_by)
+            runner.approve(run.id, gate, gates_approved_by,
+                           how="test harness, no human involved")
             run = runner.resume(pipeline, runner._require_run(run.id), brief)
         else:
             break

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import pathlib
 import sys
 from typing import Any
@@ -27,6 +28,7 @@ from typing import Any
 from pcip.config import PCIPConfig, load_config
 from pcip.graph.store import KnowledgeGraph
 from pcip.models import Brief, NodeKind
+from pcip.pipelines.base import NEVER_AUTO_APPROVE
 
 
 def _graph(cfg: PCIPConfig) -> KnowledgeGraph:
@@ -379,13 +381,79 @@ def _load_run_and_brief(cfg: PCIPConfig, g: KnowledgeGraph, run_id: str):
     return runner, run, brief
 
 
+def _pending_gate(run) -> str:
+    for sr in run.steps:
+        if sr.status == "awaiting_review":
+            return sr.step
+    return ""
+
+
+def _review_summary(run) -> str:
+    """What the reviewer is being asked to approve, in one screen."""
+    from pcip.standards.membership import stated_amounts
+
+    fields = (run.context or {}).get("copy_fields") or {}
+    bodies = {k: v for k, v in (fields.get("bodies") or {}).items() if v}
+    lines = [f"  run        {run.id}  ({run.pipeline})"]
+    for lang, title in (fields.get("titles") or {}).items():
+        words = len(re.sub(r"<[^>]+>", " ", bodies.get(lang, "")).split())
+        lines.append(f"  {lang:<10} {title[:62]}  [{words} words]")
+    if not bodies:
+        lines.append("  (no generated copy on this run)")
+    amounts = sorted(set(stated_amounts(" ".join(bodies.values()))))
+    if amounts:
+        lines.append("  prices     " + ", ".join(f"${a:,}" for a in amounts))
+    if run.context.get("design_id"):
+        lines.append(f"  design     {run.context['design_id']}")
+    return "\n".join(lines)
+
+
+def _confirm_clinician_review(run, gate: str) -> str:
+    """Ask the reviewer directly, in a way a pasted script cannot answer.
+
+    Flushing the terminal's input queue first is the whole point: the defect
+    this exists for was a block of instructions pasted into a shell, where
+    the approve commands ran with the prose still queued behind them. Any
+    keystrokes already waiting are discarded, so the answer has to be typed
+    after this prompt appears.
+    """
+    import sys
+
+    if not sys.stdin.isatty():
+        raise PermissionError(
+            f"{gate} needs a person at a terminal. stdin is not a tty, so "
+            "this approval would be coming from a script or a pipe — which "
+            "is the one thing this gate exists to prevent."
+        )
+    try:
+        import termios
+
+        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+    except Exception:                      # noqa: BLE001 — best effort
+        pass
+
+    print(f"\n{gate.upper()} — you are approving:\n", file=sys.stderr)
+    print(_review_summary(run), file=sys.stderr)
+    print("\nRead the article before answering. Type 'approve' to confirm, "
+          "anything else to abort.", file=sys.stderr)
+    answer = input("> ").strip().lower()
+    if answer != "approve":
+        raise PermissionError(f"{gate} not approved (answer was {answer!r}).")
+    return "typed at the terminal"
+
+
 def cmd_approve(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     with _graph(cfg) as g:
         args.run_id = _resolve_run_id(g, args.run_id)
         runner, run, brief = _load_run_and_brief(cfg, g, args.run_id)
         if not runner:
             return 1
-        runner.approve(args.run_id, gate=args.gate, reviewer=args.reviewer)
+        gate = args.gate or _pending_gate(run)
+        how = ""
+        if gate in NEVER_AUTO_APPROVE:
+            how = _confirm_clinician_review(run, gate)
+        runner.approve(args.run_id, gate=args.gate, reviewer=args.reviewer,
+                       how=how)
         from pcip.pipelines.library import get_pipeline
 
         run = runner.load_run(args.run_id)
