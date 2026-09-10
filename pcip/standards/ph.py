@@ -217,7 +217,12 @@ def claim_hits(text: str) -> List[Tuple[str, str]]:
     surrounding phrase, because "prohibited claim: 'cure'" with no quote
     leaves the writer hunting through 1,600 words for it.
     """
-    lowered = (text or "").lower()
+    # Markup first. A body arrives as HTML, and "<p>No outcome is
+    # guaranteed.</p>" tokenises as "<p>no", which is not the word "no" — so
+    # the negation check silently failed and blocked the disclaimer. It also
+    # meant the quote in the finding was a mouthful of tags.
+    text = " ".join(_text_of(text or "").split())
+    lowered = text.lower()
     hits: List[Tuple[str, str]] = []
     for claim in PH.FORBIDDEN_CLAIMS:
         # ``s?`` catches the Spanish plural; the gendered forms are listed.
@@ -522,13 +527,12 @@ def check_social_post(
                 "PassQual Health does not serve pediatrics — remove it entirely",
             ))
             break
-    for claim in PH.FORBIDDEN_CLAIMS:
-        if claim in lowered:
-            violations.append(Violation(
-                "claims", "blocker",
-                f"prohibited claim or superlative: '{claim}'",
-                "structure/function language only; no outcome guarantees",
-            ))
+    for claim, quote in claim_hits(caption):
+        violations.append(Violation(
+            "claims", "blocker",
+            f"prohibited claim or superlative: '{claim}' — \u201c{quote}\u201d",
+            "structure/function language only; no outcome guarantees",
+        ))
     if any(t in lowered for t in PH.CRISIS_TRIGGERS):
         if not all(n in caption for n in PH.CRISIS_NUMBERS):
             violations.append(Violation(

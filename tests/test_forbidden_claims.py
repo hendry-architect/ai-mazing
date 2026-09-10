@@ -133,3 +133,46 @@ def test_secure_messaging_no_longer_blocks_an_article():
 def test_every_listed_claim_is_detectable_on_its_own(claim):
     """A term nobody can trigger is a rule that silently does nothing."""
     assert claim in claims(f"Nuestro servicio: {claim}.")
+
+
+# ── markup, and the single implementation ────────────────────────────────
+
+
+@pytest.mark.parametrize("html", [
+    "<p>No outcome is guaranteed.</p>",
+    "<p>The Membership does not guarantee any specific clinical outcome.</p>",
+    "<p>La Membresía no garantiza ningún resultado clínico.</p>",
+    "<h2>Qué incluye</h2><p>Ningún resultado está garantizado.</p>",
+])
+def test_a_disclaimer_wrapped_in_markup_is_still_a_disclaimer(html):
+    """A body arrives as HTML. "<p>No outcome is guaranteed.</p>" tokenises
+    as "<p>no", which is not the word "no", so the negation check silently
+    failed and blocked the very sentence the standard asks for. It failed a
+    real run at the last gate."""
+    assert claims(html) == []
+
+
+def test_the_quote_is_readable_text_not_tags():
+    _, quote = claim_hits("<h2>Precios</h2><p>Results are guaranteed.</p>")[0]
+    assert "<" not in quote
+    assert "Results are guaranteed." in quote
+
+
+def test_a_claim_inside_markup_is_still_caught():
+    assert "guaranteed" in claims("<p>Results are <strong>guaranteed</strong>.</p>")
+
+
+def test_the_social_check_shares_the_article_implementation():
+    """check_social_post kept its own substring loop and received none of the
+    three fixes the article check got — word boundaries, negation, and the
+    quote. A caption saying "No outcome is guaranteed" was refused."""
+    from pcip.standards import check_social_post
+
+    def social(caption):
+        check = check_social_post({"caption": caption, "channel": "instagram"})
+        return [v for v in check.blockers if v.rule == "claims"]
+
+    assert social("No outcome is guaranteed. 786•677•9922") == []
+    assert social("Telehealth and secure messaging.") == []
+    flagged = social("Results are guaranteed.")
+    assert flagged and "Results are guaranteed" in flagged[0].detail
