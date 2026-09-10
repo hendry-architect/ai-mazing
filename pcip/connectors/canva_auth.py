@@ -260,7 +260,8 @@ def start_manual_flow(
     print("Authorize in the browser:\n\n  " + url + "\n")
     if open_browser:
         webbrowser.open(url)
-    print("Then copy the address bar (Cmd-A, Cmd-C) and finish with:\n")
+    print("Authorize in the browser FIRST, then copy that page's address "
+          "(Cmd-A, Cmd-C) and finish with:\n")
     print("  pbpaste | python -m pcip canva-auth --finish        # macOS")
     print("  python -m pcip canva-auth --finish --code-file /path/to/url.txt\n")
     return path
@@ -294,6 +295,7 @@ def finish_manual_flow(
 
     raw = read_code_from(code, code_file, stdin)
     authorization_code = parse_code(raw, pending.get("state", ""))
+    diagnose_code(authorization_code, pending, cfg.canva_client_id)
     tokens = exchange_code(
         cfg, authorization_code, pending["verifier"], pending["redirect_uri"]
     )
@@ -301,6 +303,71 @@ def finish_manual_flow(
     # file behind would only invite a confusing retry.
     path.unlink(missing_ok=True)
     return _store_tokens(tokens, write_env)
+
+
+def jwt_claims(token: str) -> Dict[str, Any]:
+    """Read a JWT payload without verifying it.
+
+    Not authentication — Canva verifies the signature at the token endpoint.
+    This is for diagnosis: the claims say when the code was issued, when it
+    expires, and which PKCE challenge it was issued against, all of which
+    turn "invalid_grant" into a fact.
+    """
+    parts = (token or "").split(".")
+    if len(parts) != 3:
+        return {}
+    payload = parts[1]
+    payload += "=" * (-len(payload) % 4)          # base64url needs padding
+    try:
+        return json.loads(base64.urlsafe_b64decode(payload.encode()))
+    except Exception:                              # noqa: BLE001
+        return {}
+
+
+def diagnose_code(
+    code: str, pending: Dict[str, Any], client_id: str = ""
+) -> None:
+    """Refuse a code that cannot possibly work, and say why.
+
+    Canva answers every one of these with the same "invalid_grant: Invalid
+    auth code", which is true and useless: expired, already spent, and
+    belonging to a different authorization are three different problems with
+    three different fixes.
+    """
+    claims = jwt_claims(code)
+    if not claims:
+        return                                     # opaque format; let Canva judge
+
+    expires = claims.get("exp")
+    if expires and time.time() > float(expires):
+        stale = (time.time() - float(expires)) / 60
+        raise RuntimeError(
+            f"That authorization code expired {stale:.0f} minute(s) ago — "
+            "Canva gives about ten. Run --start again and finish it straight "
+            "away; the browser step is what takes the time."
+        )
+
+    challenge = claims.get("pkce")
+    verifier = pending.get("verifier", "")
+    if challenge and verifier:
+        expected = base64.urlsafe_b64encode(
+            hashlib.sha256(verifier.encode()).digest()
+        ).rstrip(b"=").decode()
+        if challenge != expected:
+            raise RuntimeError(
+                "That code belongs to a different authorization than the one "
+                "--start opened. The clipboard most likely still held the URL "
+                "from an earlier attempt. Authorize using the URL --start "
+                "just printed, then copy that page's address."
+            )
+
+    issued_for = claims.get("client_id")
+    if issued_for and client_id and issued_for != client_id:
+        raise RuntimeError(
+            f"That code was issued for Canva client {issued_for}, but "
+            f"CANVA_CLIENT_ID is {client_id}. They have to be the same "
+            "integration."
+        )
 
 
 def _require_client(cfg: PCIPConfig) -> None:
