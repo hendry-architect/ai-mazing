@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from pcip.config import PCIPConfig
+from pcip.redact import redact_urls
 from pcip.models import (
     Brief,
     EdgeKind,
@@ -37,6 +38,21 @@ StepHandler = Callable[[Dict[str, Any]], str]
 
 # Gates that may never be auto-approved, regardless of configuration.
 NEVER_AUTO_APPROVE = frozenset({"medical_review"})
+
+
+class HandoffRequired(Exception):
+    """A step needs work done outside PCIP before it can complete.
+
+    Raised by steps that run through the Canva MCP connector: PCIP cannot
+    call those tools itself, so it pauses the run, states exactly what it
+    needs, and continues once ``pcip attach`` supplies the result. This is a
+    pause, not a failure — every later gate still applies.
+    """
+
+    def __init__(self, needs: str, spec: Dict[str, Any]) -> None:
+        super().__init__(f"handoff required: {needs}")
+        self.needs = needs
+        self.spec = spec
 
 
 @dataclass
@@ -65,9 +81,24 @@ class Pipeline:
 class PipelineRunner:
     """Executes pipelines, persisting run state to the graph at every step."""
 
-    def __init__(self, config: PCIPConfig, graph: KnowledgeGraph) -> None:
+    def __init__(
+        self,
+        config: PCIPConfig,
+        graph: KnowledgeGraph,
+        on_step: Optional[Callable[[str, str, str], None]] = None,
+    ) -> None:
         self.cfg = config
         self.graph = graph
+        # A run prints nothing until it finishes, and generate_copy alone can
+        # take minutes: an operator watching a silent terminal reasonably
+        # concludes it has hung. ``on_step(name, status, detail)`` is called
+        # as each step starts and settles so a caller can say what is
+        # happening. Default None keeps library and test callers silent.
+        self.on_step = on_step
+
+    def _report(self, name: str, status: str, detail: str = "") -> None:
+        if self.on_step:
+            self.on_step(name, status, detail)
 
     # ── Persistence ──────────────────────────────────────────────────────
 
@@ -98,6 +129,29 @@ class PipelineRunner:
         self._save(run)
         self.graph.add_edge(run.id, EdgeKind.FROM_BRIEF, brief.id)
         return self._advance(pipeline, run, brief)
+
+    def fulfil_handoff(
+        self,
+        pipeline: "Pipeline",
+        run: "PipelineRun",
+        brief: "Brief",
+        **context: Any,
+    ) -> "PipelineRun":
+        """Supply what a paused step was waiting for, and continue.
+
+        Resuming alone is not enough: the step that raised the handoff is still
+        marked awaiting, so the runner skips past it and the run stalls exactly
+        where it stopped. The reset belongs here rather than in whichever
+        caller happens to need it — it lived only in the CLI, which made the
+        CLI the sole thing that knew how to finish a paused run.
+        """
+        run.context.update({k: v for k, v in context.items() if v is not None})
+        for step in run.steps:
+            if step.status == "awaiting_handoff":
+                step.status = "pending"
+        run.context.pop("handoff", None)
+        self._save(run)
+        return self.resume(pipeline, run, brief)
 
     def resume(self, pipeline: Pipeline, run: PipelineRun, brief: Brief) -> PipelineRun:
         return self._advance(pipeline, run, brief)
@@ -140,6 +194,7 @@ class PipelineRunner:
                     continue
                 sr.status = "awaiting_review"
                 sr.detail = spec.description
+                self._report(sr.step, "awaiting_review", spec.description)
                 run.status = "awaiting_review"
                 self._save(run)
                 return run
@@ -148,13 +203,29 @@ class PipelineRunner:
             sr.status = "running"
             sr.started_at = now_iso()
             self._save(run)
+            self._report(sr.step, "running", spec.description)
             try:
                 sr.detail = spec.handler(ctx) or ""
                 sr.outputs = list(ctx.pop("_step_outputs", []))
                 sr.status = "done"
+                self._report(sr.step, "done", sr.detail)
+            except HandoffRequired as handoff:
+                # Not a failure: work is owed from outside PCIP. Record what
+                # is needed so `pcip runs` / `pcip attach` can act on it.
+                sr.status = "awaiting_handoff"
+                sr.detail = f"needs {handoff.needs}"
+                self._report(sr.step, "awaiting_handoff", sr.detail)
+                sr.finished_at = ""
+                run.status = "awaiting_handoff"
+                run.context["handoff"] = {"needs": handoff.needs,
+                                          "step": sr.step, **handoff.spec}
+                self._persist_context(run, ctx)
+                self._save(run)
+                return run
             except Exception as exc:  # persist failures; runs are resumable
                 sr.status = "failed"
-                sr.detail = f"{type(exc).__name__}: {exc}"
+                sr.detail = redact_urls(f"{type(exc).__name__}: {exc}")
+                self._report(sr.step, "failed", sr.detail)
                 run.status = "failed"
                 sr.finished_at = now_iso()
                 self._save(run)
@@ -184,11 +255,40 @@ class PipelineRunner:
 
     # ── Review actions ───────────────────────────────────────────────────
 
-    def approve(self, run_id: str, gate: Optional[str] = None, reviewer: str = "") -> PipelineRun:
+    def approve(
+        self,
+        run_id: str,
+        gate: Optional[str] = None,
+        reviewer: str = "",
+        how: str = "",
+    ) -> PipelineRun:
+        """Record a gate approval, and how it was obtained.
+
+        ``how`` is not decoration. A run once recorded "approved by
+        Dr. Pascual" against two gates in the same second the design was
+        assembled, because the approve commands had been pasted into a shell
+        along with the surrounding prose. Nobody had read anything, and the
+        audit trail said a physician had. The gates that exist precisely to
+        put a human in the loop now refuse an approval that cannot say which
+        human, and how.
+        """
         run = self._require_run(run_id)
         sr = self._gate_step(run, gate)
+        if sr.step in NEVER_AUTO_APPROVE and not how:
+            raise PermissionError(
+                f"{sr.step} cannot be approved without recording how it was "
+                "confirmed. Approve it through `pcip approve`, which asks the "
+                "reviewer at the terminal and records their answer."
+            )
+        if sr.step in NEVER_AUTO_APPROVE and not reviewer.strip():
+            raise PermissionError(
+                f"{sr.step} needs a named reviewer: --reviewer 'Dr. Pascual'"
+            )
         sr.status = "approved"
-        sr.detail = f"approved by {reviewer or 'reviewer'} at {now_iso()}"
+        sr.detail = (
+            f"approved by {reviewer or 'reviewer'} at {now_iso()}"
+            + (f" ({how})" if how else "")
+        )
         self._save(run)
         return run
 

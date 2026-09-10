@@ -1,0 +1,21 @@
+{
+  "title": "Prevención de la Diabetes — Hábitos Diarios",
+  "objective": "Que los pacientes de 55+ agenden su visita anual de bienestar, enseñándoles tres hábitos diarios que mejoran el control de la glucosa.",
+  "audience": "Pacientes 55+ en Miami Gardens, bajo nivel de alfabetización en salud, hispanohablantes",
+  "brand": "PassQual Health",
+  "key_messages": [
+    "Los hábitos pequeños y diarios controlan la glucosa mejor que los esfuerzos grandes y ocasionales",
+    "Su equipo de PassQual puede crear un plan personalizado en una sola visita",
+    "Revisar sus pies y sus números cada semana previene complicaciones"
+  ],
+  "channels": ["instagram", "facebook"],
+  "topics": ["diabetes", "educación del paciente", "prevención"],
+  "language": "es",
+  "tone": "cálido, lenguaje sencillo, autoridad médica sin tecnicismos",
+  "references": ["canva:brand_template:EAHORxPUDHw"],
+  "constraints": [
+    "Sin afirmaciones de tratamiento sin marcar [MEDICAL-REVIEW]",
+    "Nivel de lectura de sexto grado",
+    "Cada visual necesita texto alternativo"
+  ]
+}

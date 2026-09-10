@@ -1,0 +1,13 @@
+# PCIP's own dependencies — deliberately small.
+#
+# The repo-root requirements.txt also carries the Streamlit analytics app
+# (streamlit, pandas, numpy, pyarrow, matplotlib). PCIP needs none of that, and
+# installing it makes a first-time setup slow and prone to wheel-build failures
+# on a laptop. Install this file instead to run the platform.
+
+requests>=2.31.0
+PyYAML>=6.0
+anthropic>=0.40.0
+
+# Test suite (python -m pytest tests/)
+pytest>=8.0.0

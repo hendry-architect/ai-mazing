@@ -24,6 +24,7 @@ from typing import Any, Dict, Iterator, List, Optional
 import requests
 
 from pcip.config import PCIPConfig
+from pcip.redact import redact_urls
 
 TOKEN_URL = "https://api.canva.com/rest/v1/oauth/token"
 
@@ -64,16 +65,48 @@ class CanvaClient:
         )
         if resp.status_code != 200:
             raise CanvaError(
-                f"Canva token refresh failed ({resp.status_code})",
+                f"Canva token refresh failed ({resp.status_code}). The stored "
+                "refresh token was rejected — Canva rotates it on every "
+                "refresh and invalidates the previous one, so this is what a "
+                "rotation that never got saved looks like. Re-authorise:\n"
+                "  python -m pcip canva-auth --redirect-uri "
+                "https://passqual.com/canva/callback --start\n"
+                "  pbpaste | python -m pcip canva-auth --finish",
                 resp.status_code,
                 resp.text[:500],
             )
         data = resp.json()
         self._access_token = data["access_token"]
-        # Canva rotates refresh tokens on every refresh.
+        # Canva rotates refresh tokens on every refresh and invalidates the
+        # one just used. Keeping the new value only in memory meant the
+        # rotation was lost when the process exited, .env still held the dead
+        # token, and the *next* run got a 400 — Canva access survived exactly
+        # one refresh, which for something meant to run unattended is the same
+        # as not working.
         self.cfg.canva_refresh_token = data.get(
             "refresh_token", self.cfg.canva_refresh_token
         )
+        self.cfg.canva_access_token = self._access_token
+        self._persist_tokens()
+
+    def _persist_tokens(self) -> None:
+        """Write the current tokens back to the .env they came from.
+
+        Best effort: an unwritable file must not fail a run that otherwise
+        succeeded — it only means the next process will have to refresh
+        again, which is the behaviour we had before.
+        """
+        if not self.cfg.env_file:
+            return
+        try:
+            from pcip.connectors.canva_auth import update_env_file
+
+            update_env_file(Path(self.cfg.env_file), {
+                "CANVA_ACCESS_TOKEN": self._access_token,
+                "CANVA_REFRESH_TOKEN": self.cfg.canva_refresh_token,
+            })
+        except Exception:                    # noqa: BLE001 — never fatal
+            pass
 
     def _request(
         self,
@@ -271,10 +304,66 @@ class CanvaClient:
 
     def download_export(self, url: str, dest: Path) -> Path:
         """Download an export URL to disk (URLs are short-lived)."""
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        with self.http.get(url, stream=True, timeout=self.cfg.request_timeout) as r:
+        return download_export_url(
+            url, dest, timeout=self.cfg.request_timeout, session=self.http
+        )
+
+
+# Export download URLs are pre-signed and short-lived, and they live on a
+# different host from the API (export-download.canva.com). They carry their own
+# authorization in the query string, so this deliberately sends no credentials —
+# and it is a module-level function, not a client method, because MCP mode has
+# an export URL to fetch but no Connect client to fetch it with.
+
+class ExportDownloadError(Exception):
+    """A signed export URL could not be downloaded."""
+
+
+def download_export_url(
+    url: str,
+    dest: Path,
+    timeout: int = 60,
+    session: Optional[requests.Session] = None,
+) -> Path:
+    """Stream a signed Canva export URL to ``dest``.
+
+    Raises ExportDownloadError with the cause named, rather than leaving a
+    truncated or empty file behind that a later step would treat as a
+    deliverable.
+    """
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    http = session or requests.Session()
+    try:
+        with http.get(url, stream=True, timeout=timeout) as r:
+            if r.status_code == 403:
+                raise ExportDownloadError(
+                    "Canva rejected the export download (403). Signed export "
+                    "URLs expire (typically within a day) — re-run the export "
+                    "to get a fresh URL."
+                )
             r.raise_for_status()
             with open(dest, "wb") as fh:
                 for chunk in r.iter_content(chunk_size=1 << 16):
                     fh.write(chunk)
-        return dest
+    except requests.RequestException as exc:
+        dest.unlink(missing_ok=True)
+        raise ExportDownloadError(
+            f"Could not download the export from {_host_of(url)}: "
+            f"{redact_urls(str(exc))}. If this host is blocked by a network "
+            "policy, download the file where egress is allowed and attach it "
+            "with --export-file."
+        ) from exc
+    if dest.stat().st_size == 0:
+        dest.unlink(missing_ok=True)
+        raise ExportDownloadError(
+            f"The export downloaded from {_host_of(url)} was empty."
+        )
+    return dest
+
+
+def _host_of(url: str) -> str:
+    """Hostname only — signed export URLs carry credentials in the query."""
+    from urllib.parse import urlparse
+
+    return urlparse(url).hostname or "the export host"

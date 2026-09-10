@@ -137,6 +137,19 @@ class CapabilityRegistry:
 
 DEFAULT_PROFILES: List[ProviderProfile] = [
     ProviderProfile(
+        # Imagery from the Canva subscription the account already pays for.
+        # Ranked below every API provider on purpose: it needs an agent session
+        # to service the handoff, so it cannot serve an unattended run. When
+        # nothing else is configured it is the difference between imagery and
+        # none, at no additional cost.
+        name="canva-images", modality="image",
+        roles=("brand", "no_extra_cost"),
+        strengths={"photorealistic": 0.6, "general": 0.6, "social": 0.6,
+                   "infographic": 0.5, "typography": 0.7, "stylized": 0.5},
+        text_rendering=0.9,          # text set in Canva, not rendered by a model
+        default_score=0.45,
+    ),
+    ProviderProfile(
         name="openai-images", modality="image", roles=("default", "editing"),
         strengths={"infographic": 0.9, "general": 0.85, "social": 0.8,
                    "photorealistic": 0.75, "stylized": 0.75},

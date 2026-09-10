@@ -23,13 +23,16 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
+import os
 import secrets
 import threading
+import time
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 
@@ -139,6 +142,242 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         pass
 
 
+def parse_code(raw: str, expected_state: str = "") -> str:
+    """Pull the authorization code out of whatever the operator carried back.
+
+    Accepts the whole redirected URL or the bare code. Pure, so the checks
+    below are testable without a terminal.
+    """
+    from urllib.parse import parse_qs, urlparse
+
+    raw = (raw or "").strip()
+    if not raw:
+        raise RuntimeError("Nothing supplied — authorization not completed.")
+
+    code, state = raw, ""
+    if "code=" in raw:
+        query = urlparse(raw).query or raw.split("?", 1)[-1]
+        params = parse_qs(query)
+        code = (params.get("code") or [""])[0]
+        state = (params.get("state") or [""])[0]
+
+    # Canva issues the code as a JWT, and it is long enough that a clipboard
+    # or terminal can cut it. A truncated code is rejected by the token
+    # endpoint with a generic error that reads like a configuration problem,
+    # so it is worth naming here while the operator still has the browser open.
+    if "." in code:
+        parts = code.split(".")
+        if len(parts) != 3 or not all(parts):
+            raise RuntimeError(
+                f"That code looks truncated — {len(code)} characters in "
+                f"{len(parts)} segment(s), where Canva issues three. Long URLs "
+                "are easy to cut when copying. Select the address bar and use "
+                "Select All (Cmd-A) before copying, then run the command again "
+                "— a code is single-use, so this one cannot be retried."
+            )
+
+    if state and expected_state and state != expected_state:
+        # The CSRF check still applies when the operator carries the code by
+        # hand; a mismatched state means this is not the flow we started.
+        raise RuntimeError(
+            "The pasted state does not match the request that was started. "
+            "Run the command again rather than continuing with this code."
+        )
+    if not code:
+        raise RuntimeError("No code= value found in what was supplied.")
+    return code
+
+
+#: Where --start leaves the PKCE verifier for --finish to pick up. Not a
+#: credential on its own — it is the proof-of-possession secret for one
+#: in-flight authorization — but it is written 0600 and deleted after use.
+PENDING_NAME = "canva_auth_pending.json"
+
+#: Canva authorization codes are good for about ten minutes. A verifier older
+#: than that cannot complete a flow, so it is refused with the real reason
+#: rather than left to fail at the token endpoint.
+PENDING_TTL_SECONDS = 900
+
+
+def _pending_path(cfg: PCIPConfig) -> Path:
+    return Path(cfg.data_dir) / PENDING_NAME
+
+
+def read_code_from(
+    explicit: str = "", code_file: str = "", stdin: Optional[Any] = None
+) -> str:
+    """Take the code from an argument, a file, a pipe, or the terminal.
+
+    The terminal is deliberately last. macOS gives a tty a 1024-byte
+    canonical input buffer, and a Canva redirect URL is longer than that, so
+    pasting one at a prompt silently does nothing — Return never submits the
+    line. That is a property of the terminal, not of this program, and no
+    prompt wording fixes it; the other three sources bypass it entirely.
+    """
+    import sys
+
+    stream = stdin if stdin is not None else sys.stdin
+    if explicit:
+        return explicit
+    if code_file:
+        return Path(code_file).read_text(encoding="utf-8")
+    if not stream.isatty():
+        return stream.read()
+    print("\nPaste the redirected URL below, then press Return.")
+    print("If Return appears to do nothing, the URL is longer than this "
+          "terminal's input buffer — press Ctrl-C and pipe it instead:")
+    print("  pbpaste | python -m pcip canva-auth --finish\n")
+    return input("Redirected URL or code: ")
+
+
+def start_manual_flow(
+    cfg: PCIPConfig,
+    redirect_uri: str,
+    scopes: str = DEFAULT_SCOPES,
+    open_browser: bool = True,
+) -> Path:
+    """Print the authorization URL and remember this flow's PKCE verifier."""
+    _require_client(cfg)
+    verifier, challenge = make_pkce_pair()
+    state = secrets.token_urlsafe(24)
+    url = build_authorize_url(
+        cfg.canva_client_id, redirect_uri, challenge, state, scopes
+    )
+
+    path = _pending_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({
+            "verifier": verifier,
+            "state": state,
+            "redirect_uri": redirect_uri,
+            "created_at": time.time(),
+        }),
+        encoding="utf-8",
+    )
+    os.chmod(path, 0o600)
+
+    print("Authorize in the browser:\n\n  " + url + "\n")
+    if open_browser:
+        webbrowser.open(url)
+    print("Authorize in the browser FIRST, then copy that page's address "
+          "(Cmd-A, Cmd-C) and finish with:\n")
+    print("  pbpaste | python -m pcip canva-auth --finish        # macOS")
+    print("  python -m pcip canva-auth --finish --code-file /path/to/url.txt\n")
+    return path
+
+
+def finish_manual_flow(
+    cfg: PCIPConfig,
+    *,
+    code: str = "",
+    code_file: str = "",
+    write_env: Optional[str] = ".env",
+    stdin: Optional[Any] = None,
+) -> Dict[str, str]:
+    """Complete the flow started by ``start_manual_flow``."""
+    _require_client(cfg)
+    path = _pending_path(cfg)
+    if not path.exists():
+        raise RuntimeError(
+            "No authorization in progress. Start one first:\n"
+            "  python -m pcip canva-auth --redirect-uri <URL> --start"
+        )
+    pending = json.loads(path.read_text(encoding="utf-8"))
+    age = time.time() - float(pending.get("created_at", 0))
+    if age > PENDING_TTL_SECONDS:
+        path.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"That authorization was started {age / 60:.0f} minutes ago and has "
+            "expired — Canva codes are good for about ten. Start a new one:\n"
+            "  python -m pcip canva-auth --redirect-uri <URL> --start"
+        )
+
+    raw = read_code_from(code, code_file, stdin)
+    authorization_code = parse_code(raw, pending.get("state", ""))
+    diagnose_code(authorization_code, pending, cfg.canva_client_id)
+    tokens = exchange_code(
+        cfg, authorization_code, pending["verifier"], pending["redirect_uri"]
+    )
+    # The verifier has served its purpose and the code is spent; leaving the
+    # file behind would only invite a confusing retry.
+    path.unlink(missing_ok=True)
+    return _store_tokens(tokens, write_env)
+
+
+def jwt_claims(token: str) -> Dict[str, Any]:
+    """Read a JWT payload without verifying it.
+
+    Not authentication — Canva verifies the signature at the token endpoint.
+    This is for diagnosis: the claims say when the code was issued, when it
+    expires, and which PKCE challenge it was issued against, all of which
+    turn "invalid_grant" into a fact.
+    """
+    parts = (token or "").split(".")
+    if len(parts) != 3:
+        return {}
+    payload = parts[1]
+    payload += "=" * (-len(payload) % 4)          # base64url needs padding
+    try:
+        return json.loads(base64.urlsafe_b64decode(payload.encode()))
+    except Exception:                              # noqa: BLE001
+        return {}
+
+
+def diagnose_code(
+    code: str, pending: Dict[str, Any], client_id: str = ""
+) -> None:
+    """Refuse a code that cannot possibly work, and say why.
+
+    Canva answers every one of these with the same "invalid_grant: Invalid
+    auth code", which is true and useless: expired, already spent, and
+    belonging to a different authorization are three different problems with
+    three different fixes.
+    """
+    claims = jwt_claims(code)
+    if not claims:
+        return                                     # opaque format; let Canva judge
+
+    expires = claims.get("exp")
+    if expires and time.time() > float(expires):
+        stale = (time.time() - float(expires)) / 60
+        raise RuntimeError(
+            f"That authorization code expired {stale:.0f} minute(s) ago — "
+            "Canva gives about ten. Run --start again and finish it straight "
+            "away; the browser step is what takes the time."
+        )
+
+    challenge = claims.get("pkce")
+    verifier = pending.get("verifier", "")
+    if challenge and verifier:
+        expected = base64.urlsafe_b64encode(
+            hashlib.sha256(verifier.encode()).digest()
+        ).rstrip(b"=").decode()
+        if challenge != expected:
+            raise RuntimeError(
+                "That code belongs to a different authorization than the one "
+                "--start opened. The clipboard most likely still held the URL "
+                "from an earlier attempt. Authorize using the URL --start "
+                "just printed, then copy that page's address."
+            )
+
+    issued_for = claims.get("client_id")
+    if issued_for and client_id and issued_for != client_id:
+        raise RuntimeError(
+            f"That code was issued for Canva client {issued_for}, but "
+            f"CANVA_CLIENT_ID is {client_id}. They have to be the same "
+            "integration."
+        )
+
+
+def _require_client(cfg: PCIPConfig) -> None:
+    if not (cfg.canva_client_id and cfg.canva_client_secret):
+        raise RuntimeError(
+            "Set CANVA_CLIENT_ID and CANVA_CLIENT_SECRET first (from your "
+            "integration's Configuration tab at canva.com/developers)."
+        )
+
+
 def run_flow(
     cfg: PCIPConfig,
     port: int = 8080,
@@ -146,17 +385,30 @@ def run_flow(
     write_env: Optional[str] = ".env",
     open_browser: bool = True,
     timeout: float = 300.0,
+    redirect_uri: str = "",
+    manual: bool = False,
 ) -> Dict[str, str]:
-    """Run the full PKCE flow. Returns the token payload."""
-    if not (cfg.canva_client_id and cfg.canva_client_secret):
-        raise RuntimeError(
-            "Set CANVA_CLIENT_ID and CANVA_CLIENT_SECRET first (from your "
-            "integration's Configuration tab at canva.com/developers)."
-        )
-    redirect_uri = f"http://127.0.0.1:{port}/callback"
+    """Run the full PKCE flow. Returns the token payload.
+
+    By default the redirect is caught by a local server. Pass ``redirect_uri``
+    (and ``manual``) when the integration is registered with a hosted callback
+    — Canva requires a non-localhost URL to review a *public* integration, and
+    the code then arrives in a browser rather than on this machine.
+    """
+    _require_client(cfg)
+    local = not (redirect_uri or manual)
+    redirect_uri = redirect_uri or f"http://127.0.0.1:{port}/callback"
     verifier, challenge = make_pkce_pair()
     state = secrets.token_urlsafe(24)
     url = build_authorize_url(cfg.canva_client_id, redirect_uri, challenge, state, scopes)
+
+    if not local:
+        print("Authorize in the browser:\n\n  " + url + "\n")
+        if open_browser:
+            webbrowser.open(url)
+        code = parse_code(read_code_from(), state)
+        tokens = exchange_code(cfg, code, verifier, redirect_uri)
+        return _store_tokens(tokens, write_env)
 
     _CallbackHandler.result = {}
     _CallbackHandler.expected_state = state
@@ -182,6 +434,12 @@ def run_flow(
         raise RuntimeError(f"Authorization failed: {result['error']}")
 
     tokens = exchange_code(cfg, result["code"], verifier, redirect_uri)
+    return _store_tokens(tokens, write_env)
+
+
+def _store_tokens(
+    tokens: Dict[str, str], write_env: Optional[str]
+) -> Dict[str, str]:
     payload = {
         "CANVA_ACCESS_TOKEN": tokens.get("access_token", ""),
         "CANVA_REFRESH_TOKEN": tokens.get("refresh_token", ""),
@@ -189,9 +447,8 @@ def run_flow(
     if write_env:
         update_env_file(Path(write_env), payload)
         print(f"Tokens written to {write_env}. Next:")
-        print("  export $(grep -v '^#' .env | xargs)")
-        print("  python -m pcip doctor --live")
-        print("  python -m pcip sync")
+        print("  pcip doctor --live")
+        print("  pcip sync")
     else:
         print("Add these to your environment (values hidden from logs):")
         for key in payload:

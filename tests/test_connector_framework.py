@@ -126,6 +126,25 @@ def test_probe_network_flake_keeps_configured():
     assert report["status"] == "configured"      # flake ≠ bad credentials
 
 
+def test_a_failed_live_probe_is_never_silently_green():
+    """--live that could not verify must say so, not just look configured."""
+    def probe(cfg):
+        raise OSError("connection reset")
+
+    cfg = PCIPConfig(canva_access_token="tok")
+    m = manager(cfg, probe=probe)
+    report = m.doctor(live=True)
+    assert any("UNVERIFIED" in a for a in report["actions"])
+    assert any("connection reset" in a for a in report["actions"])
+
+
+def test_a_passing_live_probe_raises_no_unverified_action():
+    cfg = PCIPConfig(canva_access_token="tok")
+    m = manager(cfg, probe=lambda c: {})
+    report = m.doctor(live=True)
+    assert not any("UNVERIFIED" in a for a in report["actions"])
+
+
 def test_doctor_actions_and_summary():
     m = manager()
     report = m.doctor()
@@ -173,3 +192,38 @@ def test_real_catalog_covers_config_and_loads():
     assert {"github", "canva", "anthropic", "wordpress", "openai", "google",
             "instagram", "facebook", "threads", "linkedin", "x", "youtube",
             "tiktok", "buffer"} <= names
+
+
+# ── conditionally MCP-managed ────────────────────────────────────────────────
+
+
+def test_canva_is_mcp_managed_in_mcp_mode():
+    """In mcp mode an agent session holds the Canva credentials and PCIP holds
+    none, by design. Reporting the absent Connect credentials as "missing"
+    describes a deliberate configuration as a fault — and this is the mode that
+    actually produced the live design and export."""
+    from pcip.config import PCIPConfig
+    from pcip.connectors.framework import ConnectorManager
+
+    report = ConnectorManager(PCIPConfig(canva_mode="mcp")).doctor()
+    canva = report["connectors"]["canva"]
+    assert canva["status"] == "mcp_managed"
+    assert canva["capabilities"]["export_png"]["status"] == "mcp_managed"
+
+
+def test_canva_needs_credentials_in_connect_mode():
+    """Connect mode really does need them — the distinction has to survive."""
+    from pcip.config import PCIPConfig
+    from pcip.connectors.framework import ConnectorManager
+
+    report = ConnectorManager(PCIPConfig(canva_mode="connect")).doctor()
+    assert report["connectors"]["canva"]["status"] == "missing_credentials"
+
+
+def test_can_reports_canva_usable_in_mcp_mode():
+    """`pcip can canva.export_png` is the question the operator actually asks."""
+    from pcip.config import PCIPConfig
+    from pcip.connectors.framework import ConnectorManager
+
+    mgr = ConnectorManager(PCIPConfig(canva_mode="mcp"))
+    assert mgr.can("canva.export_png")["usable"] is True

@@ -26,6 +26,84 @@ from pcip.graph.store import KnowledgeGraph
 from pcip.models import Brief, EdgeKind, NodeKind
 
 
+COPY_FIELDS: Dict[str, Any] = {
+    # Legacy single-language fields, kept so older runs still publish.
+    "title": "",
+    "excerpt": "",
+    "body_html": "",
+    "alt_texts": [],
+    "hashtags": [],
+    "captions": {},
+    # PassQual Health standard: bilingual parity, SEO surface, FAQ block.
+    "titles": {},                 # {"es": ..., "en": ...}
+    "bodies": {},                 # {"es": "<h2>…", "en": "<h2>…"}
+    "meta_title": "",             # ≤60 characters, carries service + geo
+    "meta_description": "",       # ≤155 characters, ES-primary
+    "faq": [],                    # [{"q": ..., "a": ...}, …] — feeds FAQPage
+    "alt_texts_by_language": {},  # {"es": ..., "en": ...}
+    "keywords": [],
+}
+
+
+def parse_copy_fields(text: str) -> Dict[str, Any]:
+    """Extract the machine-readable block from a copy result.
+
+    Defensive on purpose: a model that ignores the format, wraps the block in
+    prose, or emits invalid JSON must degrade to "body is the whole text",
+    never break a pipeline run mid-flight.
+    """
+    import json
+    import re
+
+    fields = {k: (list(v) if isinstance(v, list) else dict(v) if isinstance(v, dict) else v)
+              for k, v in COPY_FIELDS.items()}
+    text = text or ""
+
+    candidates = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if not candidates:
+        # No fence — fall back to the outermost brace-balanced span.
+        start, depth = text.find("{"), 0
+        if start != -1:
+            for i in range(start, len(text)):
+                depth += (text[i] == "{") - (text[i] == "}")
+                if depth == 0:
+                    candidates = [text[start : i + 1]]
+                    break
+
+    for raw in reversed(candidates):          # a trailing block is the summary
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        for key, default in COPY_FIELDS.items():
+            value = parsed.get(key, default)
+            if isinstance(default, list):
+                # Coerce scalars to text but leave structured items intact:
+                # `faq` is a list of {q, a} objects, and stringifying those
+                # turned every question into the repr of a dict.
+                fields[key] = [
+                    v if isinstance(v, (dict, list)) else str(v)
+                    for v in value
+                ] if isinstance(value, list) else []
+            elif isinstance(default, dict):
+                fields[key] = {
+                    str(k): v if isinstance(v, (dict, list)) else str(v)
+                    for k, v in value.items()
+                } if isinstance(value, dict) else {}
+            else:
+                fields[key] = str(value or "")
+        break
+
+    if not fields["body_html"] and not fields.get("bodies"):
+        # Nothing usable parsed — the prose itself is the best body we have.
+        # Only when the bilingual shape is absent too: otherwise this would
+        # copy the whole fenced block into the legacy body field and publish it.
+        fields["body_html"] = text.strip()
+    return fields
+
+
 class GenerationOrchestrator:
     def __init__(
         self,
@@ -138,7 +216,14 @@ class GenerationOrchestrator:
         )
 
     def copy_for_brief(self, brief: Brief, deliverable: str) -> GenerationResult:
-        """Generate deliverable-specific copy grounded in the brief."""
+        """Generate deliverable-specific copy grounded in the brief.
+
+        Returns prose for the human reviewer *and* a machine-readable block, so
+        the publisher can put the body in the body and the hashtags in the
+        caption rather than dumping one blob into the article.
+        """
+        from pcip.standards import PH
+
         prompt = (
             f"Deliverable: {deliverable}\n"
             f"Objective: {brief.objective}\n"
@@ -147,11 +232,82 @@ class GenerationOrchestrator:
             f"Tone: {brief.tone or 'on-brand, warm, expert'}\n"
             f"Channels: {', '.join(brief.channels) or 'n/a'}\n"
             f"Constraints: {'; '.join(brief.constraints) or 'none'}\n\n"
-            "Produce the complete copy package for this deliverable "
-            "(headlines, body, captions, CTA, hashtags where relevant, and "
-            "alt-text for every visual)."
+            "This is for PassQual Health and must meet its published article "
+            "standard. The standard is enforced automatically after you write, "
+            "so an article that misses any of it will be rejected:\n\n"
+            f"- BILINGUAL PARITY. Write the full article twice: Spanish "
+            f"(primary) and English. Not a summary — the same article.\n"
+            f"- LENGTH. Aim for {PH.TARGET_BODY_WORDS}-{PH.TARGET_BODY_WORDS + 200} "
+            f"words per language. The hard floor is {PH.MIN_BODY_WORDS} and a "
+            "run is rejected below it, so write with margin — counting words "
+            "as you go and stopping exactly at the minimum lands under it. "
+            "The two languages are the same article, so they should be close "
+            "in length; do not write a full Spanish version and an abbreviated "
+            f"English one. At least {PH.MIN_H2_SECTIONS} <h2> sections. Do not "
+            "use <h1>; the post title is the H1.\n"
+            f"- FAQ. At least {PH.MIN_FAQ_ITEMS} question/answer pairs "
+            "answering what patients actually search.\n"
+            f"- SEO. A meta title of at most {PH.META_TITLE_MAX} characters "
+            f"including '{PH.GEO_PHRASE}', and a meta description of at most "
+            f"{PH.META_DESCRIPTION_MAX} characters, Spanish-primary. Spanish "
+            f"speakers search '{PH.NEAR_ME_ES}', not city names — use that "
+            f"exact phrase '{PH.NEAR_ME_ES}' somewhere in the Spanish body, "
+            "in a sentence that reads naturally.\n"
+            f"- NAP, printed verbatim in both languages, exactly:\n"
+            f"    {PH.NAP_NAME} | {PH.NAP_STREET}, {PH.NAP_CITY}, "
+            f"{PH.NAP_STATE} {PH.NAP_ZIP} | {PH.NAP_PHONE_DISPLAY} | {PH.SITE}\n"
+            f"- CREDENTIALS. Name {PH.PHYSICIAN} and Florida license "
+            f"{PH.FL_LICENSE} ({PH.CREDENTIALS}).\n"
+            f"- CTA. End each language with the booking line: "
+            f"'{PH.BOOKING_ES}' / '{PH.BOOKING_EN}'.\n"
+            "- COMPLIANCE, absolute: no pediatric content of any kind; no "
+            "outcome guarantees, cures or superlatives such as 'the best'; "
+            "structure and function language only. Mental-health topics must "
+            "print 988 and 911. Flag anything needing clinician sign-off with "
+            "[MEDICAL-REVIEW] — those notes are stripped before publication, "
+            "so never put patient-facing content inside one.\n\n"
+            "Reply with ONE fenced JSON block and nothing else — no preamble, "
+            "no commentary, no repetition of the article outside it. Writing "
+            "the article twice (once as prose, once as JSON) doubles the "
+            "length and truncates the block, which loses everything.\n\n"
+            "The reviewer reads the parsed body, so the JSON is the "
+            "deliverable, not a summary of it:\n\n"
+            "```json\n"
+            "{\n"
+            '  "titles": {"es": "titular en español", "en": "English headline"},\n'
+            '  "bodies": {"es": "<p>…</p><h2>…</h2>…", "en": "<p>…</p><h2>…</h2>…"},\n'
+            '  "meta_title": "≤60 chars, includes ' + PH.GEO_PHRASE + '",\n'
+            '  "meta_description": "≤155 chars, Spanish",\n'
+            '  "faq": [{"q": "pregunta", "a": "respuesta"}],\n'
+            '  "alt_texts_by_language": {"es": "texto alternativo", '
+            '"en": "alt text"},\n'
+            '  "keywords": ["término", "near-me phrase"],\n'
+            '  "hashtags": ["#Ejemplo"],\n'
+            '  "captions": {"instagram": "…", "facebook": "…"}\n'
+            "}\n"
+            "```"
         )
-        return self.generate("copy", prompt, brief)
+        result = self.generate("copy", prompt, brief)
+        fields = parse_copy_fields(result.text)
+        result.metadata["fields"] = fields
+
+        # The gate and the human reviewer both read `text`. When the model
+        # returns only the JSON block — which is what we now ask for — that
+        # text is a wall of escaped markup. Render the parsed article back into
+        # something a person can actually read at the review gate.
+        bodies = fields.get("bodies") or {}
+        if bodies:
+            titles = fields.get("titles") or {}
+            parts = []
+            for lang, body in bodies.items():
+                parts.append(f"# {titles.get(lang, '')} [{lang.upper()}]\n\n{body}")
+            faq = fields.get("faq") or []
+            if faq:
+                parts.append("\n".join(
+                    f"Q: {f.get('q','')}\nA: {f.get('a','')}" for f in faq
+                ))
+            result.text = "\n\n---\n\n".join(parts)
+        return result
 
     # ── Graph recording ──────────────────────────────────────────────────
 

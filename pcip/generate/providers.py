@@ -123,7 +123,8 @@ class ClaudeCopyProvider(GenerationProvider):
     capabilities = ["copy"]
 
     def available(self) -> bool:
-        return bool(self.cfg.anthropic_api_key)
+        # Any of: API key, auth token, `ant auth login` profile, or federation.
+        return bool(self.cfg.anthropic_auth_source)
 
     def generate(self, request: GenerationRequest) -> GenerationResult:
         try:
@@ -132,7 +133,13 @@ class ClaudeCopyProvider(GenerationProvider):
             raise ProviderNotConfigured(
                 "The 'anthropic' package is not installed (pip install anthropic)."
             ) from exc
-        client = anthropic.Anthropic(api_key=self.cfg.anthropic_api_key)
+        # Pass the key only when we actually have one: a zero-arg client lets
+        # the SDK use a stored profile, and an explicit empty key shadows it.
+        client = (
+            anthropic.Anthropic(api_key=self.cfg.anthropic_api_key)
+            if self.cfg.anthropic_api_key
+            else anthropic.Anthropic()
+        )
         system = (
             f"You are the senior brand copywriter for {request.brand}, a "
             "physician-led healthcare organization. Write in the requested "
@@ -141,18 +148,33 @@ class ClaudeCopyProvider(GenerationProvider):
             "would require clinician review — flag anything that needs "
             "medical sign-off with [MEDICAL-REVIEW]."
         ).format(lang=request.language)
-        msg = client.messages.create(
+        # Streaming, not create(): a bilingual article at the PH standard is
+        # ~1200 words plus a structured block, and the SDK refuses a
+        # non-streaming request whose max_tokens implies it could run past the
+        # 10-minute HTTP limit. Streaming removes the timeout concern, so the
+        # ceiling can be generous — a truncated response parses as "no fields"
+        # and fails the standard for the wrong reason.
+        with client.messages.stream(
             model=self.cfg.anthropic_model,
-            max_tokens=request.params.get("max_tokens", 2000),
+            max_tokens=request.params.get("max_tokens", 64000),
             system=system,
+            thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": request.prompt}],
-        )
+        ) as stream:
+            msg = stream.get_final_message()
+
+        if getattr(msg, "stop_reason", "") == "max_tokens":
+            raise RuntimeError(
+                "The copy generation hit its token ceiling and was cut off "
+                "mid-article. Raise max_tokens, or narrow the brief."
+            )
         text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
         return GenerationResult(
             provider=self.name,
             capability="copy",
             text=text,
-            metadata={"model": self.cfg.anthropic_model},
+            metadata={"model": self.cfg.anthropic_model,
+                      "auth": self.cfg.anthropic_auth_source},
         )
 
 

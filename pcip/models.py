@@ -231,6 +231,11 @@ class PipelineRun:
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
         d["steps"] = [s if isinstance(s, dict) else s.to_dict() for s in d["steps"]]
+        # Underscore keys are working state that must not outlive the process —
+        # notably signed export URLs, which are bearer credentials for the
+        # exported file. The graph is a permanent record; these are not.
+        d["context"] = {k: v for k, v in d.get("context", {}).items()
+                        if not k.startswith("_")}
         return d
 
     @classmethod
@@ -245,4 +250,11 @@ class PipelineRun:
         for s in self.steps:
             if s.status == "awaiting_review":
                 return s.step
+        return None
+
+    @property
+    def pending_handoff(self) -> Optional[Dict[str, Any]]:
+        """What this run needs from outside PCIP before it can continue."""
+        if self.status == "awaiting_handoff":
+            return self.context.get("handoff")
         return None

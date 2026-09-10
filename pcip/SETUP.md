@@ -17,12 +17,18 @@ pip install -r requirements.txt
 cp .env.example .env          # you will fill this in below
 ```
 
-After each phase below, load the env and re-check status:
+After each phase below, re-check status:
 
 ```bash
-export $(grep -v '^#' .env | xargs)
 python -m pcip status
 ```
+
+You do **not** need to export anything — PCIP reads `.env` itself on every
+run. Avoid the `export $(grep ... | xargs)` idiom in particular: `xargs`
+splits on whitespace, so it mangles any value containing a space (a
+WordPress Application Password, for one), and an exported empty variable
+outranks the file and produces an authentication error that looks nothing
+like "this one is blank".
 
 ---
 
@@ -48,19 +54,51 @@ python -m pcip status
    `brandtemplate:content:read` if the portal offers them on your plan).
 3. On **Configuration**: copy the **Client ID**, click **Generate secret**
    (shown once) → `.env` → `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`.
-4. Under **Redirect URLs**, add exactly: `http://127.0.0.1:8080/callback`
-5. Run the built-in OAuth helper — it opens the consent screen, catches the
-   callback, exchanges the code, and writes the tokens into `.env`:
+4. Under **Redirect URLs**, add `http://127.0.0.1:8080/callback`.
+
+   Add the hosted URL `https://passqual.com/canva/callback` **only if you are
+   submitting the integration for Canva review** — review is what requires a
+   non-localhost callback. Using an integration you own does not, and the
+   hosted flow is strictly harder: the code lands in a browser, has to survive
+   a copy and a paste, and expires in about ten minutes. Localhost has none
+   of those failure modes.
+5. Run the OAuth helper. Which form depends on the redirect you registered.
+
+   **Localhost redirect (do this one)** — one command; it opens the consent
+   screen, catches the callback itself, exchanges the code, and writes the
+   tokens into `.env`. Nothing touches the clipboard:
 
    ```bash
-   export $(grep -v '^#' .env | xargs)
    python -m pcip canva-auth
    ```
+
+   **Hosted redirect** — only when the integration is under Canva review.
+   The code lands in a browser rather than on this machine, so it comes back
+   in two steps, and every extra step is one that can fail:
+
+   ```bash
+   python -m pcip canva-auth --redirect-uri https://passqual.com/canva/callback --start
+   # authorize in the browser, then select the address bar (Cmd-A, Cmd-C)
+   pbpaste | python -m pcip canva-auth --finish
+   ```
+
+   The two steps exist because of the terminal, not the protocol: macOS gives
+   a tty a **1024-byte** canonical input buffer, and Canva issues the
+   authorization code as a JWT that makes the redirect URL longer than that.
+   Pasted at an interactive prompt it silently does nothing — Return never
+   submits the line. A pipe has no such limit. `--code-file <path>` works
+   too, and keeps the code out of shell history.
+
+   The callback page itself will 404 (nothing serves that route on
+   passqual.com). That is expected — the code is in the address bar either
+   way. `--start` writes the flow's PKCE verifier to
+   `pcip_data/canva_auth_pending.json` (mode 600) and `--finish` deletes it;
+   an authorization older than 15 minutes is refused, since Canva codes are
+   good for about ten.
 
 6. Verify and run your first sync:
 
    ```bash
-   export $(grep -v '^#' .env | xargs)   # reload — tokens were just written
    python -m pcip init
    python -m pcip doctor --live          # canva should report ready
    python -m pcip sync                   # mirrors designs/folders → graph
@@ -82,26 +120,106 @@ refresh tokens on every refresh; the client keeps up).
 
 ---
 
-## Phase 3 — WordPress / passqual.com (~10 min)
+## Phase 3 — WordPress → passqual.com (~15 min)
 
 **Application Passwords docs:**
 <https://wordpress.org/documentation/article/application-passwords/> ·
 **REST API docs:** <https://developer.wordpress.org/rest-api/>
 
-**If passqual.com is self-hosted WordPress:**
-1. WP Admin → **Users → Profile** → scroll to **Application Passwords**.
-2. Name it `PCIP`, click **Add New Application Password**, copy the
-   generated password (shown once).
-3. `.env`: `WORDPRESS_URL=https://passqual.com`, `WORDPRESS_USER=<your wp
-   username>`, `WORDPRESS_APP_PASSWORD=<generated password>`.
+### How an article actually reaches passqual.com
 
-**If passqual.com is on WordPress.com:**
-1. Create an app at <https://developer.wordpress.com/apps/> and complete
-   OAuth2 (<https://developer.wordpress.com/docs/oauth2/>) to get a bearer
-   token.
-2. `.env`: `WORDPRESS_COM_TOKEN=<token>` (leave the app-password vars empty).
+passqual.com is a Next.js site on Vercel. It does **not** store articles — it
+fetches them from WordPress on each request and caches the result for 60
+seconds. So:
 
-Posts land as **drafts** unless you pass `--live` — that's deliberate.
+```
+pcip publish → WordPress (wp.passqual.com) → passqual.com/<slug>/  ≈60s later
+```
+
+No deploy, no developer, no route file. That also means **two hostnames**, and
+they are not interchangeable:
+
+| Variable | Host | Why |
+|---|---|---|
+| `WORDPRESS_URL` | `https://wp.passqual.com` | where the REST API lives — writes go here |
+| `WORDPRESS_PUBLIC_SITE` | `https://passqual.com` | where readers land — the URL PCIP records |
+
+Pointing `WORDPRESS_URL` at the public site cannot work: that site deliberately
+rewrites `/wp-json/*` to a blocked route.
+
+Marketing, service and team pages are **not** WordPress-driven — they are
+hand-authored modules in the website repository. PCIP publishes articles only,
+and `pcip can wordpress.edit_live_page` reports `unsupported` to say so.
+
+### Steps
+
+1. On **wp.passqual.com** → WP Admin → **Users → Profile** → **Application
+   Passwords**. Name it `PCIP`, **Add New Application Password**, copy it
+   (shown once — it contains spaces; keep them).
+2. `.env`:
+   ```
+   WORDPRESS_URL=https://wp.passqual.com
+   WORDPRESS_PUBLIC_SITE=https://passqual.com
+   WORDPRESS_USER=<wp username>
+   WORDPRESS_APP_PASSWORD=<generated password>
+   ```
+   *(WordPress.com-hosted sites instead use `WORDPRESS_COM_TOKEN` from
+   <https://developer.wordpress.com/apps/>.)*
+3. **Prerequisite on SiteGround — restore the `Authorization` header.**
+   SiteGround strips it before PHP, so Application Passwords return
+   `401 rest_not_logged_in` and **no publish can succeed** until this is added.
+   Site Tools → File Manager → edit `.htaccess` in the document root, *above*
+   `# BEGIN WordPress`:
+   ```apache
+   SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+   ```
+   or, if `mod_setenvif` is unavailable:
+   ```apache
+   <IfModule mod_rewrite.c>
+   RewriteEngine On
+   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+   </IfModule>
+   ```
+4. If `pcip doctor --live` reports the connector **blocked** with an anti-bot
+   message, allowlist the calling machine's IP in Site Tools → **Security**
+   (SiteGround answers bots with an `sg-captcha` challenge that looks like a
+   success to naive clients — PCIP refuses it rather than misreporting).
+5. Verify:
+   ```bash
+   python -m pcip doctor --live
+   python -m pcip route wordpress
+   ```
+
+### Optional — make publishing instant instead of ~60s
+
+The site exposes a revalidation webhook that purges its cache immediately.
+Set the same secret on both sides:
+
+```
+VERCEL_REVALIDATE_URL=https://passqual.com/api/revalidate
+WP_REVALIDATE_SECRET=<a long random string>
+```
+
+and set `WP_REVALIDATE_SECRET` to the same value in the Vercel project's
+environment, then redeploy. Without it, articles still go live — just within
+the 60-second window. `pcip can wordpress.instant_revalidate` reports
+`not_entitled` until both sides are set.
+
+### While publishing is blocked
+
+If step 3 is still pending, work does not have to stop:
+
+```bash
+python -m pcip prepare <output_id>
+```
+
+writes the finished, fully-reviewed article (body HTML, media with real alt
+text, title, slug, excerpt, expected URL) into a folder with paste-by-hand
+instructions. It enforces the same review and licensing gates as a real
+publish, and needs no WordPress credentials at all.
+
+Posts land as **drafts** unless you pass `--live` — deliberate, because on this
+architecture "live" means live to patients within a minute.
 
 ---
 
@@ -169,10 +287,127 @@ python -m pcip route facebook --scheduled  # scheduled → Buffer first
 | **TikTok** | <https://developers.tiktok.com/> → app → Content Posting API (requires app review) | <https://developers.tiktok.com/doc/content-posting-api-get-started> | `TIKTOK_TOKEN` |
 | **Buffer** (scheduler) | <https://buffer.com/developers/api> | same | `BUFFER_TOKEN` |
 
+> **Buffer's REST API retires on 1 February 2027.** PCIP's Buffer adapter
+> speaks that API; Buffer now directs new integrations to a GraphQL API at
+> developers.buffer.com, which this adapter does not implement. Buffer is a
+> bridge with an expiry date. The direct platform adapters are the permanent
+> path — they are first-party, and nothing about them expires.
+
 Realistic sequencing advice: Meta + LinkedIn are the highest-value and most
 stable direct integrations — do those first. X is quick. TikTok requires an
 app review cycle; YouTube requires an OAuth consent screen — schedule both
 as background tasks, and let Buffer cover them in the meantime.
+
+### Meta first: one app, two channels, usable today
+
+Meta is the one worth doing first, and not only because Facebook and
+Instagram are the two channels that matter for a local practice. **An app in
+development mode can already post to Pages you administer.** App Review is
+what lets you post on behalf of *other* people's Pages — which PassQual
+never needs — so the weeks-long review everyone warns about is not on your
+path. LinkedIn's Community Management API genuinely does require review;
+leave it last.
+
+1. <https://developers.facebook.com/> → **My Apps** → **Create App** →
+   type **Business**. Name it `PCIP`.
+2. Add two products: **Instagram** and **Facebook Login for Business**.
+3. **App settings → Basic** → set a **Privacy Policy URL**. Meta will not let
+   the app leave the sandbox without one.
+4. Open the **Graph API Explorer**
+   (<https://developers.facebook.com/tools/explorer/>), select the `PCIP` app,
+   and request these permissions:
+
+   ```
+   pages_show_list
+   pages_read_engagement
+   pages_manage_posts
+   instagram_basic
+   instagram_content_publish
+   business_management
+   ```
+
+5. **Generate Access Token**, approve the dialog. This gives a *user* token —
+   not what PCIP wants.
+6. In the Explorer, run `GET /me/accounts`. Find the PassQual Health Page in
+   the response; the `access_token` on that object is the **Page token**.
+   That is `META_PAGE_TOKEN`.
+7. Page tokens from the Explorer are short-lived. Exchange yours at the
+   **Access Token Tool** → *Extend Access Token* to get a long-lived one.
+8. Run `GET /{page-id}?fields=instagram_business_account`. The `id` it
+   returns is `META_IG_USER_ID`. (Instagram must be a Business or Creator
+   account and linked to that Page, or this field comes back empty.)
+9. Store both without either value touching your shell history:
+
+   ```bash
+   bash scripts/pcip-set-key.sh META_PAGE_TOKEN
+   bash scripts/pcip-set-key.sh META_IG_USER_ID
+   ```
+
+10. Confirm, then rehearse before anything goes out:
+
+    ```bash
+    python -m pcip doctor --live --table
+    python -m pcip publish <output_id> --channel instagram --dry-run
+    ```
+
+    `facebook` and `instagram` should read `OK … ready`. The dry run prints
+    the exact Graph API request with the token redacted and sends nothing.
+
+**Threads** is a separate app under the same account
+(<https://developers.facebook.com/docs/threads>) with scopes
+`threads_basic` + `threads_content_publish`, giving `THREADS_TOKEN` and
+`THREADS_USER_ID`. Same shape, do it after Meta works.
+
+### Rehearse a post before you have any of those tokens
+
+`--dry-run` runs the **real** adapter — the same code that would post — but
+swaps the transport for a recorder. Nothing leaves the machine, no token is
+needed, and the exact request is printed with credentials redacted:
+
+```bash
+python -m pcip publish <output_id> --channel instagram --dry-run
+```
+
+It reports which adapter the decision engine picked, the caption and its
+length, every request that would have been sent, and exactly which
+environment variables are still unset. Use it to check a caption against the
+standard and to confirm a channel is wired before the first live post.
+
+Two things a dry run deliberately does **not** do: it never records a
+Publication in the graph (the graph is the history of what was published,
+and a rehearsal is not), and it does not cover WordPress — that channel has
+its own offline path, `python -m pcip prepare <output_id>`, which produces
+the real article.
+
+### What the standard requires of a social caption
+
+Social posts are held to the part of the PassQual Health standard that
+travels to a caption, not to the article rules (a 600-word, three-H2,
+FAQ-bearing Instagram caption does not exist):
+
+| Severity | Rule |
+|---|---|
+| blocker | no pediatric content — PassQual Health does not serve pediatrics |
+| blocker | no outcome guarantees or superlatives |
+| blocker | mental-health content must carry **988** and **911** |
+| required | a route back to the practice: the phone number or passqual.com |
+| required | within the platform's character limit (X 280, Threads 500, IG/TikTok 2200, LinkedIn 3000) |
+| required | media on Instagram, TikTok and YouTube |
+| advisory | `cerca de mí` phrasing in Spanish; at least one hashtag |
+
+The same not-insurance rule applies to articles and captions alike. Content
+mentioning the membership must say, in plain words, that it is not health
+insurance — `"PassQual Membership is not health insurance"` /
+`"La Membresía de PassQual no es un seguro médico"`. Saying it alongside
+insurance vocabulary (deductible, copay, plan de salud, aseguranza) without
+that sentence is a **blocker**; mentioning the membership without it is a
+required finding. Florida's direct primary care statute turns on exactly this
+distinction, so it is a regulatory question rather than a wording preference —
+have counsel review the membership's own marketing language.
+
+Passing `--text` means you wrote the caption and have taken it on, so the
+required and advisory findings are waived. **The blockers are not waived** —
+a caption reaches a patient exactly as directly as an article does.
 
 ---
 
@@ -193,6 +428,7 @@ python -m pcip approve <run_id> --gate medical_review --reviewer "Dr. Pascual"
 # → pauses at brand_review; approve again → exports via official Canva API
 
 # 5. Publish (WordPress = draft by default; social = decision-engine routed)
+python -m pcip publish <output_id> --channel instagram --dry-run   # rehearse first
 python -m pcip publish <output_id> --channel wordpress --title "..." --text "<p>...</p>"
 python -m pcip publish <output_id> --channel instagram --text "caption #hashtags"
 python -m pcip publish <output_id> --channel linkedin --schedule-at 2026-08-10T14:00:00Z --text "..."

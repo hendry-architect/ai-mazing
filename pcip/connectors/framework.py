@@ -32,6 +32,9 @@ Capability statuses:
     mcp_managed          delegated to an MCP server (credentials live there)
     missing_credentials  desired in the manifest but env vars absent
     auth_failed          live probe rejected the credentials
+    blocked              reachable, but something between PCIP and the API is
+                         refusing (bot challenge, WAF, interstitial) — the
+                         credentials may be fine; the path is not
     not_entitled         authenticated, but the plan/scope lacks this feature
     unsupported          the vendor's API does not offer this operation
     disabled             connector not requested in bootstrap.yaml
@@ -50,6 +53,16 @@ USABLE_STATUSES = ("ready", "configured", "mcp_managed")
 
 class ConnectorAuthError(Exception):
     """A live probe determined the credentials are invalid."""
+
+
+class ConnectorBlockedError(Exception):
+    """Something between PCIP and the API refused the call.
+
+    Distinct from an auth failure: the credentials may be perfectly good, but
+    a bot challenge, WAF rule or interstitial is answering instead of the API.
+    Distinct from a transient network error, which leaves the connector
+    ``configured`` — this one is a standing blocker and must not read as ready.
+    """
 
 
 class EntitlementError(Exception):
@@ -84,6 +97,12 @@ class ConnectorDescriptor:
     docs_url: str = ""
     setup_ref: str = ""                # pointer into pcip/SETUP.md
     mcp_managed: bool = False
+    # Some connectors are MCP-managed only in certain configurations. Canva is
+    # the case: in "mcp" mode an agent session holds the credentials and PCIP
+    # holds none, so reporting "missing_credentials" describes a deliberate
+    # design as a fault. A callable keeps that decision with the connector
+    # rather than special-casing names in the manager.
+    mcp_managed_when: Optional[Callable[[Any], bool]] = None
     # Optional live probe: returns {capability_name: status_override}; raises
     # ConnectorAuthError / EntitlementError to signal auth or plan problems.
     probe: Optional[Callable[[PCIPConfig], Dict[str, str]]] = None
@@ -196,7 +215,9 @@ class ConnectorManager:
 
         if not self.manifest.desired(desc.name):
             base_status, detail = "disabled", "not requested in bootstrap.yaml"
-        elif desc.mcp_managed:
+        elif desc.mcp_managed or (
+            desc.mcp_managed_when is not None and desc.mcp_managed_when(self.cfg)
+        ):
             base_status, detail = "mcp_managed", (
                 "credentials held by the MCP host, not PCIP"
             )
@@ -218,15 +239,23 @@ class ConnectorManager:
                 )
             except ConnectorAuthError as exc:
                 base_status, detail = "auth_failed", str(exc)
+            except ConnectorBlockedError as exc:
+                base_status, detail = "blocked", str(exc)
             except Exception as exc:  # network flake ≠ bad credentials
+                # Keep the status: a transient blip must not flip a working
+                # connector to broken. But the operator asked for verification
+                # and did not get it, so this must never pass silently — the
+                # doctor raises it as an action below.
                 detail = f"probe error (kept 'configured'): {type(exc).__name__}: {exc}"
+                report["probe_error"] = detail
 
         report["status"] = base_status
         report["detail"] = detail
         for cap in desc.capabilities:
             if not cap.supported:
                 status = "unsupported"
-            elif base_status in ("disabled", "missing_credentials", "auth_failed"):
+            elif base_status in ("disabled", "missing_credentials", "auth_failed",
+                                 "blocked"):
                 status = base_status
             else:
                 status = overrides.get(cap.name, base_status)
@@ -280,6 +309,13 @@ class ConnectorManager:
             elif report["status"] == "auth_failed":
                 actions.append(f"{name}: credentials rejected — rotate the "
                                f"token ({report['detail']})")
+            elif report["status"] == "blocked":
+                actions.append(f"{name}: reachable but blocked — {report['detail']}")
+            if report.get("probe_error"):
+                actions.append(
+                    f"{name}: live check could not complete, so '{report['status']}' "
+                    f"is UNVERIFIED — {report['probe_error']}"
+                )
             for cap, entry in report["capabilities"].items():
                 if entry["status"] == "not_entitled":
                     actions.append(
@@ -293,7 +329,7 @@ class ConnectorManager:
         summary = {
             s: sum(1 for r in matrix.values() if r["status"] == s)
             for s in ("ready", "configured", "mcp_managed",
-                      "missing_credentials", "auth_failed", "disabled")
+                      "missing_credentials", "auth_failed", "blocked", "disabled")
         }
         return {
             "manifest": {

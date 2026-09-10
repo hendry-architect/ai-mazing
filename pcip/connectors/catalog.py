@@ -18,6 +18,7 @@ from pcip.config import PCIPConfig
 from pcip.connectors.framework import (
     CapabilitySpec,
     ConnectorAuthError,
+    ConnectorBlockedError,
     ConnectorDescriptor,
     EntitlementError,
 )
@@ -47,15 +48,37 @@ def probe_canva(cfg: PCIPConfig) -> Dict[str, str]:
 
 
 def probe_anthropic(cfg: PCIPConfig) -> Dict[str, str]:
-    resp = requests.get(
-        "https://api.anthropic.com/v1/models",
-        headers={"x-api-key": cfg.anthropic_api_key,
-                 "anthropic-version": "2023-06-01"},
-        timeout=cfg.request_timeout,
+    """Verify Anthropic access through whichever credential source is in play.
+
+    Goes through the SDK rather than a hand-rolled x-api-key request, so a
+    stored `ant auth login` profile or workload identity federation verifies
+    the same way an API key does.
+    """
+    if not cfg.anthropic_auth_source:
+        raise ConnectorAuthError(
+            "No Anthropic credentials. Either run `ant auth login` (stores a "
+            "profile, no long-lived secret on disk) or set ANTHROPIC_API_KEY."
+        )
+    try:
+        import anthropic
+    except ImportError as exc:
+        raise ConnectorAuthError(
+            "The 'anthropic' package is not installed (pip install anthropic)."
+        ) from exc
+    client = (
+        anthropic.Anthropic(api_key=cfg.anthropic_api_key)
+        if cfg.anthropic_api_key
+        else anthropic.Anthropic()
     )
-    if resp.status_code in (401, 403):
-        raise ConnectorAuthError(f"Anthropic key rejected ({resp.status_code})")
-    resp.raise_for_status()
+    try:
+        client.models.list(limit=1)
+    except Exception as exc:
+        if type(exc).__name__ in ("AuthenticationError", "PermissionDeniedError"):
+            raise ConnectorAuthError(
+                f"Anthropic rejected the credentials from "
+                f"'{cfg.anthropic_auth_source}': {exc}"
+            ) from exc
+        raise
     return {}
 
 
@@ -84,13 +107,50 @@ def probe_google_ai(cfg: PCIPConfig) -> Dict[str, str]:
 
 
 def probe_wordpress(cfg: PCIPConfig) -> Dict[str, str]:
-    from pcip.connectors.wordpress import WordPressPublisher
+    """Verify the WordPress path end to end, without publishing anything.
+
+    Goes through the hardened transport so a SiteGround anti-bot challenge
+    (a 2xx carrying HTML) can never be mistaken for a healthy API, and asks
+    WordPress whether this account may actually create posts — a read
+    succeeding does not imply a write will.
+    """
+    from pcip.connectors.wordpress import (
+        WordPressAuthHeaderError,
+        WordPressChallengeError,
+        WordPressError,
+        WordPressPermissionError,
+        WordPressPublisher,
+    )
 
     wp = WordPressPublisher(cfg)
-    resp = wp.http.get(f"{wp.api_base}/users/me", timeout=cfg.request_timeout)
-    if resp.status_code in (401, 403):
-        raise ConnectorAuthError(f"WordPress auth failed ({resp.status_code})")
-    resp.raise_for_status()
+    try:
+        wp._get("/users/me")
+    except WordPressChallengeError as exc:
+        raise ConnectorBlockedError(str(exc)) from exc
+    except (WordPressAuthHeaderError, WordPressPermissionError) as exc:
+        raise ConnectorAuthError(str(exc)) from exc
+
+    gaps, reasons = [], []
+    if not cfg.revalidation_configured:
+        gaps.append("instant_revalidate")
+        reasons.append(
+            "instant revalidation is off (set VERCEL_REVALIDATE_URL and "
+            "WP_REVALIDATE_SECRET, and the matching secret on the site) — "
+            "articles still go live within ~60s without it"
+        )
+    try:
+        if not wp.can_write_posts():
+            gaps.append("create_post")
+            reasons.append(
+                "this WordPress account cannot create posts — grant it Author "
+                "or Editor rights, or use a different Application Password"
+            )
+    except WordPressError:
+        # OPTIONS unsupported or refused: no verdict is better than a wrong one.
+        pass
+
+    if gaps:
+        raise EntitlementError(gaps, "; ".join(reasons))
     return {}
 
 
@@ -116,6 +176,18 @@ CATALOG = [
         docs_url="https://www.canva.dev/docs/connect/",
         setup_ref="pcip/SETUP.md Phase 1",
         probe=probe_canva,
+        # In "mcp" mode the Canva work runs through the MCP connector held by
+        # an agent session, and PCIP holds no Canva credentials by design. That
+        # is the configuration this deployment ran first — the live design and
+        # export were produced that way — so reporting the absent Connect
+        # credentials as "missing" describes a deliberate choice as a fault.
+        #
+        # But only while they really are absent. Once tokens are in .env the
+        # Connect path exists whatever the mode says, and claiming the
+        # credentials are "held by the MCP host, not PCIP" is simply untrue —
+        # it also skipped the live probe, so the doctor stayed silent about
+        # credentials that a sync was already using.
+        mcp_managed_when=lambda cfg: cfg.canva_mode == "mcp" and not cfg.canva_configured,
         capabilities=(
             CapabilitySpec("create_design", "POST /designs"),
             CapabilitySpec(
@@ -149,7 +221,8 @@ CATALOG = [
     ConnectorDescriptor(
         name="anthropic",
         auth_methods=("api_key",),
-        env_vars=("anthropic_api_key",),
+        # Any credential source counts, not just an API key.
+        env_any=(("anthropic_api_key",), ("anthropic_auth_source",)),
         docs_url="https://docs.anthropic.com/",
         setup_ref="pcip/SETUP.md Phase 2",
         probe=probe_anthropic,
@@ -167,8 +240,25 @@ CATALOG = [
         setup_ref="pcip/SETUP.md Phase 3",
         probe=probe_wordpress,
         capabilities=(
-            CapabilitySpec("create_post", "draft by default; --live is explicit"),
+            CapabilitySpec("create_post", "draft by default; --live is explicit",
+                           note="WORDPRESS_URL must point at the WordPress origin "
+                                "(e.g. wp.passqual.com), not the public site, which "
+                                "blocks /wp-json/*"),
             CapabilitySpec("upload_media", "media library upload with alt-text"),
+            CapabilitySpec("schedule_post", "native future-dated publishing"),
+            CapabilitySpec(
+                "instant_revalidate",
+                "purge the public site's cache on publish",
+                note="without it the article still appears within ~60s via the "
+                     "site's own revalidation window",
+            ),
+            CapabilitySpec(
+                "edit_live_page",
+                supported=False,
+                note="the public site's marketing/service pages are hand-authored "
+                     "modules in the website repository, deliberately not "
+                     "WordPress-driven — PCIP publishes articles only",
+            ),
         ),
     ),
     ConnectorDescriptor(

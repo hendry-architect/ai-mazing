@@ -1,6 +1,8 @@
 """Pipeline engine tests: gates pause runs, approvals resume them,
 medical_review can never be auto-approved, failures are resumable."""
 
+import pytest
+
 from pcip.config import PCIPConfig
 from pcip.graph.store import KnowledgeGraph
 from pcip.models import Brief
@@ -119,3 +121,121 @@ def test_plain_language_check_flags_dense_copy():
     ctx = {"copy": "Take your medicine each day. Ask us if you have questions."}
     plain_language_check(ctx)
     assert not ctx["plain_language_issues"]
+
+
+# ── the copy package the standard needs ──────────────────────────────────────
+
+
+def test_parse_copy_fields_keeps_the_bilingual_shape():
+    """The generated block carries bodies/titles per language, not one blob."""
+    from pcip.generate.orchestrator import parse_copy_fields
+
+    fields = parse_copy_fields('''```json
+{"titles": {"es": "T ES", "en": "T EN"},
+ "bodies": {"es": "<p>es</p>", "en": "<p>en</p>"},
+ "meta_title": "MT", "meta_description": "MD",
+ "faq": [{"q": "a", "a": "b"}],
+ "alt_texts_by_language": {"es": "ae", "en": "ai"}}
+```''')
+    assert fields["bodies"]["es"] == "<p>es</p>"
+    assert fields["titles"]["en"] == "T EN"
+    assert fields["meta_title"] == "MT"
+    assert fields["faq"] == [{"q": "a", "a": "b"}]
+    assert fields["alt_texts_by_language"]["en"] == "ai"
+
+
+def test_a_truncated_block_does_not_masquerade_as_empty_copy():
+    """A cut-off JSON block used to parse as 'no fields', which failed the
+    standard for the wrong reason — the article existed, the ceiling was too
+    low. Falling back to the raw text keeps the content visible."""
+    from pcip.generate.orchestrator import parse_copy_fields
+
+    fields = parse_copy_fields('```json\n{"bodies": {"es": "<p>empieza')
+    assert not fields.get("bodies")
+    assert fields["body_html"]        # the text survives somewhere
+
+
+def test_structured_faq_survives_parsing():
+    """faq is a list of {q, a} objects; stringifying them turned every
+    question into the repr of a dict, and the FAQPage schema with it."""
+    from pcip.generate.orchestrator import parse_copy_fields
+
+    fields = parse_copy_fields(
+        '```json\n{"faq": [{"q": "¿Cuánto?", "a": "Treinta minutos."}]}\n```'
+    )
+    assert fields["faq"][0]["q"] == "¿Cuánto?"
+    assert isinstance(fields["faq"][0], dict)
+
+
+def test_the_raw_block_is_not_copied_into_the_legacy_body():
+    """With the bilingual shape present, body_html must stay empty — otherwise
+    the whole fenced JSON gets published as the article."""
+    from pcip.generate.orchestrator import parse_copy_fields
+
+    fields = parse_copy_fields('```json\n{"bodies": {"es": "<p>real</p>"}}\n```')
+    assert fields["bodies"]["es"] == "<p>real</p>"
+    assert "```" not in fields["body_html"]
+
+
+def test_copy_provider_streams_and_detects_truncation(monkeypatch):
+    """Long generations must stream, and a cut-off article must not be
+    mistaken for one that simply lacks fields."""
+    import sys
+    import types
+
+    calls = {}
+
+    class FakeStream:
+        def __init__(self, msg):
+            self.msg = msg
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def get_final_message(self):
+            return self.msg
+
+    class FakeMessages:
+        def __init__(self, msg):
+            self.msg = msg
+
+        def stream(self, **kw):
+            calls.update(kw)
+            return FakeStream(self.msg)
+
+        def create(self, **kw):           # must NOT be used for long output
+            raise AssertionError("create() would hit the 10-minute limit")
+
+    class FakeMsg:
+        def __init__(self, stop_reason="end_turn"):
+            self.stop_reason = stop_reason
+            block = types.SimpleNamespace(type="text", text='{"bodies": {"es": "x"}}')
+            self.content = [block]
+
+    class FakeAnthropic:
+        msg = FakeMsg()
+
+        def __init__(self, **kw):
+            self.messages = FakeMessages(type(self).msg)
+
+    monkeypatch.setitem(sys.modules, "anthropic",
+                        types.SimpleNamespace(Anthropic=FakeAnthropic))
+
+    from pcip.config import PCIPConfig
+    from pcip.generate.providers import ClaudeCopyProvider, GenerationRequest
+
+    cfg = PCIPConfig(anthropic_api_key="sk-test")
+    provider = ClaudeCopyProvider(cfg)
+    result = provider.generate(GenerationRequest(capability="copy", prompt="p"))
+    assert "bodies" in result.text
+    assert calls["max_tokens"] >= 32000, "streaming should allow a generous ceiling"
+
+    FakeAnthropic.msg = FakeMsg(stop_reason="max_tokens")
+    with pytest.raises(RuntimeError) as exc:
+        ClaudeCopyProvider(cfg).generate(
+            GenerationRequest(capability="copy", prompt="p")
+        )
+    assert "cut off" in str(exc.value)
