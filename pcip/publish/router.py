@@ -804,6 +804,16 @@ class PublishRouter:
             # Every skip is reported: a silent `continue` is why "nothing to
             # retract" could mean four different things.
             where = record.get("id", record.get("external_id", "?"))
+            if record.get("status") == "retracted":
+                # Not a failure. Reporting a completed retraction the same way
+                # as a missing one is how a finished job read as a broken one.
+                self.last_retract_skips.append(
+                    f"{where}: already retracted"
+                    + (f" — {(record.get('metadata') or {}).get('retracted_reason')}"
+                       if (record.get("metadata") or {}).get("retracted_reason")
+                       else "")
+                )
+                continue
             if record.get("status") not in ("published", "scheduled", "draft"):
                 self.last_retract_skips.append(
                     f"{where}: status is {record.get('status')!r}"

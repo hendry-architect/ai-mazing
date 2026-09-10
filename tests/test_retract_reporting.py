@@ -71,9 +71,35 @@ def test_a_social_publication_says_why_it_cannot_be_retracted():
     assert "only WordPress" in " ".join(router.last_retract_skips)
 
 
-def test_an_already_retracted_record_reports_its_status():
+def test_an_unexpected_status_is_reported_verbatim():
     router = router_with(
-        Publication(channel=Channel.WORDPRESS, external_id="12", status="retracted")
+        Publication(channel=Channel.WORDPRESS, external_id="12", status="failed")
     )
     assert router.retract("out_1") == []
-    assert "'retracted'" in " ".join(router.last_retract_skips)
+    assert "'failed'" in " ".join(router.last_retract_skips)
+
+
+def test_an_already_retracted_output_is_a_finished_job_not_a_failure():
+    """Reporting a completed retraction the same way as a missing one is how
+    a finished job read as a broken one, three times over."""
+    router = router_with(
+        Publication(channel=Channel.WORDPRESS, external_id="12",
+                    status="retracted",
+                    metadata={"retracted_reason": "superseded"})
+    )
+    assert router.retract("out_1") == []
+    reported = " ".join(router.last_retract_skips)
+    assert "already retracted" in reported
+    assert "superseded" in reported
+
+
+def test_a_retracted_publication_is_not_counted_as_published():
+    """It also made `publish` with no id skip the output as already done."""
+    from pcip.cli import _published_output_ids, _resolve_output_id
+
+    g = router_with(
+        Publication(channel=Channel.WORDPRESS, external_id="12",
+                    status="retracted")
+    ).graph
+    assert _published_output_ids(g) == set()
+    assert _resolve_output_id(g, "latest") == "out_1"

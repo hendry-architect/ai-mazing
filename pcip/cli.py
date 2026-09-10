@@ -290,10 +290,21 @@ def _resolve_run_id(graph: Any, run_id: str) -> str:
     return chosen["id"]
 
 
+#: Publication states that mean an output is actually out there.
+_LIVE_PUBLICATION = ("published", "scheduled", "draft")
+
+
 def _published_output_ids(graph: Any) -> set:
+    """Outputs with a publication that is still standing.
+
+    A retracted publication is history, not a live copy. Counting it kept
+    reporting an article as published after it had been pulled from the site
+    — and, worse, made `publish --latest` skip it as already done.
+    """
     return {
         (p["payload"].get("output_id") or "")
-        for p in graph.nodes_by_kind(NodeKind.PUBLICATION, limit=200)
+        for p in graph.nodes_by_kind(NodeKind.PUBLICATION, limit=500)
+        if p["payload"].get("status") in _LIVE_PUBLICATION
     }
 
 
@@ -658,10 +669,14 @@ def cmd_retract(cfg: PCIPConfig, args: argparse.Namespace) -> int:
         router = PublishRouter(cfg, g)
         pubs = router.retract(args.output_id, reason=args.reason)
         if not pubs:
-            print(f"nothing retracted for {args.output_id}. Why:")
-            for skip in getattr(router, "last_retract_skips", None) or ["(unknown)"]:
+            skips = getattr(router, "last_retract_skips", None) or ["(unknown)"]
+            done = all("already retracted" in s for s in skips)
+            print(f"{args.output_id}: "
+                  + ("already retracted — nothing left to do"
+                     if done else "nothing retracted. Why:"))
+            for skip in skips:
                 print(f"  - {skip}")
-            return 1
+            return 0 if done else 1
             return 0
         _print([p.to_dict() for p in pubs])
     return 0
