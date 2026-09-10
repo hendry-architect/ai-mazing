@@ -419,13 +419,14 @@ python -m pcip search --kind brand_template ""
 
 # 2. Copy examples/brief.example.json → my-brief.json and edit it
 
-# 3. Run (patient education shown — strictest pipeline)
+# 3. Run (patient education shown — carries the reading-level check)
 python -m pcip run patient_education --brief my-brief.json
-# → pauses at medical_review
+# → pauses at brand_review (skip this with PCIP_AUTO_APPROVE_GATES=brand_review,
+#   which every scheduled run in Phase 8 sets)
 
-# 4. Review the design in Canva, then approve each gate
-python -m pcip approve <run_id> --gate medical_review --reviewer "Dr. Pascual"
-# → pauses at brand_review; approve again → exports via official Canva API
+# 4. Review the design in Canva, then approve
+python -m pcip approve <run_id> --gate brand_review --reviewer "Dr. Pascual"
+# → exports via official Canva API
 
 # 5. Publish (WordPress = draft by default; social = decision-engine routed)
 python -m pcip publish <output_id> --channel instagram --dry-run   # rehearse first
@@ -440,11 +441,84 @@ python -m pcip graph <output_id>
 
 ---
 
+## Phase 8 — Unattended posting, 3x/week
+
+Every pipeline runs start to finish with zero input now. `brand_review` is
+the only gate anywhere — a design-fit check on the assembled Canva design —
+and this schedule auto-approves it on every run
+(`PCIP_AUTO_APPROVE_GATES=brand_review`).
+
+> **2026-09-10 — patient_education's `medical_review` gate was removed.**
+> Through that date it was `NEVER_AUTO_APPROVE` in code, not a setting, and
+> could not be turned off by configuration; scheduled patient-education
+> topics stopped there and waited for `pcip approve`. Dr. Hendry Pascual,
+> founder/CEO/medical director of PassQual Health, made the explicit
+> decision to remove it after the alternative — publish immediately with
+> notification and a one-command retract — was presented and he chose full
+> removal instead. `pcip/pipelines/library.py` carries the change and the
+> reasoning inline; this document now describes the result.
+
+### 1. The rotation
+
+`examples/schedule/manifest.json` pairs six briefs with the pipeline each
+should run on. The pipeline choice is now about content shape, not about
+who reviews it: `patient_education` carries the plain-language reading-level
+check and a healthcare-photo media preset, `marketing_asset` doesn't. Edit
+the manifest, add briefs, or reorder freely; `pcip schedule-next` just walks
+it in order and wraps around:
+
+```bash
+python -m pcip schedule-next --peek     # see what's due, without advancing
+python -m pcip schedule-next            # see it, and advance the rotation
+```
+
+### 2. Install the schedule (macOS, launchd — not cron)
+
+launchd, because cron does not fire while the Mac is asleep, and a practice
+laptop is asleep most nights; launchd catches the job up at the next wake
+instead of silently skipping it.
+
+```bash
+bash scripts/pcip-schedule-install.sh
+```
+
+Installs for Monday/Wednesday/Friday at 08:00. To run it once right now,
+without waiting for Monday:
+
+```bash
+launchctl start com.passqual.pcip.schedule
+tail -f pcip_data/schedule/logs/*.log
+```
+
+To remove it: `bash scripts/pcip-schedule-install.sh --uninstall`.
+
+### 3. Draft by default — going fully live is one variable
+
+`scripts/pcip-scheduled-post.sh` publishes every finished article as a
+**draft**, not live, unless `PCIP_SCHEDULE_LIVE=1` is set. That default is
+deliberate for the first few cycles: it costs nothing (the PH standard
+already ran, in full, before the draft was written) and it means the very
+first thing this schedule ever does isn't unwitnessed on a live medical
+practice site. Flip it once you've watched a cycle or two:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.passqual.pcip.schedule.plist
+# add <key>PCIP_SCHEDULE_LIVE</key><string>1</string> to the plist's
+# EnvironmentVariables dict, alongside HOME
+launchctl load ~/Library/LaunchAgents/com.passqual.pcip.schedule.plist
+```
+
+This applies uniformly now — there is no longer a topic category that stops
+before publish is reached.
+
+---
+
 ## Security reminders
 
 - `.env` is gitignored — never commit it. Rotate any token that ever
   appears in a terminal you've shared.
 - All tokens are read from the environment only; PCIP never writes secrets
   to the graph database, logs, or exports.
-- Patient-facing content: the `medical_review` gate cannot be auto-approved
-  by configuration — that is intentional and enforced in code.
+- Every pipeline auto-approves through `brand_review` when
+  `PCIP_AUTO_APPROVE_GATES` includes it — including `patient_education`, as
+  of the 2026-09-10 decision documented in Phase 8 above.

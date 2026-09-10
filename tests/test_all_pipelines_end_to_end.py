@@ -121,11 +121,27 @@ def test_every_pipeline_produces_an_output_with_provenance(name, tmp_path, hero)
     assert outputs[0]["id"] in produced, f"{name}: output not linked to its run"
 
 
-def test_patient_education_cannot_finish_without_a_clinician(tmp_path, hero):
-    """The one gate that must never be automatable, checked on the real
-    pipeline rather than a synthetic one."""
+def test_patient_education_finishes_unattended_with_only_brand_review_auto_approved(
+    tmp_path, hero
+):
+    """patient_education no longer carries medical_review — removed
+    2026-09-10 by explicit decision of Dr. Hendry Pascual, founder/CEO/
+    medical director of PassQual Health, made after the alternative
+    (publish + notify + a one-command retract) was presented and he chose
+    full removal instead. This documents the resulting behavior rather than
+    the old one: with only brand_review auto-approved (the config every
+    scheduled run actually uses — see scripts/pcip-scheduled-post.sh), the
+    pipeline now reaches `done` with nobody asked anything, exactly like
+    the other five pipelines proven in test_every_pipeline_reaches_done.
+
+    The gate mechanism this used to exercise (NEVER_AUTO_APPROVE, and the
+    terminal-confirmation ceremony in pcip/cli.py) is untouched and still
+    covered directly in tests/test_clinician_gate.py against a synthetic
+    gate — this test is about patient_education's specific shape, not
+    about whether the mechanism still works.
+    """
     cfg = PCIPConfig(data_dir=tmp_path / "data", canva_mode="mcp",
-                     auto_approve_gates=["medical_review", "brand_review"])
+                     auto_approve_gates=["brand_review"])
     cfg.ensure_dirs()
     graph = KnowledgeGraph(":memory:")
     runner = PipelineRunner(cfg, graph)
@@ -147,7 +163,7 @@ def test_patient_education_cannot_finish_without_a_clinician(tmp_path, hero):
             run.context["export_files"] = [str(hero)]
         run = runner.fulfil_handoff(pipeline, run, brief)
 
-    assert run.status == "awaiting_review"
-    assert run.current_gate == "medical_review", (
-        "auto-approve must never reach the clinician gate"
+    assert run.status == "done", (
+        f"patient_education ended {run.status}, not done: "
+        + "; ".join(f"{s.step}={s.status} {s.detail[:80]}" for s in run.steps)
     )

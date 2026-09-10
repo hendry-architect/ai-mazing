@@ -1,0 +1,24 @@
+{
+  "title": "Tres hábitos diarios que ayudan a prevenir la diabetes tipo 2",
+  "objective": "Enseñar tres hábitos diarios respaldados por evidencia que reducen el riesgo de diabetes tipo 2, y motivar una visita anual de detección.",
+  "audience": "Adultos 40+ en Miami Gardens con factores de riesgo comunes (sobrepeso, antecedentes familiares, sedentarismo) sin diagnóstico previo",
+  "brand": "PassQual Health",
+  "key_messages": [
+    "Caminar 30 minutos casi todos los días reduce el riesgo de diabetes tipo 2.",
+    "Reducir bebidas azucaradas y preferir agua ayuda a mantener niveles de glucosa estables.",
+    "Dormir de manera constante (7-8 horas) apoya la regulación del azúcar en sangre.",
+    "Una prueba de A1C anual detecta el riesgo antes de que aparezcan síntomas.",
+    "Atendido por Dr. Hendry Pascual, licencia ME143678, en Miami Gardens."
+  ],
+  "channels": ["wordpress"],
+  "topics": ["diabetes", "prevención", "patient education"],
+  "language": "bilingual",
+  "tone": "cálido, alentador, sin jerga médica",
+  "references": ["canva:brand_template:EAHUkk84ubc"],
+  "constraints": [
+    "No garantizar prevención -- son hábitos que reducen riesgo, no una cura.",
+    "No es un seguro de salud si se menciona la membresía.",
+    "Nivel de lectura de 6.º grado, español primero, paridad en inglés.",
+    "Incluir el NAP textual y la licencia del médico."
+  ]
+}

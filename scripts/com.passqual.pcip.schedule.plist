@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Fires scripts/pcip-scheduled-post.sh Monday, Wednesday, Friday at 08:00.
+  launchd, not cron: cron does not run while the Mac is asleep, and a
+  practice laptop is asleep most nights. launchd fires the job at the next
+  wake if the machine was asleep at the scheduled time, so a missed 08:00
+  still happens instead of silently vanishing.
+
+  Install (see pcip/SETUP.md Phase 8 for the full walkthrough):
+    cp scripts/com.passqual.pcip.schedule.plist ~/Library/LaunchAgents/
+    # edit the two REPLACE_WITH_REPO_PATH lines in the copy first
+    launchctl load ~/Library/LaunchAgents/com.passqual.pcip.schedule.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.passqual.pcip.schedule.plist
+    rm ~/Library/LaunchAgents/com.passqual.pcip.schedule.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.passqual.pcip.schedule</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>REPLACE_WITH_REPO_PATH/scripts/pcip-scheduled-post.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>REPLACE_WITH_REPO_PATH</string>
+
+  <!-- Mon=2, Wed=4, Fri=6 in launchd's Weekday numbering (Sun=0/7). Three
+       separate dictionaries, not one with a Weekday array, because launchd
+       only accepts one Hour/Minute pair per StartCalendarInterval entry. -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>6</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>REPLACE_WITH_REPO_PATH/pcip_data/schedule/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>REPLACE_WITH_REPO_PATH/pcip_data/schedule/launchd.err.log</string>
+
+  <!-- launchd starts with a minimal environment: no PATH entries for
+       Homebrew's python, no HOME reliably set the way a login shell has it.
+       The script resolves its own venv by absolute path, so it does not
+       depend on PATH — this just keeps HOME sane for anything that does. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>REPLACE_WITH_HOME_PATH</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

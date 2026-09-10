@@ -56,10 +56,15 @@ governance, no license trail, and no distribution record. PCIP produces a
    refuses extraction, scraping, watermark-stripping, and standalone
    redistribution *in code*, and the publish router re-checks every asset's
    license before anything ships.
-3. **Governed output.** Every pipeline has a `brand_review` gate; patient
-   education adds a `medical_review` gate that **cannot** be auto-approved,
-   plus a plain-language reading-level check. Nothing publishes from an
-   unreviewed run.
+3. **Governed output.** Every pipeline runs the PassQual Health standard —
+   word floors, required disclosures, forbidden claims, the exact NAP block —
+   before anything reaches Canva assembly, and carries a `brand_review` gate.
+   Patient education adds a plain-language reading-level check. (Through
+   2026-09-10, patient education also carried a `medical_review` gate that
+   could never be auto-approved; Dr. Hendry Pascual, founder/CEO/medical
+   director of PassQual Health, removed it by explicit decision after the
+   alternative — auto-publish with notification and a one-command retract —
+   was presented. The standard and `brand_review` are what govern output now.)
 4. **Capability-routed generation.** Orchestration never asks for a vendor
    by name. A pipeline states requirements — "1080×1920 vertical video,
    under 15 s, commercial license" — and the capability registry
@@ -142,13 +147,14 @@ the same underlying Connect API with your own integration credentials.
 ## Daily workflow
 
 ```bash
-# 1. Write a brief (see examples/brief.example.json)
+# 1. Write a brief (see examples/brief.example.json), and run it. With
+#    PCIP_AUTO_APPROVE_GATES=brand_review set (see pcip/SETUP.md Phase 8),
+#    this goes straight through to export — no pause, no approve step:
 python -m pcip run patient_education --brief brief.json
-# → runs until the medical_review gate, then pauses
 
-# 2. Review the assembled design in Canva, then:
-python -m pcip approve run_abc123 --gate medical_review --reviewer "Dr. Pascual"
-# → brand_review gate next; approve again and it exports via the official API
+# 2. Without that variable set, it pauses at brand_review for a look first:
+python -m pcip approve run_abc123 --gate brand_review --reviewer "Dr. Pascual"
+# → exports via the official Canva API
 
 # 3. Publish. Body, excerpt, per-image alt text, captions and hashtags all come
 #    from the pipeline's own copy step — --title/--text are overrides, not
@@ -166,6 +172,9 @@ python -m pcip prepare out_xyz789
 # 4. Ask the graph anything
 python -m pcip search "diabetes carousel"
 python -m pcip graph canva:design:DAF123 --depth 2
+
+# 5. Or let it run itself, 3x/week — see pcip/SETUP.md Phase 8
+bash scripts/pcip-schedule-install.sh
 ```
 
 ## Extending

@@ -102,11 +102,13 @@ def test_library_pipelines_are_well_formed():
         assert "assemble" in steps
         assert "export" in steps
         assert "brand_review" in steps, f"{name} must have a brand review gate"
-    # Patient education is the strictest pipeline.
+    # patient_education kept its reading-level guard; medical_review was
+    # removed 2026-09-10 by explicit decision of Dr. Hendry Pascual — see
+    # pcip/pipelines/library.py.
     pe = get_pipeline("patient_education").step_names()
-    assert "medical_review" in pe
+    assert "medical_review" not in pe
     assert "plain_language" in pe
-    assert pe.index("medical_review") < pe.index("export")
+    assert pe.index("plain_language") < pe.index("export")
 
 
 def test_plain_language_check_flags_dense_copy():

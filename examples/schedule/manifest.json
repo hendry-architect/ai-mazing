@@ -1,0 +1,8 @@
+[
+  {"pipeline": "marketing_asset",    "brief": "01-direct-pay-explainer.json"},
+  {"pipeline": "patient_education",  "brief": "02-diabetes-habits.json"},
+  {"pipeline": "patient_education",  "brief": "03-membership.json"},
+  {"pipeline": "marketing_asset",    "brief": "04-telehealth.json"},
+  {"pipeline": "patient_education",  "brief": "05-annual-physical.json"},
+  {"pipeline": "marketing_asset",    "brief": "06-meet-the-team.json"}
+]
