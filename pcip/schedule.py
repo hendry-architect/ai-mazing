@@ -1,13 +1,16 @@
 """The 3x/week rotation: which brief runs next, and on which pipeline.
 
 Scheduling is deliberately not "run the same brief three times a week" — a
-manifest pairs each brief with the pipeline it should run on, and that choice
-is a safety decision, not a content one. `patient_education` is the only
-pipeline carrying `medical_review`; a topic that makes a clinical claim
-belongs there and will stop for a clinician. A topic that is practice
-logistics (hours, the membership's factual particulars, telehealth as a
-feature) can run `marketing_asset`, whose only gate is `brand_review` — safe
-to auto-approve, because it is a design-fit check, not a medical one.
+manifest pairs each brief with the pipeline it should run on. Until
+2026-09-10 that choice was also a safety decision (`patient_education` was
+the only pipeline carrying `medical_review`, so a clinical topic stopped for
+a clinician there and nowhere else); Dr. Hendry Pascual, founder/CEO/medical
+director of PassQual Health, removed that gate on that date, so every
+pipeline now finishes unattended with only `brand_review` auto-approved —
+see pcip/pipelines/library.py for the change itself. The pipeline choice
+below still matters for content shape (patient_education carries the
+plain-language reading-level check and a healthcare-photo media preset that
+marketing_asset does not), just no longer for whether a human is involved.
 
 This module is the pure part: given a manifest and a state file, which entry
 comes next. `scripts/pcip-scheduled-post.sh` is the part that actually runs
@@ -91,16 +94,10 @@ def resolve_brief_path(entry: Dict[str, Any], manifest_path: Path | str) -> Path
     return Path(manifest_path).resolve().parent / brief
 
 
-def is_clinical(pipeline_name: str) -> bool:
-    """Whether this pipeline carries a gate that can never be auto-approved.
-
-    Not a hardcoded name check against "patient_education" — asks the real
-    pipeline definition, so a future pipeline that adds medical_review is
-    covered without anyone having to remember to update this list.
-    """
-    from pcip.pipelines.base import NEVER_AUTO_APPROVE
-    from pcip.pipelines.library import get_pipeline
-
-    pipeline = get_pipeline(pipeline_name)
-    return any(getattr(step, "name", "") in NEVER_AUTO_APPROVE
-               for step in pipeline.steps)
+# is_clinical(), which answered "does this pipeline carry a gate that can
+# never be auto-approved", was removed 2026-09-10 along with the last such
+# gate (patient_education's medical_review) — no pipeline can answer True
+# to that question any more, and a function that can only ever return one
+# value is worse than no function. If a future pipeline adds a gate to
+# pcip.pipelines.base.NEVER_AUTO_APPROVE, reintroduce a check like the one
+# this replaced rather than resurrecting dead code speculatively.

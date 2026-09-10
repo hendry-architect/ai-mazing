@@ -200,7 +200,7 @@ PYEOF
 fi
 
 if [ -n "$RUN" ]; then
-  # The copy was written and clinically reviewed already; attach it rather than
+  # The copy was written and already vetted; attach it rather than
   # regenerating, so the reviewed wording is what ships.
   "$PY" -m pcip --data-dir "$DATA" attach "$RUN" \
       --copy-file "$REPO/examples/copy-diabetes-es.json" >/dev/null 2>&1 \
@@ -212,11 +212,11 @@ if [ -n "$RUN" ]; then
       --design-url "https://www.canva.com/d/hZsWYCvlC6IDoCn" \
       --design-title "Prevención de la Diabetes — Hábitos Diarios" >/dev/null 2>&1 \
       && note "Canva design attached"
-  for GATE in medical_review brand_review; do
-    "$PY" -m pcip --data-dir "$DATA" approve "$RUN" --gate "$GATE" \
-        --reviewer "Dr. Pascual" >/dev/null 2>&1 && note "$GATE approved"
-  done
-  ok "run $RUN prepared through both review gates"
+  # brand_review is the only gate any pipeline carries as of 2026-09-10
+  # (patient_education's medical_review was removed — pcip/pipelines/library.py).
+  "$PY" -m pcip --data-dir "$DATA" approve "$RUN" --gate brand_review \
+      --reviewer "Dr. Pascual" >/dev/null 2>&1 && note "brand_review approved"
+  ok "run $RUN prepared through review"
 else
   bad "could not create or find a run"
 fi

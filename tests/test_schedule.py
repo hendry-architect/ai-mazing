@@ -11,7 +11,6 @@ import pytest
 
 from pcip.schedule import (
     ScheduleError,
-    is_clinical,
     load_manifest,
     next_entry,
     resolve_brief_path,
@@ -90,14 +89,16 @@ def test_an_absolute_brief_path_is_left_alone(tmp_path):
     assert resolved == abs_path
 
 
-def test_patient_education_is_clinical():
-    assert is_clinical("patient_education") is True
+def test_every_pipeline_in_the_manifest_is_real():
+    """is_clinical() (and the clinical/non-clinical split it drove) was
+    removed 2026-09-10 along with medical_review, the last gate it could
+    ever have found — see pcip/pipelines/library.py. What's left worth
+    guarding here: schedule-next must never hand the runner a pipeline name
+    that doesn't exist."""
+    from pcip.pipelines.library import PIPELINES
 
-
-def test_marketing_asset_is_not_clinical():
-    """The whole point of routing logistics content through this pipeline:
-    its only gate, brand_review, is safe to auto-approve."""
-    assert is_clinical("marketing_asset") is False
+    for entry in load_manifest("examples/schedule/manifest.json"):
+        assert entry["pipeline"] in PIPELINES
 
 
 # ── the real manifest this project ships ────────────────────────────────
@@ -113,15 +114,16 @@ def test_the_shipped_manifest_loads_and_every_brief_exists():
         assert resolve_brief_path(entry, manifest_path).is_file(), entry["brief"]
 
 
-def test_the_shipped_manifest_mixes_clinical_and_non_clinical_topics():
-    """All-clinical would mean nothing in the rotation can ever be
-    hands-off; all-logistics would mean nothing this practice actually
-    treats ever gets talked about."""
+def test_the_shipped_manifest_mixes_pipeline_types():
+    """Every topic runs unattended now (brand_review is the only gate left
+    anywhere, and it's auto-approved), but the pipeline split by content
+    shape is still real: patient_education carries the reading-level check
+    and a healthcare-photo preset that marketing_asset does not."""
     from pathlib import Path
 
     entries = load_manifest(Path("examples/schedule/manifest.json"))
-    clinical = [is_clinical(e["pipeline"]) for e in entries]
-    assert any(clinical) and not all(clinical)
+    pipelines = {e["pipeline"] for e in entries}
+    assert len(pipelines) > 1, "the rotation should exercise more than one pipeline shape"
 
 
 def test_every_shipped_brief_parses_as_a_brief():

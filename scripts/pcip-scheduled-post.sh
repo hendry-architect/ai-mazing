@@ -1,31 +1,26 @@
 #!/usr/bin/env bash
 #
-# The 3x/week unattended run: pick the next topic, run its pipeline through
-# to whatever gate it has, and publish what needs no further human approve.
+# The 3x/week unattended run: pick the next topic, run its pipeline start
+# to finish, and publish it.
 #
 #   bash scripts/pcip-scheduled-post.sh           # draft only, always safe
 #   PCIP_SCHEDULE_LIVE=1 bash scripts/pcip-scheduled-post.sh
-#                                                  # publish live -- but only
-#                                                  # the topics that never
-#                                                  # touched medical_review
+#                                                  # publish live
 #
-# What "completely automatic" means here, precisely: every pipeline step up
-# to a gate runs with zero input. brand_review is safe to auto-approve --
-# it is a design-fit check, never a clinical one -- and is turned on for
-# every run this script makes (PCIP_AUTO_APPROVE_GATES=brand_review).
-# medical_review is not, and cannot be: it is hard-coded NEVER_AUTO_APPROVE
-# in pcip/pipelines/base.py, no environment variable reaches it, and a run
-# that stops there is not a bug in this script -- it is the one thing in
-# this whole pipeline that still needs a clinician, on purpose.
+# Every pipeline reaches `done` unattended now: medical_review was removed
+# from patient_education on 2026-09-10, by explicit decision of Dr. Hendry
+# Pascual, founder/CEO/medical director of PassQual Health — see
+# pcip/pipelines/library.py for that change. brand_review is the only gate
+# left anywhere, is a design-fit check rather than a clinical one, and this
+# script auto-approves it on every run (PCIP_AUTO_APPROVE_GATES=brand_review).
 #
-# So a scheduled run does one of three things:
-#   - a non-clinical topic (marketing_asset) finishes end to end and is
-#     published -- as a draft by default, live only with PCIP_SCHEDULE_LIVE=1
-#   - a clinical topic (patient_education) reaches medical_review and stops;
-#     this script logs it and leaves it for `pcip approve` — same as any
-#     other run, nothing scheduled-specific about finishing it
-#   - something fails outright (a credential, an API error); logged, and
-#     the rotation still advances so one bad run does not jam the schedule
+# So a scheduled run does one of two things:
+#   - it reaches `done` and gets published — as a draft by default, live
+#     only with PCIP_SCHEDULE_LIVE=1
+#   - something stops it: a missing credential causes a handoff (imagery or
+#     assembly with no provider configured), or it fails outright. Logged,
+#     and the rotation still advances so one bad run does not jam the
+#     schedule — the brief comes up again next cycle either way.
 #
 set -uo pipefail
 
@@ -41,8 +36,6 @@ log() { printf '%s\n' "$*" | tee -a "$LOG"; }
 
 log "=== PCIP scheduled run — $STAMP UTC ==="
 
-# brand_review only. medical_review is NEVER_AUTO_APPROVE in the code and
-# cannot be added here even by mistake — this line does not reach it.
 export PCIP_AUTO_APPROVE_GATES="brand_review"
 
 NEXT_JSON="$("$PY" -m pcip.cli schedule-next 2>>"$LOG")"
@@ -54,9 +47,8 @@ log "next: $NEXT_JSON"
 
 PIPELINE="$(printf '%s' "$NEXT_JSON" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["pipeline"])')"
 BRIEF="$(printf '%s' "$NEXT_JSON" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["brief_path"])')"
-CLINICAL="$(printf '%s' "$NEXT_JSON" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["clinical"])')"
 
-log "running: pcip run $PIPELINE --brief $BRIEF (clinical=$CLINICAL)"
+log "running: pcip run $PIPELINE --brief $BRIEF"
 RUN_JSON="$("$PY" -m pcip.cli run "$PIPELINE" --brief "$BRIEF" --quiet 2>>"$LOG")"
 log "$RUN_JSON"
 
@@ -66,11 +58,11 @@ RUN_ID="$(printf '%s' "$RUN_JSON" | "$PY" -c 'import json,sys; print(json.load(s
 case "$STATUS" in
   awaiting_review)
     GATE="$(printf '%s' "$RUN_JSON" | "$PY" -c 'import json,sys; print(json.load(sys.stdin).get("awaiting_gate",""))')"
-    log "PAUSED at $GATE — this needs a person: pcip approve $RUN_ID --gate $GATE --reviewer \"Dr. Pascual\""
+    log "PAUSED at $GATE — unexpected on an auto-approved gate; check pcip/cli.py's auto_approve_gates handling. In the meantime: pcip approve $RUN_ID --gate $GATE --reviewer \"Dr. Pascual\""
     exit 0
     ;;
   awaiting_handoff)
-    log "PAUSED on a handoff (imagery/assembly) — run: pcip resume"
+    log "PAUSED on a handoff (imagery/assembly) — usually a missing provider credential. Run: pcip resume"
     exit 0
     ;;
   failed)
@@ -78,7 +70,7 @@ case "$STATUS" in
     exit 1
     ;;
   done)
-    log "reached done with no pending gate — assembling publish"
+    log "reached done — publishing"
     ;;
   *)
     log "unexpected status: $STATUS"
@@ -86,9 +78,6 @@ case "$STATUS" in
     ;;
 esac
 
-# Only reachable when the run finished clean — which for patient_education
-# is impossible (medical_review always stops it first), so this is always a
-# non-clinical topic by construction, not by re-checking here.
 LIVE_FLAG=""
 [ "${PCIP_SCHEDULE_LIVE:-0}" = "1" ] && LIVE_FLAG="--live"
 PUB_JSON="$("$PY" -m pcip.cli publish --channel wordpress $LIVE_FLAG 2>>"$LOG")"

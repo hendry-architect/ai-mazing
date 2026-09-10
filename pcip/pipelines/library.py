@@ -536,10 +536,20 @@ PIPELINES: Dict[str, Pipeline] = {
     ),
     "patient_education": _standard(
         "patient_education",
-        "Patient education material — plain-language, clinician-approved.",
+        "Patient education material — plain-language, standard-checked.",
         "patient education handout/carousel",
         [Step("plain_language", plain_language_check, "Reading-level guard")],
-        ["medical_review", "brand_review"],   # medical_review can NEVER auto-approve
+        # No medical_review: removed 2026-09-10 by explicit decision of
+        # Dr. Hendry Pascual, founder/CEO/medical director of PassQual
+        # Health, made after the alternative (auto-publish + notify + a
+        # one-command retract) was presented and he chose full removal
+        # instead. The clinical judgment this gate stood in for is
+        # unchanged — he holds the license and the authority either way;
+        # this is a change to where in the process it's exercised, not
+        # whether it exists. The guard mechanism itself (NEVER_AUTO_APPROVE
+        # in pcip/pipelines/base.py, and the terminal-confirmation ceremony
+        # in pcip/cli.py) is untouched, in case a future gate needs it.
+        ["brand_review"],
         # PNG, not PDF: the exported file becomes the article's featured image,
         # and a PDF cannot be one. The printable handout is a separate export.
         export_format="png",

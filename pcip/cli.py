@@ -8,7 +8,7 @@
     python -m pcip pipelines                     # list available pipelines
     python -m pcip run patient_education --brief brief.json
     python -m pcip runs                          # list pipeline runs
-    python -m pcip approve <run_id> [--gate medical_review] [--reviewer name]
+    python -m pcip approve <run_id> [--gate brand_review] [--reviewer name]
     python -m pcip reject  <run_id> [--reason "..."]
     python -m pcip resume  <run_id>              # continue after approval
     python -m pcip attach <run_id> --design-id <id>   # fulfil a Canva handoff
@@ -419,7 +419,7 @@ def cmd_schedule_next(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     The single thing scripts/pcip-scheduled-post.sh needs: everything else
     about "what runs next" is decided by the manifest, not by this command.
     """
-    from pcip.schedule import next_entry, resolve_brief_path, is_clinical
+    from pcip.schedule import next_entry, resolve_brief_path
 
     try:
         entry = next_entry(args.manifest, args.state, advance=not args.peek)
@@ -427,7 +427,6 @@ def cmd_schedule_next(cfg: PCIPConfig, args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     entry["brief_path"] = str(resolve_brief_path(entry, args.manifest))
-    entry["clinical"] = is_clinical(entry["pipeline"])
     _print(entry)
     return 0
 
