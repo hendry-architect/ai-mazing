@@ -54,21 +54,27 @@ like "this one is blank".
    `brandtemplate:content:read` if the portal offers them on your plan).
 3. On **Configuration**: copy the **Client ID**, click **Generate secret**
    (shown once) → `.env` → `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`.
-4. Under **Redirect URLs**, add the callback. A **private** integration can
-   use `http://127.0.0.1:8080/callback`; a **public** one cannot — Canva
-   requires a non-localhost URL to review it, so use
-   `https://passqual.com/canva/callback`.
+4. Under **Redirect URLs**, add `http://127.0.0.1:8080/callback`.
+
+   Add the hosted URL `https://passqual.com/canva/callback` **only if you are
+   submitting the integration for Canva review** — review is what requires a
+   non-localhost callback. Using an integration you own does not, and the
+   hosted flow is strictly harder: the code lands in a browser, has to survive
+   a copy and a paste, and expires in about ten minutes. Localhost has none
+   of those failure modes.
 5. Run the OAuth helper. Which form depends on the redirect you registered.
 
-   **Localhost redirect** — one command; it opens the consent screen, catches
-   the callback, exchanges the code, and writes the tokens into `.env`:
+   **Localhost redirect (do this one)** — one command; it opens the consent
+   screen, catches the callback itself, exchanges the code, and writes the
+   tokens into `.env`. Nothing touches the clipboard:
 
    ```bash
    python -m pcip canva-auth
    ```
 
-   **Hosted redirect** — the code lands in a browser rather than on this
-   machine, so it comes back in two steps:
+   **Hosted redirect** — only when the integration is under Canva review.
+   The code lands in a browser rather than on this machine, so it comes back
+   in two steps, and every extra step is one that can fail:
 
    ```bash
    python -m pcip canva-auth --redirect-uri https://passqual.com/canva/callback --start
