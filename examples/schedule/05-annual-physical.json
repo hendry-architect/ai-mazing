@@ -1,0 +1,23 @@
+{
+  "title": "Qué esperar en su examen físico anual",
+  "objective": "Reducir la ansiedad sobre el examen físico anual explicando qué incluye, y motivar a los pacientes a programarlo si no lo han hecho este año.",
+  "audience": "Pacientes de PassQual Health y adultos en Miami Gardens que han pospuesto su chequeo anual",
+  "brand": "PassQual Health",
+  "key_messages": [
+    "El examen físico anual está incluido en los tres niveles de la Membresía de PassQual.",
+    "Incluye revisión de signos vitales, laboratorios de rutina y una conversación sobre su historial y objetivos de salud.",
+    "Es el momento para hablar de cualquier síntoma o preocupación, por pequeña que parezca.",
+    "Atendido por Dr. Hendry Pascual, licencia ME143678, en Miami Gardens."
+  ],
+  "channels": ["wordpress"],
+  "topics": ["examen físico", "prevención", "membresía"],
+  "language": "bilingual",
+  "tone": "cálido, tranquilizador",
+  "references": ["canva:brand_template:EAHUkk84ubc"],
+  "constraints": [
+    "No garantizar diagnósticos ni resultados específicos.",
+    "No es un seguro de salud si se menciona la membresía.",
+    "Nivel de lectura de 6.º grado, español primero, paridad en inglés.",
+    "Incluir el NAP textual y la licencia del médico."
+  ]
+}

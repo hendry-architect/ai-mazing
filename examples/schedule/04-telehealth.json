@@ -1,0 +1,23 @@
+{
+  "title": "Telesalud en PassQual: consultas médicas sin salir de casa",
+  "objective": "Explicar qué es la telesalud, cuándo es apropiada, y cómo agendar una consulta virtual con PassQual Health.",
+  "audience": "Pacientes actuales y adultos en Miami Gardens con horarios ocupados que no saben que la telesalud está disponible",
+  "brand": "PassQual Health",
+  "key_messages": [
+    "Las visitas de telesalud están incluidas en la Membresía de PassQual para consultas de seguimiento y preguntas no urgentes.",
+    "Se agenda igual que una cita en persona, por teléfono o mensaje.",
+    "La telesalud no reemplaza una evaluación en persona cuando es clínicamente necesaria, ni sirve para emergencias.",
+    "Atendido por Dr. Hendry Pascual, licencia ME143678, en Miami Gardens."
+  ],
+  "channels": ["wordpress"],
+  "topics": ["telesalud", "acceso", "membresía"],
+  "language": "bilingual",
+  "tone": "práctico, directo",
+  "references": ["canva:brand_template:EAHUkk84ubc"],
+  "constraints": [
+    "Aclarar que telesalud no es para emergencias -- para emergencias, llamar al 911.",
+    "No es un seguro de salud si se menciona la membresía.",
+    "Nivel de lectura de 6.º grado, español primero, paridad en inglés.",
+    "Incluir el NAP textual y la licencia del médico."
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "title": "Conozca a su equipo médico bilingüe en Miami Gardens",
+  "objective": "Presentar al equipo clínico de PassQual Health para generar confianza en pacientes nuevos que buscan un consultorio bilingüe.",
+  "audience": "Adultos hispanohablantes en Miami Gardens e Hialeah que buscan un consultorio donde se sientan comprendidos en su idioma",
+  "brand": "PassQual Health",
+  "key_messages": [
+    "El equipo de PassQual Health atiende en español e inglés en cada visita.",
+    "Dr. Hendry Pascual es cirujano civil designado por USCIS, completó su residencia en UCLA y tiene certificación CHCQM-PHYADV.",
+    "El equipo incluye personal de enfermería avanzada (ARNP) y asistentes médicos bilingües.",
+    "PassQual Health, 18706 NW 67th Ave, Miami Gardens, FL 33015."
+  ],
+  "channels": ["wordpress"],
+  "topics": ["equipo", "práctica", "bilingüe"],
+  "language": "bilingual",
+  "tone": "cálido, personal, orgulloso sin ser jactancioso",
+  "references": ["canva:brand_template:EAHUkk84ubc"],
+  "constraints": [
+    "No hacer afirmaciones clínicas -- este es un artículo sobre el equipo, no sobre tratamientos.",
+    "Nivel de lectura de 6.º grado, español primero, paridad en inglés.",
+    "Incluir el NAP textual y la licencia del médico."
+  ]
+}

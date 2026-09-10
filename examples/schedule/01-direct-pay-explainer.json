@@ -1,0 +1,23 @@
+{
+  "title": "Por qué elegir atención médica directa en Miami Gardens",
+  "objective": "Explicar el modelo de pago directo de PassQual Health -- sin intermediarios de seguros -- para adultos que valoran precio conocido y acceso rápido.",
+  "audience": "Adultos 30-64 en Miami Gardens y Hialeah que investigan opciones de atención primaria y quieren entender cómo funciona un consultorio de pago directo",
+  "brand": "PassQual Health",
+  "key_messages": [
+    "PassQual Health opera como atención médica directa: usted paga al consultorio, no a una aseguradora, por los servicios de su membresía.",
+    "Esto significa citas más rápidas, más tiempo con el médico y un precio que usted conoce de antemano.",
+    "No es un seguro médico y no reemplaza el seguro para hospitalización, especialistas o emergencias.",
+    "Atendido por Dr. Hendry Pascual, licencia ME143678, en Miami Gardens."
+  ],
+  "channels": ["wordpress"],
+  "topics": ["atención directa", "modelo de práctica", "Miami Gardens"],
+  "language": "bilingual",
+  "tone": "claro, informativo, sin lenguaje de ventas agresivo",
+  "references": ["canva:brand_template:EAHUkk84ubc"],
+  "constraints": [
+    "No es un seguro de salud -- decirlo explícitamente.",
+    "No prometer resultados clínicos.",
+    "Nivel de lectura de 6.º grado, español primero, paridad en inglés.",
+    "Incluir el NAP textual y la licencia del médico."
+  ]
+}

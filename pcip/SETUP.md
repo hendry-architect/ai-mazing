@@ -440,6 +440,75 @@ python -m pcip graph <output_id>
 
 ---
 
+## Phase 8 — Unattended posting, 3x/week
+
+Everything up to a gate can run with zero input. `brand_review` is safe to
+auto-approve — it is a design-fit check on the assembled Canva design, never
+a clinical one. `medical_review` is not, and cannot be turned off from here:
+it is `NEVER_AUTO_APPROVE` in `pcip/pipelines/base.py`, not a setting.
+
+That gives scheduled posting two honest outcomes depending on the topic:
+
+- **Non-clinical topics** (`marketing_asset` — practice logistics, the
+  membership's factual particulars, telehealth as a feature) run start to
+  finish with nobody watching, and publish.
+- **Clinical topics** (`patient_education` — anything making a health claim)
+  stop at `medical_review`, same as every other run, and wait for
+  `pcip approve`.
+
+### 1. The rotation
+
+`examples/schedule/manifest.json` pairs six briefs with the pipeline each
+should run on — three non-clinical, three clinical, alternating. Edit it,
+add briefs, or reorder freely; `pcip schedule-next` just walks it in order
+and wraps around:
+
+```bash
+python -m pcip schedule-next --peek     # see what's due, without advancing
+python -m pcip schedule-next            # see it, and advance the rotation
+```
+
+### 2. Install the schedule (macOS, launchd — not cron)
+
+launchd, because cron does not fire while the Mac is asleep, and a practice
+laptop is asleep most nights; launchd catches the job up at the next wake
+instead of silently skipping it.
+
+```bash
+bash scripts/pcip-schedule-install.sh
+```
+
+Installs for Monday/Wednesday/Friday at 08:00. To run it once right now,
+without waiting for Monday:
+
+```bash
+launchctl start com.passqual.pcip.schedule
+tail -f pcip_data/schedule/logs/*.log
+```
+
+To remove it: `bash scripts/pcip-schedule-install.sh --uninstall`.
+
+### 3. Draft by default — going fully live is one variable
+
+`scripts/pcip-scheduled-post.sh` publishes a finished non-clinical article
+as a **draft**, not live, unless `PCIP_SCHEDULE_LIVE=1` is set. That default
+is deliberate for the first few cycles: it costs nothing (the PH standard
+already ran, in full, before the draft was written) and it means the very
+first thing this schedule ever does isn't unwitnessed on a live medical
+practice site. Flip it once you've watched a cycle or two:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.passqual.pcip.schedule.plist
+# add <key>PCIP_SCHEDULE_LIVE</key><string>1</string> to the plist's
+# EnvironmentVariables dict, alongside HOME
+launchctl load ~/Library/LaunchAgents/com.passqual.pcip.schedule.plist
+```
+
+Clinical topics are unaffected either way — `medical_review` stops them
+before publish is ever reached.
+
+---
+
 ## Security reminders
 
 - `.env` is gitignored — never commit it. Rotate any token that ever

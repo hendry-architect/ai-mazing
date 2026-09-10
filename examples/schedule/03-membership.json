@@ -1,0 +1,31 @@
+{
+  "title": "Médico sin seguro cerca de mí: cómo funciona la Membresía PassQual",
+  "objective": "Convertir a adultos SIN cobertura activa en Miami Gardens en miembros de pago directo, explicando qué incluye cada nivel, qué cuesta, qué no cubre y quién es elegible.",
+  "audience": "Adultos hispanohablantes 30-64 en Miami Gardens y Hialeah SIN Medicare, Medicaid ni seguro comercial o del marketplace, que posponen la atención por costo e incertidumbre de precio",
+  "brand": "PassQual Health",
+  "key_messages": [
+    "La Membresía de PassQual es un acuerdo de atención médica directa bajo §624.27 de los Estatutos de Florida. No es un seguro de salud.",
+    "Solo para pacientes de pago propio sin cobertura activa: si tiene Medicare, Medicaid o seguro comercial, no puede inscribirse.",
+    "Core Care $79/mes · Plus Care $119/mes · Elite Care $159/mes. Plan de 6 meses facturado mensualmente, o anual prepagado con aproximadamente dos meses gratis.",
+    "Incluido en todos los niveles: visitas de atención primaria y preventiva (consultorio, telesalud y mensajería), examen físico anual completo, prioridad el mismo día o al día siguiente con equipo bilingüe, laboratorios de rutina, y una radiografía cuando sea clínicamente necesaria.",
+    "No cubre: emergencias, hospitalización, especialistas, cobertura de medicamentos recetados, ni servicios de terceros. Para emergencias, llame al 911.",
+    "Puede cancelar en cualquier momento con 30 días de aviso por escrito; aplica una tarifa única de $99 si cancela antes de terminar su plazo. Financiamiento disponible con CareCredit.",
+    "Atendido por Dr. Hendry Pascual, licencia ME143678, en Miami Gardens."
+  ],
+  "channels": ["wordpress", "instagram", "facebook"],
+  "topics": ["membresía", "atención directa", "sin seguro", "pago propio", "precios transparentes", "Miami Gardens"],
+  "language": "bilingual",
+  "tone": "claro, directo, sin jerga; habla de dinero sin rodeos y sin presionar",
+  "references": [
+    "canva:brand_template:EAHUkk84ubc"
+  ],
+  "constraints": [
+    "No es un seguro de salud. Decirlo explícitamente; nunca describirla con lenguaje de seguros (deducible, copago, red, póliza).",
+    "No inventar ni redondear precios. Solo $79, $119, $159 mensuales; $790, $1,190, $1,590 anuales; $99 de cancelación.",
+    "Nombrar siempre lo que NO cubre. Un miembro no debe descubrir el límite en el peor momento.",
+    "Decir quién es elegible: solo pago propio sin cobertura activa.",
+    "No garantizar resultados clínicos: el acuerdo dice expresamente que no se garantiza ningún resultado.",
+    "Nivel de lectura de 6.º grado, español primero, paridad completa en inglés.",
+    "Incluir el NAP textual y la licencia del médico."
+  ]
+}

@@ -413,6 +413,25 @@ def _step_printer():
     return report
 
 
+def cmd_schedule_next(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Print which brief/pipeline is due, and advance the rotation.
+
+    The single thing scripts/pcip-scheduled-post.sh needs: everything else
+    about "what runs next" is decided by the manifest, not by this command.
+    """
+    from pcip.schedule import next_entry, resolve_brief_path, is_clinical
+
+    try:
+        entry = next_entry(args.manifest, args.state, advance=not args.peek)
+    except Exception as exc:                        # noqa: BLE001 — reported
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    entry["brief_path"] = str(resolve_brief_path(entry, args.manifest))
+    entry["clinical"] = is_clinical(entry["pipeline"])
+    _print(entry)
+    return 0
+
+
 def cmd_run(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     from pcip.pipelines.base import PipelineRunner
     from pcip.pipelines.library import get_pipeline
@@ -768,6 +787,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--scheduled", action="store_true",
                     help="preview the scheduled-campaign route (scheduler-first)")
 
+    sp = sub.add_parser("schedule-next",
+                        help="which brief/pipeline the rotation is due to run")
+    sp.add_argument("--manifest", default="examples/schedule/manifest.json")
+    sp.add_argument("--state", default="pcip_data/schedule/state.json")
+    sp.add_argument("--peek", action="store_true",
+                    help="report the next entry without advancing the rotation")
+
     sp = sub.add_parser("run", help="run a pipeline from a brief JSON file")
     sp.add_argument("pipeline")
     sp.add_argument("--brief", required=True, help="path to brief JSON")
@@ -887,6 +913,7 @@ COMMANDS = {
     "record": cmd_record,
     "publish": cmd_publish,
     "outputs": cmd_outputs,
+    "schedule-next": cmd_schedule_next,
 }
 
 

@@ -166,6 +166,9 @@ python -m pcip prepare out_xyz789
 # 4. Ask the graph anything
 python -m pcip search "diabetes carousel"
 python -m pcip graph canva:design:DAF123 --depth 2
+
+# 5. Or let it run itself, 3x/week — see pcip/SETUP.md Phase 8
+bash scripts/pcip-schedule-install.sh
 ```
 
 ## Extending
