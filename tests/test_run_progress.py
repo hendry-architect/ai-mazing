@@ -112,11 +112,18 @@ def test_a_failed_run_reports_the_step_and_the_reason():
     detail that was already in the record."""
     from pcip.cli import _stopped_at
 
-    assert _stopped_at(_payload(
+    stopped = _stopped_at(_payload(
         ("generate_copy", "done", "Copy generated."),
-        ("ph_standard", "failed", "ValueError: PH standard: 1 finding(s).\nblah"),
-    )) == {"step": "ph_standard",
-           "detail": "ValueError: PH standard: 1 finding(s)."}
+        ("ph_standard", "failed",
+         "ValueError: PH standard: 1 finding(s).\n"
+         "  [blocker] claims: prohibited claim: 'cure'\n"
+         "      -> structure/function language only"),
+    ))
+    assert stopped["step"] == "ph_standard"
+    # The count is the summary; the finding is the answer. Reporting only the
+    # first line named the count and hid the reason.
+    assert "prohibited claim" in stopped["detail"]
+    assert "1 finding(s)" in stopped["detail"]
 
 
 def test_a_waiting_gate_is_reported_too():
@@ -143,3 +150,10 @@ def test_only_the_first_stopping_step_is_reported():
         ("ph_standard", "failed", "first"),
         ("assemble", "failed", "second"),
     ))["detail"] == "first"
+
+
+def test_a_long_detail_is_bounded():
+    from pcip.cli import _stopped_at
+
+    stopped = _stopped_at(_payload(("x", "failed", "line\n" * 500)))
+    assert len(stopped["detail"]) <= 400

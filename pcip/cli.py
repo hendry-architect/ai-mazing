@@ -428,8 +428,13 @@ def _stopped_at(payload: Dict[str, Any]) -> Dict[str, str]:
     for sr in payload.get("steps") or []:
         if sr.get("status") in ("failed", "awaiting_review", "awaiting_handoff",
                                 "running", "rejected"):
+            # Not just the first line: a standards failure opens with
+            # "PH standard: 1 finding(s)." and puts the finding underneath,
+            # so taking one line reported the count and hid the reason.
+            lines = [ln.strip() for ln in (sr.get("detail") or "").splitlines()
+                     if ln.strip()]
             return {"step": sr.get("step", ""),
-                    "detail": (sr.get("detail") or "").splitlines()[0][:160]}
+                    "detail": " | ".join(lines)[:400]}
     return {}
 
 
