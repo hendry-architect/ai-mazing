@@ -51,11 +51,37 @@ def cmd_init(cfg: PCIPConfig, args: argparse.Namespace) -> int:
 
 
 def cmd_status(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """Where everything stands, in one command.
+
+    "check" is the question actually being asked, and answering it used to
+    take three: doctor for credentials, runs for what is in flight, outputs
+    for what is finished. Whatever is unfinished is the part worth seeing
+    first, so it goes at the top.
+    """
     from pcip.generate.providers import ProviderRegistry
 
     with _graph(cfg) as g:
+        runs = [
+            {
+                "run_id": r["id"],
+                "pipeline": r["payload"].get("pipeline"),
+                "status": r["payload"].get("status"),
+                **({"stopped_at": stopped}
+                   if (stopped := _stopped_at(r["payload"])) else {}),
+            }
+            for r in g.nodes_by_kind(NodeKind.PIPELINE_RUN, limit=20)
+            if r["payload"].get("status") not in ("done", "rejected")
+        ]
+        published = _published_output_ids(g)
+        outputs = [
+            {"output_id": o["id"], "name": o["name"][:70],
+             "published": o["id"] in published}
+            for o in g.nodes_by_kind(NodeKind.OUTPUT, limit=5)
+        ]
         _print(
             {
+                "unfinished_runs": runs or "none",
+                "recent_outputs": outputs or "none",
                 "connectors": cfg.channel_status(),
                 "providers": ProviderRegistry(cfg).status(),
                 "graph": g.stats(),
