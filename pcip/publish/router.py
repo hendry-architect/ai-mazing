@@ -792,15 +792,35 @@ class PublishRouter:
         from pcip.connectors.wordpress import WordPressPublisher
 
         out: List[Publication] = []
-        for record in self.where_did_it_go(output_id):
+        self.last_retract_skips: List[str] = []
+        records = self.where_did_it_go(output_id)
+        if not records:
+            self.last_retract_skips.append(
+                f"no publication is recorded against {output_id}"
+            )
+        for record in records:
             # Drafts included: a leftover draft keeps its slug reserved, so
             # the next publish gets a "-2" suffix instead of the clean URL.
+            # Every skip is reported: a silent `continue` is why "nothing to
+            # retract" could mean four different things.
+            where = record.get("id", record.get("external_id", "?"))
             if record.get("status") not in ("published", "scheduled", "draft"):
+                self.last_retract_skips.append(
+                    f"{where}: status is {record.get('status')!r}"
+                )
                 continue
             if record.get("channel") != Channel.WORDPRESS.value:
+                self.last_retract_skips.append(
+                    f"{where}: channel is {record.get('channel')!r}, "
+                    "and only WordPress can be retracted automatically"
+                )
                 continue
             post_id = record.get("external_id", "")
             if not post_id:
+                self.last_retract_skips.append(
+                    f"{where}: no WordPress post id was recorded, so there is "
+                    "nothing to address — trash it by hand"
+                )
                 continue
             wp = WordPressPublisher(self.cfg)
             wp.trash_post(post_id)
@@ -825,10 +845,21 @@ class PublishRouter:
     # ── Reporting ────────────────────────────────────────────────────────
 
     def where_did_it_go(self, output_id: str) -> List[Dict[str, Any]]:
-        """All publications of an output — the distribution record."""
-        pubs = []
-        for ekind, pub_id in self.graph.neighbors(output_id, EdgeKind.PUBLISHED_TO):
+        """All publications of an output — the distribution record.
+
+        Found two ways, and the union taken: the PUBLISHED_TO edge, and any
+        publication whose payload names this output. They are written
+        together and should always agree, but when they did not, `pcip
+        status` reported an output as published while `pcip retract` said
+        there was nothing to retract — two commands disagreeing about the
+        same fact, with no way for the operator to tell which was right.
+        """
+        found: Dict[str, Dict[str, Any]] = {}
+        for _kind, pub_id in self.graph.neighbors(output_id, EdgeKind.PUBLISHED_TO):
             node = self.graph.get_node(pub_id)
             if node:
-                pubs.append(node["payload"])
-        return pubs
+                found[pub_id] = node["payload"]
+        for node in self.graph.nodes_by_kind(NodeKind.PUBLICATION, limit=500):
+            if node["payload"].get("output_id") == output_id:
+                found.setdefault(node["id"], node["payload"])
+        return list(found.values())

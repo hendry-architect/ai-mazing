@@ -655,9 +655,13 @@ def cmd_retract(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     from pcip.publish.router import PublishRouter
 
     with _graph(cfg) as g:
-        pubs = PublishRouter(cfg, g).retract(args.output_id, reason=args.reason)
+        router = PublishRouter(cfg, g)
+        pubs = router.retract(args.output_id, reason=args.reason)
         if not pubs:
-            print(f"nothing published for {args.output_id} — nothing to retract")
+            print(f"nothing retracted for {args.output_id}. Why:")
+            for skip in getattr(router, "last_retract_skips", None) or ["(unknown)"]:
+                print(f"  - {skip}")
+            return 1
             return 0
         _print([p.to_dict() for p in pubs])
     return 0
