@@ -3,7 +3,10 @@ believe it. Fully offline: `classify_response` is pure, and the publisher takes
 an injectable session.
 """
 
+import time
+
 import pytest
+import requests
 
 from pcip.config import PCIPConfig
 from pcip.connectors.wordpress import (
@@ -13,6 +16,7 @@ from pcip.connectors.wordpress import (
     WordPressNotConfigured,
     WordPressPermissionError,
     WordPressPublisher,
+    _is_idempotent_request,
     classify_response,
 )
 
@@ -137,6 +141,111 @@ def test_server_error_reports_status_and_body():
     with pytest.raises(WordPressError) as exc:
         classify_response(Resp(status=500, text="upstream exploded"))
     assert "500" in str(exc.value)
+
+
+# ─── Retrying transient failures, safely ───────────────────────────────────
+#
+# The incident this guards against: SiteGround's "Briefly unavailable for
+# scheduled maintenance" 503 landed *after* a WordPress write had already
+# been applied — the response was lost, not the write. Retrying is only
+# safe when repeating the exact same call can't create a second resource.
+
+
+def test_get_retries_a_503_and_succeeds(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda *_: None)
+    calls = []
+
+    def handler(method, url, kwargs):
+        calls.append(method)
+        return Resp(status=503, text="maintenance") if len(calls) < 3 else Resp(payload={"id": 7})
+
+    wp = WordPressPublisher(cfg(), session=FakeSession(handler))
+    assert wp._get("/posts/7") == {"id": 7}
+    assert len(calls) == 3
+
+
+def test_updating_a_specific_post_is_retried(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda *_: None)
+    calls = []
+
+    def handler(method, url, kwargs):
+        calls.append(method)
+        if len(calls) < 2:
+            return Resp(status=503, text="maintenance")
+        return Resp(payload={"id": 3404, "status": "publish"})
+
+    wp = WordPressPublisher(cfg(), session=FakeSession(handler))
+    assert wp.update_post("3404", content="x") == {"id": 3404, "status": "publish"}
+    assert len(calls) == 2
+
+
+def test_a_bare_create_post_is_never_retried():
+    """A 503 here may mean the post was already created — retrying blind
+    risks a duplicate, so a create gets exactly one attempt."""
+    calls = []
+
+    def handler(method, url, kwargs):
+        calls.append(method)
+        return Resp(status=503, text="maintenance")
+
+    wp = WordPressPublisher(cfg(), session=FakeSession(handler))
+    with pytest.raises(WordPressError):
+        wp._post("/posts", json={"title": "x"})
+    assert len(calls) == 1
+
+
+def test_retries_are_exhausted_and_the_last_response_is_classified(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda *_: None)
+    calls = []
+
+    def handler(method, url, kwargs):
+        calls.append(method)
+        return Resp(status=503, text="still down")
+
+    wp = WordPressPublisher(cfg(), session=FakeSession(handler))
+    with pytest.raises(WordPressError) as exc:
+        wp._get("/posts/7")
+    assert "503" in str(exc.value)
+    assert len(calls) == 4
+
+
+def test_a_connection_error_is_retried_on_an_idempotent_call(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda *_: None)
+    attempts = {"n": 0}
+
+    def handler(method, url, kwargs):
+        attempts["n"] += 1
+        if attempts["n"] < 2:
+            raise requests.exceptions.ConnectionError("reset")
+        return Resp(payload={"id": 7})
+
+    wp = WordPressPublisher(cfg(), session=FakeSession(handler))
+    assert wp._get("/posts/7") == {"id": 7}
+    assert attempts["n"] == 2
+
+
+def test_a_client_error_is_never_retried():
+    calls = []
+
+    def handler(method, url, kwargs):
+        calls.append(method)
+        return Resp(status=404, text='{"code":"rest_no_route"}')
+
+    wp = WordPressPublisher(cfg(), session=FakeSession(handler))
+    with pytest.raises(WordPressError):
+        wp._get("/posts/999999")
+    assert len(calls) == 1
+
+
+def test_idempotent_request_classification():
+    assert _is_idempotent_request("GET", "/posts")
+    assert _is_idempotent_request("GET", "/posts/7")
+    assert _is_idempotent_request("DELETE", "/posts/7")
+    assert _is_idempotent_request("OPTIONS", "/posts")
+    assert _is_idempotent_request("POST", "/posts/7")       # update
+    assert _is_idempotent_request("POST", "/media/7")       # alt-text update
+    assert not _is_idempotent_request("POST", "/posts")     # create
+    assert not _is_idempotent_request("POST", "/media")     # upload/create
 
 
 # ─── Reader-facing URLs ─────────────────────────────────────────────────────
