@@ -134,6 +134,78 @@ def test_connect_mode_without_autofill_fields_says_what_to_do():
     assert "PCIP_CANVA_MODE=mcp" in str(exc.value)
 
 
+def test_connect_mode_autofill_maps_named_fields_not_prose_lines():
+    """Regression test for the real account's template schema
+    (hero_image/headline/body/cta). The old mapper split prose into lines
+    and handed them out in field order, with no idea "cta" wanted a phone
+    number rather than the third sentence of the article."""
+    cfg, g, runner, brief = setup(mode="connect")
+    brief.references = ["canva:brand_template:EAHUkk84ubc"]
+    brief.language = "bilingual"
+
+    captured = {}
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_brand_template_dataset(self, tid):
+            return {"dataset": {
+                "hero_image": {"type": "image"},
+                "headline": {"type": "text"},
+                "body": {"type": "text"},
+                "cta": {"type": "text"},
+            }}
+
+        def autofill(self, template_id, *, data, title):
+            captured["data"] = data
+            return {"id": "DNEW1234567", "title": title, "urls": {"view_url": "u"}}
+
+    import pcip.connectors.canva as canva_mod
+    original = canva_mod.CanvaClient
+    canva_mod.CanvaClient = FakeClient
+    try:
+        assemble_in_canva({
+            "cfg": cfg, "graph": g, "brief": brief,
+            "run": type("R", (), {"id": "r"})(),
+            "copy_fields": {
+                "titles": {"es": "Atención directa", "en": "Direct care"},
+                "bodies": {"es": "<p>cuerpo largo</p>", "en": "<p>long body</p>"},
+                "captions": {"instagram": "Pague al consultorio. "
+                                          "Agenda tu cita → 786-677-9922"},
+            },
+        })
+    finally:
+        canva_mod.CanvaClient = original
+
+    data = captured["data"]
+    assert "hero_image" not in data          # no image asset offered — correct
+    assert data["headline"]["text"] == "Atención directa"
+    assert data["cta"]["text"] == "→ 786-677-9922"
+    assert data["body"]["text"] == "Pague al consultorio. Agenda tu cita"
+    assert "→" not in data["body"]["text"]
+
+
+def test_map_copy_to_dataset_falls_back_to_english_for_an_english_only_brief():
+    from pcip.pipelines.library import _map_copy_to_dataset
+
+    dataset = {"headline": {"type": "text"}, "body": {"type": "text"}}
+    copy_fields = {"titles": {"en": "English Title"}, "excerpt": "Short excerpt."}
+    data = _map_copy_to_dataset(copy_fields, "fallback", dataset, language="en")
+    assert data["headline"]["text"] == "English Title"
+    assert data["body"]["text"] == "Short excerpt."
+
+
+def test_map_copy_to_dataset_falls_back_to_brief_title_and_stripped_html_body():
+    from pcip.pipelines.library import _map_copy_to_dataset
+
+    dataset = {"headline": {"type": "text"}, "body": {"type": "text"}}
+    copy_fields = {"bodies": {"es": "<p>Texto con <b>etiquetas</b> HTML.</p>"}}
+    data = _map_copy_to_dataset(copy_fields, "Titulo del brief", dataset, language="es")
+    assert data["headline"]["text"] == "Titulo del brief"
+    assert data["body"]["text"] == "Texto con etiquetas HTML."
+
+
 def test_plain_language_measures_prose_not_markup():
     """HTML tags are not vocabulary; counting them fails clean copy."""
     from pcip.pipelines.library import plain_language_check

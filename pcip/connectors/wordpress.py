@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import html
 import mimetypes
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -32,6 +33,32 @@ import requests
 
 from pcip.config import PCIPConfig
 from pcip.models import Channel, Publication
+
+# Statuses worth retrying: a bounced request, not a wrong one. Never includes
+# 401/403/404 — those are answered by a different credential or host, and
+# retrying an unchanged request just gets the unchanged answer.
+_RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
+_MAX_ATTEMPTS = 4     # matches pcip.connectors.canva.CanvaClient._request
+
+
+def _is_idempotent_request(method: str, path: str) -> bool:
+    """Whether retrying this exact call again is safe.
+
+    GET/DELETE/OPTIONS always are. A POST is safe only when it targets a
+    specific existing resource (``/posts/123``) — that just re-applies the
+    same fields. A POST to a bare collection (``/posts``, ``/media``)
+    *creates* a resource, and retrying one whose response was lost (a 503
+    can mean "the write landed but the reply didn't," not "nothing
+    happened" — this deployment has produced exactly that) risks a second,
+    duplicate post. Safer to surface the ambiguous failure than to guess.
+    """
+    method = method.upper()
+    if method in ("GET", "DELETE", "OPTIONS", "HEAD"):
+        return True
+    if method == "POST":
+        segments = [s for s in path.split("?", 1)[0].split("/") if s]
+        return len(segments) >= 2 and segments[-1].isdigit()
+    return False
 
 # Response content types we accept as a real REST payload.
 _JSON_CONTENT_TYPES = ("application/json", "application/vnd.api+json", "text/json")
@@ -261,9 +288,37 @@ class WordPressPublisher:
     # ── Transport ────────────────────────────────────────────────────────
 
     def _request(self, method: str, path: str, **kwargs: Any) -> Dict[str, Any]:
-        resp = self.http.request(
-            method, f"{self.api_base}{path}", timeout=self.cfg.request_timeout, **kwargs
-        )
+        """Send one REST call, retrying a transient failure when it is safe to.
+
+        Today's incident this exists for: SiteGround drops into "Briefly
+        unavailable for scheduled maintenance" mid-request, WordPress's write
+        had already landed, and the caller saw only a 503 and an aborted run.
+        Retrying costs nothing extra when the maintenance window has already
+        passed by the next attempt, and _is_idempotent_request keeps this
+        from ever retrying a bare-collection POST into a duplicate post.
+        """
+        retryable = _is_idempotent_request(method, path)
+        resp = None
+        for attempt in range(_MAX_ATTEMPTS):
+            try:
+                resp = self.http.request(
+                    method, f"{self.api_base}{path}",
+                    timeout=self.cfg.request_timeout, **kwargs
+                )
+            except requests.exceptions.RequestException as exc:
+                if not retryable or attempt == _MAX_ATTEMPTS - 1:
+                    raise WordPressError(
+                        f"{method} {path}: connection failed after "
+                        f"{attempt + 1} attempt(s) ({type(exc).__name__}: {exc})"
+                    ) from exc
+                time.sleep(min(2 ** attempt, 30))
+                continue
+            if (retryable and resp.status_code in _RETRYABLE_STATUSES
+                    and attempt < _MAX_ATTEMPTS - 1):
+                retry_after = float(resp.headers.get("Retry-After", 2 ** attempt))
+                time.sleep(min(retry_after, 30))
+                continue
+            break
         return classify_response(resp, f"{method} {path}")
 
     def _get(self, path: str, **kwargs: Any) -> Dict[str, Any]:

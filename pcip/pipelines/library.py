@@ -6,10 +6,11 @@ Each pipeline follows the same spine:
     (brand-template autofill) → review gate(s) → export via the official
     API → register output
 
-Patient education adds a mandatory ``medical_review`` gate that can never be
-auto-approved, plus a plain-language check. All Canva assembly goes through
-supported workflows only (autofill + export), which is what keeps premium
-content licensing intact.
+Patient education adds a plain-language check (its mandatory
+``medical_review`` gate was removed 2026-09-10 — see the dated comment on
+its pipeline definition below). All Canva assembly goes through supported
+workflows only (autofill + export), which is what keeps premium content
+licensing intact.
 """
 
 from __future__ import annotations
@@ -194,7 +195,8 @@ def assemble_in_canva(ctx: Dict[str, Any]) -> str:
             "in Canva, or set PCIP_CANVA_MODE=mcp to assemble through the Canva "
             "connector instead (works with ordinary templates)."
         )
-    data = _map_copy_to_dataset(ctx.get("copy", ""), brief.title, dataset)
+    data = _map_copy_to_dataset(ctx.get("copy_fields") or {}, brief.title, dataset,
+                                 language=brief.language)
     design = client.autofill(template_id, data=data, title=brief.title)
     _record_design(ctx, design["id"], title=design.get("title", brief.title),
                    view_url=(design.get("urls") or {}).get("view_url", ""),
@@ -202,21 +204,73 @@ def assemble_in_canva(ctx: Dict[str, Any]) -> str:
     return f"Design {design['id']} assembled from brand template {template_id}."
 
 
-def _map_copy_to_dataset(copy_text: str, title: str, dataset: Dict[str, Any]) -> Dict[str, Any]:
-    """Best-effort mapping of copy onto a template's autofill fields."""
-    lines = [l.strip() for l in copy_text.splitlines() if l.strip()]
+def _map_copy_to_dataset(
+    copy_fields: Dict[str, Any], title: str, dataset: Dict[str, Any],
+    language: str = "",
+) -> Dict[str, Any]:
+    """Map generated copy onto a brand template's *named* autofill fields.
+
+    The previous version split the prose copy into lines and handed them out
+    in field order — it had no idea a field called "cta" wanted a phone
+    number rather than the third sentence of the article. This instead reads
+    the field names (every brand template defines its own, so this matches
+    by keyword rather than hardcoding one template's schema) and pulls from
+    the shaped fields ``copy_for_brief`` actually produces: ``titles``/
+    ``bodies``/``captions`` for bilingual content, falling back to the flat
+    ``title``/``excerpt`` for single-language briefs.
+
+    PH is Spanish-primary (see PH_PRIMARY in pcip/connectors/wordpress.py),
+    so a bilingual brief autofills in Spanish unless the brief itself is
+    English-only — this only picks the *visual* asset's language; the
+    published article still carries both.
+    """
+    import html as _html
+    import re as _re
+
+    titles = copy_fields.get("titles") or {}
+    bodies = copy_fields.get("bodies") or {}
+    captions = copy_fields.get("captions") or {}
+    lang = "en" if str(language).lower().startswith("en") else "es"
+    other = "en" if lang == "es" else "es"
+
+    headline = (titles.get(lang) or titles.get(other)
+                or copy_fields.get("title") or title)
+
+    # A caption is already short-form, and PassQual's convention (seen in
+    # every caption generated so far) ends it with a call-to-action after an
+    # arrow — "...en Miami Gardens. Agenda tu cita → 786-677-9922" — which
+    # belongs on the template's own cta field, not folded into the body.
+    #
+    # Captions are keyed by *platform* (instagram/facebook), not language —
+    # copy_for_brief generates one caption, not a per-language pair — so this
+    # picks a platform, never a language key.
+    caption = (captions.get("instagram") or captions.get("facebook")
+               or next(iter(captions.values()), ""))
+    body, arrow, cta_tail = caption.partition("→")
+    body = body.strip()
+    cta = f"→{cta_tail}".strip() if arrow else ""
+    if not body:
+        body = copy_fields.get("excerpt", "") or copy_fields.get("meta_description", "")
+    if not body:
+        raw_html = bodies.get(lang) or bodies.get(other) or copy_fields.get("body_html", "")
+        plain = _html.unescape(_re.sub(r"<[^>]+>", " ", raw_html))
+        plain, _ = strip_review_annotations(plain)
+        body = " ".join(plain.split())[:280]
+
     data: Dict[str, Any] = {}
-    i = 0
     for field_name, spec in dataset.items():
         ftype = spec.get("type") if isinstance(spec, dict) else "text"
-        if ftype == "text":
-            value = title if "title" in field_name.lower() else (
-                lines[i] if i < len(lines) else ""
-            )
-            data[field_name] = {"type": "text", "text": value[:500]}
-            i += 1
-        # image/chart fields are left to the design's defaults unless a
-        # specific asset id is supplied upstream.
+        if ftype != "text":
+            continue      # image/chart fields: nothing to offer without an
+                          # image provider configured; the template's default art stays.
+        name = field_name.lower()
+        if "cta" in name or "call_to_action" in name or "button" in name:
+            value = cta or "Agenda tu cita"
+        elif "headline" in name or "title" in name:
+            value = headline
+        else:
+            value = body
+        data[field_name] = {"type": "text", "text": value[:500]}
     return data
 
 
