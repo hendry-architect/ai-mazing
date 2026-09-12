@@ -62,6 +62,17 @@ class MEMBERSHIP:
         "third-party services",
         "specialty and chronic-disease medications (member price)",
     )
+    #: Same list, Spanish. Kept as a parallel tuple (not a translation
+    #: function) for the same reason STATUTORY_NOTICE_ES is verbatim rather
+    #: than machine-translated: this is regulated language, not prose.
+    NOT_COVERED_ES = (
+        "atención de emergencia",
+        "hospitalización",
+        "atención de especialistas",
+        "cobertura de medicamentos recetados",
+        "servicios de terceros",
+        "medicamentos especializados y para enfermedades crónicas (precio de miembro)",
+    )
 
     #: Section 2. The membership is offered ONLY to self-pay patients with no
     #: active coverage — enrollment is refused when eligibility checks find

@@ -431,6 +431,62 @@ def generate_hero_image(ctx: Dict[str, Any]) -> str:
     )
 
 
+def _with_membership_disclosures(body: str, lang: str) -> str:
+    """Append the membership's legal disclosures if this body needs them and
+    doesn't have them, rather than fail the run over an omission code can
+    supply — same "no run can invent it" philosophy as MEMBERSHIP's canonical
+    facts, applied to what a model reliably forgets instead of what it might
+    invent. A copywriting pass mentioning the membership as a passing
+    call-to-action (as PassQual's own briefs explicitly allow — see
+    02-diabetes-habits.json's "no es un seguro si se menciona la membresía")
+    has no reason to also carry three paragraphs of §624.27 boilerplate by
+    heart every time; PCIP now supplies it deterministically instead of
+    discovering the omission only after generation, at the standards gate.
+
+    Mirrors ph_standard's and membership's own detection phrases exactly, so
+    this and the checks that follow always agree.
+    """
+    from pcip.standards.membership import MEMBERSHIP
+    from pcip.standards.ph import PH
+
+    lowered = (body or "").lower()
+    if not any(t in lowered for t in PH.MEMBERSHIP_TERMS):
+        return body                          # doesn't mention it — nothing to add
+
+    es = lang.lower().startswith("es")
+    has_not_insurance = any(
+        p in lowered for p in (PH.NOT_INSURANCE_ES if es else PH.NOT_INSURANCE_EN)
+    )
+    has_coverage = any(w in lowered for w in (
+        ("no cubre", "no incluye", "excluye") if es
+        else ("not covered", "does not cover", "excludes")
+    ))
+    has_eligibility = any(w in lowered for w in (
+        ("sin seguro", "sin cobertura", "pago directo") if es
+        else ("self-pay", "no active coverage", "without coverage")
+    ))
+    if has_not_insurance and has_coverage and has_eligibility:
+        return body                          # already complete
+
+    if es:
+        disclosure = (
+            f"<p>{MEMBERSHIP.NAME}: {MEMBERSHIP.STATUTORY_NOTICE_ES} "
+            f"No cubre: {', '.join(MEMBERSHIP.NOT_COVERED_ES)}. Está "
+            "disponible para pacientes sin seguro (pago directo), sin "
+            "cobertura activa de Medicare, Medicaid, mercado de seguros, "
+            "empleador o comercial para los servicios cubiertos.</p>"
+        )
+    else:
+        disclosure = (
+            f"<p>{MEMBERSHIP.NAME}: {MEMBERSHIP.STATUTORY_NOTICE_EN} "
+            f"It does not cover: {', '.join(MEMBERSHIP.NOT_COVERED)}. It is "
+            "available to self-pay patients with no active Medicare, "
+            "Medicaid, marketplace, employer or commercial coverage for the "
+            "covered services.</p>"
+        )
+    return (body or "") + disclosure
+
+
 def ph_standard_check(ctx: Dict[str, Any]) -> str:
     """Hold the deliverable to the PassQual Health article standard.
 
@@ -451,6 +507,16 @@ def ph_standard_check(ctx: Dict[str, Any]) -> str:
         lang = (ctx["brief"].language or "es").lower()[:2]
         bodies = {lang: fields["body_html"]}
         titles = {lang: fields.get("title", "")}
+
+    if bodies:
+        bodies = {lang: _with_membership_disclosures(body, lang)
+                  for lang, body in bodies.items()}
+        # Written back so the disclosure survives into what actually
+        # publishes, not just into this step's own pass/fail check.
+        if fields.get("bodies"):
+            fields["bodies"] = bodies
+        elif fields.get("body_html"):
+            fields["body_html"] = next(iter(bodies.values()), fields["body_html"])
 
     article = {
         "bodies": bodies,
