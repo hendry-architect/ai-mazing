@@ -145,7 +145,18 @@ class CanvaClient:
                     resp.text[:500],
                 )
             return resp.json() if resp.content else {}
-        raise CanvaError(f"{method} {path}: retries exhausted", resp.status_code)
+        # The status and body of the *last* attempt — discarding them here
+        # left every exhausted-retry failure indistinguishable ("retries
+        # exhausted" said nothing about whether Canva answered 429, 500, or
+        # something else entirely), which is exactly the information needed
+        # to tell real rate-limiting apart from a request Canva keeps
+        # rejecting for a reason retrying can never fix.
+        raise CanvaError(
+            f"{method} {path}: retries exhausted, still {resp.status_code} "
+            f"after 4 attempts. Body: {resp.text[:500]!r}",
+            resp.status_code,
+            resp.text[:500],
+        )
 
     def _paginate(
         self, path: str, params: Optional[Dict[str, Any]] = None, items_key: str = "items"
