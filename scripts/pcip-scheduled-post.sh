@@ -14,13 +14,22 @@
 # left anywhere, is a design-fit check rather than a clinical one, and this
 # script auto-approves it on every run (PCIP_AUTO_APPROVE_GATES=brand_review).
 #
+# The Canva step defaults to `mcp` mode, which pauses for an interactive
+# agent session to create/export the design by hand — exactly what a
+# background launchd job cannot do. This script forces `connect` mode
+# instead (PCIP_CANVA_MODE=connect, added 2026-09-12), which autofills the
+# brand template through Canva's own API with no one watching. Requires
+# CANVA_ACCESS_TOKEN/CANVA_REFRESH_TOKEN in .env (`pcip canva-auth`) and a
+# brand template with autofill fields defined — both already true for the
+# account's default template as of this date.
+#
 # So a scheduled run does one of two things:
 #   - it reaches `done` and gets published — as a draft by default, live
 #     only with PCIP_SCHEDULE_LIVE=1
-#   - something stops it: a missing credential causes a handoff (imagery or
-#     assembly with no provider configured), or it fails outright. Logged,
-#     and the rotation still advances so one bad run does not jam the
-#     schedule — the brief comes up again next cycle either way.
+#   - something stops it: expired/missing Canva credentials, a template
+#     with no autofill fields, or another failure. Logged, and the rotation
+#     still advances so one bad run does not jam the schedule — the brief
+#     comes up again next cycle either way.
 #
 set -uo pipefail
 
@@ -37,6 +46,7 @@ log() { printf '%s\n' "$*" | tee -a "$LOG"; }
 log "=== PCIP scheduled run — $STAMP UTC ==="
 
 export PCIP_AUTO_APPROVE_GATES="brand_review"
+export PCIP_CANVA_MODE="connect"
 
 NEXT_JSON="$("$PY" -m pcip.cli schedule-next 2>>"$LOG")"
 if [ -z "$NEXT_JSON" ]; then
