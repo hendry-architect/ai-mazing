@@ -330,9 +330,20 @@ def diagnose_code(
     """Refuse a code that cannot possibly work, and say why.
 
     Canva answers every one of these with the same "invalid_grant: Invalid
-    auth code", which is true and useless: expired, already spent, and
-    belonging to a different authorization are three different problems with
-    three different fixes.
+    auth code", which is true and useless: expired and issued-for-a-different-
+    integration are different problems with different fixes.
+
+    This deliberately does NOT compare the code's ``pkce`` claim against
+    base64url(SHA256(verifier)) the way an earlier version of this function
+    did. That comparison assumed Canva's ``pkce`` claim *is* the RFC 7636
+    S256 code_challenge — a plain 43-character value. It is not: a real
+    code's ``pkce`` claim is a ~112-character opaque string, an internal
+    Canva format never confirmed against production. The old check therefore
+    rejected every real authorization code unconditionally, misreporting a
+    correct browser flow as "the wrong authorization" — discovered only
+    because a user ran the flow correctly, repeatedly, and it never once
+    passed. The verifier is still sent to Canva's token endpoint in
+    exchange_code(), which is the only party that can actually check it.
     """
     claims = jwt_claims(code)
     if not claims:
@@ -346,20 +357,6 @@ def diagnose_code(
             "Canva gives about ten. Run --start again and finish it straight "
             "away; the browser step is what takes the time."
         )
-
-    challenge = claims.get("pkce")
-    verifier = pending.get("verifier", "")
-    if challenge and verifier:
-        expected = base64.urlsafe_b64encode(
-            hashlib.sha256(verifier.encode()).digest()
-        ).rstrip(b"=").decode()
-        if challenge != expected:
-            raise RuntimeError(
-                "That code belongs to a different authorization than the one "
-                "--start opened. The clipboard most likely still held the URL "
-                "from an earlier attempt. Authorize using the URL --start "
-                "just printed, then copy that page's address."
-            )
 
     issued_for = claims.get("client_id")
     if issued_for and client_id and issued_for != client_id:

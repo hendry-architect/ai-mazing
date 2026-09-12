@@ -1,9 +1,15 @@
-"""Telling three different problems apart behind one Canva error.
+"""Telling apart problems behind one Canva error, without guessing at a
+format we don't actually know.
 
-Canva answers an expired code, a spent code, and a code from a different
-authorization with the same "invalid_grant: Invalid auth code". That is true
-and useless — the three have three different fixes, and the code itself is a
-JWT carrying enough to tell them apart before Canva is called at all.
+Canva answers an expired code and one issued for a different integration
+with the same "invalid_grant: Invalid auth code". Those two are tellable
+apart locally from the code's own JWT claims. A code from a mismatched
+PKCE authorization used to be a third case this diagnosed too, by comparing
+the code's ``pkce`` claim against base64url(SHA256(verifier)) — until a real
+production code showed that claim is a ~112-character opaque value, not the
+43-character S256 challenge that comparison assumed. The check rejected
+every real code, always, regardless of whether the authorization actually
+matched — see the dated comment on diagnose_code() for how that surfaced.
 """
 
 import base64
@@ -40,13 +46,15 @@ def test_an_expired_code_says_how_long_ago():
         diagnose_code(code, {"verifier": verifier}, "OC-test")
 
 
-def test_a_code_from_another_authorization_is_named_as_such():
-    """The clipboard holding an earlier attempt's URL is the likeliest
-    cause, and the least obvious from Canva's answer."""
+def test_a_mismatched_pkce_claim_is_not_second_guessed():
+    """Regression test: this used to raise "different authorization" here,
+    unconditionally, for every code — real or not — because the comparison
+    assumed a claim format Canva doesn't actually use. A real, correctly
+    obtained code must reach exchange_code() and Canva's own verification,
+    not be rejected on a guess about an internal field."""
     code, _ = code_for()
     _, other_verifier = code_for()
-    with pytest.raises(RuntimeError, match="different authorization"):
-        diagnose_code(code, {"verifier": other_verifier}, "OC-test")
+    diagnose_code(code, {"verifier": other_verifier}, "OC-test")
 
 
 def test_a_code_for_a_different_integration_names_both_ids():
