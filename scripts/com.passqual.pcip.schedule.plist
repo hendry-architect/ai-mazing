@@ -49,11 +49,17 @@
   <!-- launchd starts with a minimal environment: no PATH entries for
        Homebrew's python, no HOME reliably set the way a login shell has it.
        The script resolves its own venv by absolute path, so it does not
-       depend on PATH — this just keeps HOME sane for anything that does. -->
+       depend on PATH — this just keeps HOME sane for anything that does.
+
+       PCIP_SCHEDULE_LIVE=1: without it, every scheduled run would only
+       ever produce a WordPress draft — invisible on the live site, the
+       exact "no new posts" problem this automation exists to solve. -->
   <key>EnvironmentVariables</key>
   <dict>
     <key>HOME</key>
     <string>REPLACE_WITH_HOME_PATH</string>
+    <key>PCIP_SCHEDULE_LIVE</key>
+    <string>1</string>
   </dict>
 
   <key>RunAtLoad</key>
