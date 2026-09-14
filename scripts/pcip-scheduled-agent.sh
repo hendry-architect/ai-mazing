@@ -26,6 +26,13 @@
 # Requires the `claude` CLI logged into an account with Canva connected
 # (confirm with: claude -p "list your mcp__*Canva*__ tools").
 #
+# This runs with --permission-mode bypassPermissions: nobody is present to
+# approve individual actions, and the alternative is a job that hangs
+# forever on the first prompt. That is a deliberate, explicitly authorized
+# tradeoff — this agent has standing, unsupervised authority to publish to
+# passqual.com three times a week. Confirmed directly with Dr. Hendry
+# Pascual before this script was written.
+#
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
