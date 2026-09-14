@@ -2,11 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Fires scripts/pcip-scheduled-post.sh Monday, Wednesday, Friday at 08:00.
+  Fires scripts/pcip-scheduled-agent.sh Monday, Wednesday, Friday at 08:00.
   launchd, not cron: cron does not run while the Mac is asleep, and a
   practice laptop is asleep most nights. launchd fires the job at the next
   wake if the machine was asleep at the scheduled time, so a missed 08:00
   still happens instead of silently vanishing.
+
+  pcip-scheduled-agent.sh, not pcip-scheduled-post.sh (changed 2026-09-14):
+  the older script forced PCIP_CANVA_MODE=connect so a plain bash job could
+  finish unattended, but that mode's free autofill quota is a one-time
+  trial that does not reset and requires Canva Enterprise to lift. The
+  agent-driven script instead runs `claude -p` non-interactively, which
+  fulfils Canva handoffs itself with ordinary design/export tools —
+  verified end-to-end the same day, including a real handoff fulfilled and
+  a real WordPress draft published, entirely unattended.
 
   Install (see pcip/SETUP.md Phase 8 for the full walkthrough):
     cp scripts/com.passqual.pcip.schedule.plist ~/Library/LaunchAgents/
@@ -25,7 +34,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>REPLACE_WITH_REPO_PATH/scripts/pcip-scheduled-post.sh</string>
+    <string>REPLACE_WITH_REPO_PATH/scripts/pcip-scheduled-agent.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -47,9 +56,9 @@
   <string>REPLACE_WITH_REPO_PATH/pcip_data/schedule/launchd.err.log</string>
 
   <!-- launchd starts with a minimal environment: no PATH entries for
-       Homebrew's python, no HOME reliably set the way a login shell has it.
-       The script resolves its own venv by absolute path, so it does not
-       depend on PATH — this just keeps HOME sane for anything that does.
+       Homebrew's python or claude, no HOME reliably set the way a login
+       shell has it. The script resolves both by absolute path, so it does
+       not depend on PATH — this just keeps HOME sane for anything that does.
 
        PCIP_SCHEDULE_LIVE=1: without it, every scheduled run would only
        ever produce a WordPress draft — invisible on the live site, the
