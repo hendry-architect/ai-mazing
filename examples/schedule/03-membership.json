@@ -10,10 +10,11 @@
     "Incluido en todos los niveles: visitas de atención primaria y preventiva (consultorio, telesalud y mensajería), examen físico anual completo, prioridad el mismo día o al día siguiente con equipo bilingüe, laboratorios de rutina, y una radiografía cuando sea clínicamente necesaria.",
     "No cubre: emergencias, hospitalización, especialistas, cobertura de medicamentos recetados, ni servicios de terceros. Para emergencias, llame al 911.",
     "Puede cancelar en cualquier momento con 30 días de aviso por escrito; aplica una tarifa única de $99 si cancela antes de terminar su plazo. Financiamiento disponible con CareCredit.",
-    "Atendido por Dr. Hendry Pascual, licencia ME143678, en Miami Gardens."
+    "Atendido por Dr. Hendry Pascual, licencia ME143678, en Miami Gardens.",
+    "Con el fin de los subsidios ampliados del ACA a partir de 2026, KFF estima que el pago de primas de los afiliados subsidiados en el mercado podría más que duplicarse en promedio a nivel nacional (un aumento del 114%, de $888 a $1,904 al año); en Florida, las primas de pólizas individuales y de pequeños empleadores también subieron con fuerza para 2026. Quien pierde o deja de poder pagar su póliza no se queda sin opciones: la Membresía de PassQual ofrece un precio mensual fijo y transparente en atención primaria. No es un seguro, no la reemplaza y no iguala su cobertura — resuelve el problema real de quedarse sin acceso a un médico de confianza mientras decide sus próximos pasos con la cobertura."
   ],
   "channels": ["wordpress", "instagram", "facebook"],
-  "topics": ["membresía", "atención directa", "sin seguro", "pago propio", "precios transparentes", "Miami Gardens"],
+  "topics": ["membresía", "atención directa", "sin seguro", "pago propio", "precios transparentes", "Miami Gardens", "aumento de primas ACA 2026"],
   "language": "bilingual",
   "tone": "claro, directo, sin jerga; habla de dinero sin rodeos y sin presionar",
   "references": [
@@ -26,6 +27,8 @@
     "Decir quién es elegible: solo pago propio sin cobertura activa.",
     "No garantizar resultados clínicos: el acuerdo dice expresamente que no se garantiza ningún resultado.",
     "Nivel de lectura de 6.º grado, español primero, paridad completa en inglés.",
-    "Incluir el NAP textual y la licencia del médico."
+    "Incluir el NAP textual y la licencia del médico.",
+    "Al mencionar el aumento de primas del ACA/mercado, usar solo cifras verificadas y citar la fuente: KFF (aumento promedio nacional del 114% en el pago de primas de afiliados subsidiados tras el fin de los subsidios ampliados, de $888 a $1,904/año — kff.org) y cobertura de Florida Phoenix/Orlando Weekly sobre aumentos de doble dígito en Florida para 2026. Nunca inventar un porcentaje ni aplicarlo como si fuera universal a todo lector.",
+    "Nunca decir ni implicar que la Membresía reemplaza, iguala o sustituye un seguro médico o una póliza del mercado — es una opción para quien ya no tiene cobertura activa, no un sustituto de tenerla."
   ]
 }
