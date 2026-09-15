@@ -40,14 +40,21 @@
   <key>WorkingDirectory</key>
   <string>REPLACE_WITH_REPO_PATH</string>
 
-  <!-- Mon=2, Wed=4, Fri=6 in launchd's Weekday numbering (Sun=0/7). Three
-       separate dictionaries, not one with a Weekday array, because launchd
-       only accepts one Hour/Minute pair per StartCalendarInterval entry. -->
+  <!-- FIXED 2026-09-15: launchd's Weekday follows cron's convention — 0 or 7
+       is Sunday, 1 is Monday, ... 6 is Saturday (Apple's launchd.plist(5)
+       man page). The previous values (2/4/6) were entered as if Sunday=1,
+       which made this job fire Tuesday/Thursday/Saturday, not
+       Monday/Wednesday/Friday. Found live: the only post that ever went out
+       landed on a Saturday, then nothing for three days once Sun/Mon (not
+       real fire days under the bug) passed silently. Mon=1, Wed=3, Fri=5.
+       Three separate dictionaries, not one with a Weekday array, because
+       launchd only accepts one Hour/Minute pair per StartCalendarInterval
+       entry. -->
   <key>StartCalendarInterval</key>
   <array>
-    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
-    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
-    <dict><key>Weekday</key><integer>6</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
   </array>
 
   <key>StandardOutPath</key>
