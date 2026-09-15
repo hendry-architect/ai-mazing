@@ -44,6 +44,8 @@ def configured() -> PCIPConfig:
         linkedin_org_urn="urn:li:organization:1234", x_user_token="x_tok",
         threads_token="th_tok", threads_user_id="9876",
         youtube_token="yt_tok", tiktok_token="tt_tok",
+        gbp_access_token="gbp_tok", gbp_account_id="accounts/123",
+        gbp_location_id="locations/456",
     )
 
 
@@ -398,7 +400,7 @@ _STATUS_KEY = {
     "BufferAdapter": "buffer", "MetaAdapter": "meta",
     "LinkedInAdapter": "linkedin", "XAdapter": "x",
     "ThreadsAdapter": "threads", "YouTubeAdapter": "youtube",
-    "TikTokAdapter": "tiktok",
+    "TikTokAdapter": "tiktok", "GBPAdapter": "gbp",
 }
 
 
