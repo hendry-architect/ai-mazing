@@ -101,6 +101,26 @@ class PCIPConfig:
     threads_user_id: str = ""
     youtube_token: str = ""            # YouTube Data API v3 OAuth token
     tiktok_token: str = ""             # TikTok Content Posting API token
+    # Google Business Profile — Local Posts API. Access to create posts is
+    # not granted by a plain OAuth scope: Google restricts this API to
+    # approved Business Profile API partners (has been since 2020), so a
+    # freshly-registered app's token will authenticate but the post-create
+    # call itself will come back 403 until Google approves the project. See
+    # GBPAccessDenied in pcip/connectors/social.py for how that's surfaced.
+    gbp_access_token: str = ""
+    gbp_account_id: str = ""
+    gbp_location_id: str = ""          # the real listing, never the duplicate
+    #: Call-to-action shown on the post. Defaults to CALL with the practice's
+    #: own number — always correct, needs no per-post decision, and matches
+    #: how the practice actually converts (phone, not online booking).
+    gbp_cta_type: str = "CALL"
+    gbp_cta_url: str = ""              # required only for non-CALL action types
+    #: GBP has no language-detection of its own and the adapter layer is
+    #: language-agnostic by design (every other adapter just ships whatever
+    #: text it is given) — this is the one explicit knob rather than a
+    #: heuristic guess at the post text's language. Alternate it week to
+    #: week per the practice's own ES/EN posting cadence.
+    gbp_language: str = "es"
 
     # ── Canva execution mode ─────────────────────────────────────────────
     # "mcp"     — assembly and export run through the Canva MCP connector
@@ -219,6 +239,10 @@ class PCIPConfig:
             "threads": bool(self.threads_token and self.threads_user_id),
             "youtube": bool(self.youtube_token),
             "tiktok": bool(self.tiktok_token),
+            "gbp": bool(
+                self.gbp_access_token and self.gbp_account_id
+                and self.gbp_location_id
+            ),
         }
 
 
@@ -392,6 +416,12 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         threads_user_id=_env("THREADS_USER_ID"),
         youtube_token=_env("YOUTUBE_TOKEN"),
         tiktok_token=_env("TIKTOK_TOKEN"),
+        gbp_access_token=_env("GBP_ACCESS_TOKEN"),
+        gbp_account_id=_env("GBP_ACCOUNT_ID"),
+        gbp_location_id=_env("GBP_LOCATION_ID"),
+        gbp_cta_type=(_env("GBP_CTA_TYPE", "CALL").upper() or "CALL"),
+        gbp_cta_url=_env("GBP_CTA_URL"),
+        gbp_language=(_env("GBP_LANGUAGE", "es").lower() or "es"),
         canva_mode=(_env("PCIP_CANVA_MODE", "mcp").lower() or "mcp"),
         env_file=str(dotenv_path() or ""),
         canva_brand_template_id=_env("CANVA_BRAND_TEMPLATE_ID", "EAHUkk84ubc"),

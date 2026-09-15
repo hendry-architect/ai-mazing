@@ -133,6 +133,30 @@ class PH:
     NOT_INSURANCE_ES = ("no es un seguro médico", "no es un seguro de salud")
     NOT_INSURANCE_EN = ("is not health insurance", "is not insurance")
 
+    # Google Business Profile is a different animal from FB/IG/LinkedIn: the
+    # practice already lived through one real enforcement incident there
+    # (posting disabled ~2026-08-01, most likely a drug name + price + CTA
+    # combination). These rules are the re-entry checklist made
+    # unconditional, not a style preference.
+    GBP_BODY_MIN = 150
+    GBP_BODY_MAX = 300
+    GBP_MAX_EMOJI = 1
+    #: Real, licensed shorthand the practice legitimately uses in caps.
+    #: Anything else in all-caps reads as shouting, which GBP's own
+    #: reviewers read as a scarcity/urgency signal.
+    GBP_ALLOWED_ACRONYMS = frozenset({
+        "DOT", "USCIS", "APRN", "MD", "CDL", "PH", "GBP", "FAQ", "NAD",
+        "AHCA", "ACA", "NPI", "ER", "ID", "FL", "I-693", "PCIP",
+    })
+    #: Prescription weight-loss content is banned combined with a price or
+    #: CTA everywhere, per the founder's own post-incident policy — treated
+    #: as equally off-limits on every channel, not just the one that was
+    #: actually disabled.
+    RESTRICTED_DRUG_TERMS = (
+        "semaglutide", "tirzepatide", "ozempic", "wegovy", "mounjaro",
+        "zepbound", "glp-1", "glp1", "peptide", "compounded",
+    )
+
     # Mental-health content must carry crisis numbers.
     CRISIS_TRIGGERS = (
         "suicid", "depres", "crisis de salud mental", "mental health crisis",
@@ -206,6 +230,17 @@ _IMG_RE = re.compile(r"<img\b", re.I)
 #: prometer curas" by three. A clause can put any number of words between the
 #: denial and the thing denied; a sentence is the unit that actually governs.
 _SENTENCE_SPLIT = re.compile(r"[.!?;\n\u00a1\u00bf]+")
+
+_EMOJI_RE = re.compile(
+    "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF]"
+)
+#: A whole word in caps, letters only \u2014 used to flag shouting in GBP copy.
+#: Deliberately excludes anything with digits (I-693, 988) or punctuation.
+_ALLCAPS_WORD_RE = re.compile(r"\b[A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1]{3,}\b")
+
+
+def _drug_term_hits(lowered: str) -> List[str]:
+    return [t for t in PH.RESTRICTED_DRUG_TERMS if t in lowered]
 
 
 def claim_hits(text: str) -> List[Tuple[str, str]]:
@@ -428,6 +463,15 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
         add(violation)
     for violation in _membership_facts(joined):
         add(violation)
+    drug_terms = _drug_term_hits(lowered)
+    if drug_terms:
+        add(Violation(
+            "restricted_drug_term", "blocker",
+            f"names a prescription weight-loss drug/class: {', '.join(drug_terms)}",
+            "describe weight loss only as physician-supervised medical "
+            "weight management under Dr. Barroso Perez — no drug name, "
+            "dose, or price, on any channel",
+        ))
 
     # ── Conversion ───────────────────────────────────────────────────────
     if PH.NAP_PHONE_SOCIAL not in joined and PH.NAP_PHONE_DISPLAY not in joined:
@@ -488,6 +532,71 @@ def _membership_violations(lowered: str) -> List[Violation]:
     )]
 
 
+def _gbp_violations(
+    post: Dict[str, Any], caption: str, language: str
+) -> List[Violation]:
+    """GBP's own re-entry rules, made unconditional rather than advisory.
+
+    Distilled from ``GBP-post-compliance-audit.md``, written after Google
+    disabled posting on this exact listing (~2026-08-01). Every rule here
+    traces to that incident or to GBP's documented content policy, not to
+    style preference — this is the checklist a human would run by hand
+    before every post, encoded so a scheduled run can't skip it.
+    """
+    violations: List[Violation] = []
+    n = len(caption)
+    if n and not (PH.GBP_BODY_MIN <= n <= PH.GBP_BODY_MAX):
+        violations.append(Violation(
+            "gbp_length", "required",
+            f"{n} characters; GBP body copy should be "
+            f"{PH.GBP_BODY_MIN}-{PH.GBP_BODY_MAX}",
+            "trim or expand to the recommended range — GBP truncates long "
+            "posts and a very short one reads as thin",
+        ))
+    if any(p in caption for p in
+           (PH.NAP_PHONE_SOCIAL, PH.NAP_PHONE_DISPLAY, PH.NAP_PHONE_E164,
+            PH.SITE)):
+        violations.append(Violation(
+            "gbp_cta_in_body", "blocker",
+            "phone number or URL is in the post body",
+            "GBP puts the phone/link in the Call/Book/Learn-more button, "
+            "never in body text — pass cta_type/cta_url instead of writing "
+            "them into the caption",
+        ))
+    # No "CTA button configured" check here: GBPAdapter always attaches one
+    # (defaulting to CALL with the practice's real number, which needs no
+    # extra data), so the only genuine content-level risk is the phone/URL
+    # leaking into the body text above — a missing button is a transport
+    # failure the adapter itself refuses on (ChannelNotConfigured).
+    post_type = str(post.get("post_type") or "Update")
+    if post_type.lower() == "offer" and not post.get("has_dated_discount"):
+        violations.append(Violation(
+            "gbp_post_type", "blocker",
+            "post_type is Offer without a real, dated discount",
+            "use Update — Offer is reserved for an actual time-boxed "
+            "discount, which this practice does not run",
+        ))
+    emoji_count = len(_EMOJI_RE.findall(caption))
+    if emoji_count > PH.GBP_MAX_EMOJI:
+        violations.append(Violation(
+            "gbp_emoji", "advisory",
+            f"{emoji_count} emoji; GBP re-entry guidance caps it at "
+            f"{PH.GBP_MAX_EMOJI}",
+            "keep it to zero or one",
+        ))
+    shouting = [
+        w for w in _ALLCAPS_WORD_RE.findall(caption)
+        if w.upper() not in PH.GBP_ALLOWED_ACRONYMS
+    ]
+    if shouting:
+        violations.append(Violation(
+            "gbp_allcaps", "advisory",
+            f"all-caps word(s) that are not recognized acronyms: {', '.join(shouting)}",
+            "GBP reviewers read unfamiliar all-caps as urgency/scarcity language",
+        ))
+    return violations
+
+
 def check_social_post(
     post: Dict[str, Any], *, limit: Optional[int] = None
 ) -> ArticleCheck:
@@ -544,6 +653,15 @@ def check_social_post(
 
     violations.extend(_membership_violations(lowered))
     violations.extend(_membership_facts(caption))
+    drug_terms = _drug_term_hits(lowered)
+    if drug_terms:
+        violations.append(Violation(
+            "restricted_drug_term", "blocker",
+            f"names a prescription weight-loss drug/class: {', '.join(drug_terms)}",
+            "describe weight loss only as physician-supervised medical "
+            "weight management under Dr. Barroso Perez — no drug name, "
+            "dose, or price, on any channel",
+        ))
 
     # ── Reach and conversion ─────────────────────────────────────────────
     if limit is not None and len(caption) > limit:
@@ -552,8 +670,10 @@ def check_social_post(
             f"{len(caption)} characters; {channel or 'this channel'} accepts {limit}",
             "write a channel-specific caption rather than reusing the article",
         ))
-    if not any(p in caption for p in
-               (PH.NAP_PHONE_SOCIAL, PH.NAP_PHONE_DISPLAY, PH.SITE)):
+    if channel == "gbp":
+        violations.extend(_gbp_violations(post, caption, language))
+    elif not any(p in caption for p in
+                 (PH.NAP_PHONE_SOCIAL, PH.NAP_PHONE_DISPLAY, PH.SITE)):
         violations.append(Violation(
             "cta", "required",
             "no route back to the practice",

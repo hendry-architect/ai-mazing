@@ -6,7 +6,7 @@ provider — the scheduling/queue specialist — not the only publishing path.
 Every adapter declares a ``mode``:
 
     mode = "direct"     — native platform API (Meta, LinkedIn, X, Threads,
-                          YouTube, TikTok)
+                          YouTube, TikTok, Google Business Profile)
     mode = "scheduler"  — queue/calendar orchestration (Buffer)
 
 The publish router's decision engine picks the order: immediate posts
@@ -36,6 +36,12 @@ class ChannelError(RuntimeError):
     """A platform answered, but not with what it promised."""
 
 
+class GBPAccessDenied(ChannelError):
+    """Google gates Local Posts creation behind Business Profile API
+    partner approval — a valid OAuth token still gets this on the one
+    call that matters until the project has been granted access."""
+
+
 class CaptionTooLong(ValueError):
     """The caption exceeds what the platform accepts.
 
@@ -55,6 +61,9 @@ CAPTION_LIMITS: Dict[Channel, int] = {
     Channel.LINKEDIN: 3000,
     Channel.YOUTUBE: 5000,          # description field
     Channel.FACEBOOK: 63206,
+    Channel.GBP: 1500,              # localPosts.summary hard cap; the PH
+                                     # standard's own 150-300 house style is
+                                     # enforced separately, in check_social_post
 }
 
 
@@ -454,11 +463,83 @@ class TikTokAdapter(SocialAdapter):
         )
 
 
+class GBPAdapter(SocialAdapter):
+    """Google Business Profile — Local Posts, via the (partner-gated)
+    Business Profile API.
+
+    Every other adapter here authenticates with an ordinary OAuth scope and
+    just works once a token exists. GBP does not: Google has, since 2020,
+    restricted ``localPosts.create`` to approved Business Profile API
+    partners — a project without that approval authenticates fine and still
+    gets 403 on the one call that matters. ``_publish`` names that
+    explicitly rather than letting it read as a generic auth failure, the
+    same discipline the Canva Enterprise quota wall and the SiteGround
+    header strip were held to elsewhere in this codebase.
+
+    GBP's own posting rules put the phone number/URL in ``callToAction``,
+    never in the post body — the opposite of every other channel here. That
+    formatting rule belongs to content policy, not transport, so it lives in
+    ``pcip.standards.ph.check_social_post``; this adapter only ships
+    whatever text it is given inside the CTA structure GBP requires.
+    """
+
+    channels = [Channel.GBP]
+    API = "https://mybusiness.googleapis.com/v4"
+
+    CREDENTIALS = ("gbp_access_token", "gbp_account_id", "gbp_location_id")
+
+    def _publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+        cta_type = (self.cfg.gbp_cta_type or "CALL").upper()
+        cta: Dict[str, Any] = {"actionType": cta_type}
+        if cta_type != "CALL":
+            if not self.cfg.gbp_cta_url:
+                raise ChannelNotConfigured(
+                    f"GBP_CTA_TYPE={cta_type} needs GBP_CTA_URL — every "
+                    "action type except CALL requires a destination url."
+                )
+            cta["url"] = self.cfg.gbp_cta_url
+        body: Dict[str, Any] = {
+            "languageCode": self.cfg.gbp_language,
+            "summary": text,
+            "callToAction": cta,
+            "topicType": "STANDARD",
+        }
+        if media_urls:
+            body["media"] = [
+                {"mediaFormat": "PHOTO", "sourceUrl": u} for u in media_urls
+            ]
+        resp = self.http.post(
+            f"{self.API}/accounts/{self.cfg.gbp_account_id}"
+            f"/locations/{self.cfg.gbp_location_id}/localPosts",
+            json=body,
+            headers={"Authorization": f"Bearer {self.cfg.gbp_access_token}"},
+            timeout=self.cfg.request_timeout,
+        )
+        if resp.status_code == 403:
+            raise GBPAccessDenied(
+                "gbp publish → 403: Google has not granted this project "
+                "Business Profile API access for Local Posts. This is not a "
+                "credentials mistake — apply for access at "
+                "https://developers.google.com/my-business/content/basic-setup "
+                f"for the account that manages listing "
+                f"{self.cfg.gbp_location_id} (confirm it is the real "
+                "'PassQual Health - Miami Gardens' listing, never the "
+                "duplicate 'Hendry Perez Pascual, MD' one). Until approved, "
+                "publish this post to GBP by hand."
+            )
+        data = self._check(resp, "gbp publish")
+        return Publication(
+            channel=channel,
+            external_id=data.get("name", ""),
+            status="scheduled" if schedule_at else "published",
+        )
+
+
 # Direct adapters first — the resolver reorders by mode preference, but this
 # list order breaks ties inside the same mode.
 ADAPTERS = [
     MetaAdapter, LinkedInAdapter, XAdapter, ThreadsAdapter,
-    YouTubeAdapter, TikTokAdapter, BufferAdapter,
+    YouTubeAdapter, TikTokAdapter, GBPAdapter, BufferAdapter,
 ]
 
 
@@ -504,7 +585,8 @@ def adapter_for(
         raise ChannelNotConfigured(
             f"No configured adapter for {channel.value}. Configure the native "
             "token (META_PAGE_TOKEN / LINKEDIN_TOKEN / X_USER_TOKEN / "
-            "THREADS_TOKEN / YOUTUBE_TOKEN / TIKTOK_TOKEN) and/or BUFFER_TOKEN "
-            "for scheduling. See pcip/SETUP.md."
+            "THREADS_TOKEN / YOUTUBE_TOKEN / TIKTOK_TOKEN / GBP_ACCESS_TOKEN"
+            "+GBP_ACCOUNT_ID+GBP_LOCATION_ID) and/or BUFFER_TOKEN for "
+            "scheduling. See pcip/SETUP.md."
         )
     return candidates[0]

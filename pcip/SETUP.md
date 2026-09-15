@@ -285,7 +285,19 @@ python -m pcip route facebook --scheduled  # scheduled → Buffer first
 | **X** | <https://developer.x.com/> → project + app → OAuth2 user token with `tweet.write` | <https://docs.x.com/x-api/introduction> | `X_USER_TOKEN` |
 | **YouTube** | <https://console.cloud.google.com/> → enable YouTube Data API v3 → OAuth consent + token | <https://developers.google.com/youtube/v3/docs/videos/insert> | `YOUTUBE_TOKEN` |
 | **TikTok** | <https://developers.tiktok.com/> → app → Content Posting API (requires app review) | <https://developers.tiktok.com/doc/content-posting-api-get-started> | `TIKTOK_TOKEN` |
+| **Google Business Profile** | <https://console.cloud.google.com/> → OAuth token for the account managing the real listing, **and** apply for Business Profile API access | <https://developers.google.com/my-business/content/basic-setup> | `GBP_ACCESS_TOKEN`, `GBP_ACCOUNT_ID`, `GBP_LOCATION_ID` |
 | **Buffer** (scheduler) | <https://buffer.com/developers/api> | same | `BUFFER_TOKEN` |
+
+> **GBP is not "get a token and go."** Google has, since 2020, restricted
+> `localPosts.create` to approved Business Profile API partners — an
+> ordinary OAuth token authenticates fine and still gets a 403 on the one
+> call that matters until Google approves the project. `GBPAdapter` names
+> this explicitly (`GBPAccessDenied`) rather than surfacing it as a generic
+> auth failure. Apply for access before counting on this being unattended;
+> until approved, post to GBP by hand from the account that manages the
+> real **"PassQual Health - Miami Gardens"** listing — never the duplicate
+> **"Hendry Perez Pascual, MD"** listing, which sits at the wrong address
+> and is not the one this practice's patients find.
 
 > **Buffer's REST API retires on 1 February 2027.** PCIP's Buffer adapter
 > speaks that API; Buffer now directs new integrations to a GraphQL API at

@@ -36,7 +36,8 @@ _SECRET_KEYS = {
 _CREDENTIAL_FIELDS = (
     "buffer_token", "meta_page_token", "meta_ig_user_id", "linkedin_token",
     "linkedin_org_urn", "x_user_token", "threads_token", "threads_user_id",
-    "youtube_token", "tiktok_token",
+    "youtube_token", "tiktok_token", "gbp_access_token", "gbp_account_id",
+    "gbp_location_id",
 )
 
 
@@ -156,6 +157,10 @@ class DryRunSession:
             return DryRunResponse({"id": f"urn:li:share:dryrun{n}"})
         if "api.x.com" in url:
             return DryRunResponse({"data": {"id": f"dryrun_tweet_{n}"}})
+        if "mybusiness.googleapis.com" in url:
+            return DryRunResponse(
+                {"name": f"accounts/dryrun/locations/dryrun/localPosts/{n}"}
+            )
         if "googleapis.com" in url:
             if method == "POST":                          # resumable init
                 return DryRunResponse(

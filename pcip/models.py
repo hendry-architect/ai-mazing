@@ -141,6 +141,7 @@ class Channel(str, Enum):
     TIKTOK = "tiktok"
     X = "x"
     THREADS = "threads"
+    GBP = "gbp"                    # Google Business Profile — Local Posts
     NEWSLETTER = "newsletter"
     PODCAST = "podcast"
 
