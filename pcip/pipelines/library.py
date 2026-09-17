@@ -316,7 +316,21 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
                 "the result — either the signed URL, which PCIP downloads itself:\n"
                 f"  pcip attach {ctx['run'].id} --export-url <url>\n"
                 "or, if that host is unreachable from here, the downloaded file:\n"
-                f"  pcip attach {ctx['run'].id} --export-file <path>"
+                f"  pcip attach {ctx['run'].id} --export-file <path>\n"
+                "\n"
+                "The design's own canvas is a 1080x1920 portrait (built for "
+                "social); the website's article-card grid crops that into a "
+                "landscape thumbnail, which zooms in hard and can cut off text. "
+                "Also make a proper landscape crop for the website: duplicate "
+                "the design (MCP: copy-design), resize the copy to a landscape "
+                "size such as 1200x750 (MCP: resize-design, type=custom), export "
+                "that too, and attach it separately so it becomes the WordPress "
+                "featured image instead of the squeezed portrait:\n"
+                f"  pcip attach {ctx['run'].id} --featured-image-file <path>\n"
+                "(or --featured-image-url, same host-reachability rule as "
+                "--export-url above). This step is optional — skipping it just "
+                "means the portrait export is used as the featured image as "
+                "before, with the crop it already has."
             ),
         })
     else:
@@ -328,9 +342,38 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
             client.download_export(url, dest)
             paths.append(str(dest))
 
+    # A separately-exported landscape crop of the same design (see the
+    # handoff "how" text above) — optional and additive. When present it is
+    # moved to the front so it becomes media_paths[0], which
+    # WordPressPublisher uses as featured_media (pcip/connectors/wordpress.py)
+    # — the crop the website's article-card grid actually needs, instead of
+    # a portrait design squeezed into a landscape thumbnail. Absent, nothing
+    # here changes: `paths` and its order are exactly what they were before
+    # this feature existed.
+    featured_attached = [p for p in (ctx.get("featured_image_files") or []) if p]
+    featured_urls = [u for u in (ctx.get("_featured_image_urls") or []) if u]
+    featured_paths: List[str] = []
+    if featured_attached:
+        featured_paths = [str(p) for p in featured_attached]
+    elif featured_urls:
+        from pcip.connectors.canva import download_export_url
+
+        for n, url in enumerate(featured_urls):
+            dest = Path(cfg.exports_dir) / f"{output_id}_featured_{n}.{fmt}"
+            download_export_url(url, dest, timeout=cfg.request_timeout)
+            featured_paths.append(str(dest))
+    if featured_paths:
+        paths = featured_paths + [p for p in paths if p not in featured_paths]
+
     # Real per-visual alt text from the copy step, aligned to the exported
     # pages; without this every image inherits the deliverable's filename.
     alt_texts = [str(a) for a in (ctx.get("copy_fields") or {}).get("alt_texts") or []]
+    if featured_paths and alt_texts:
+        # The featured crop shows the same subject as the original, just
+        # framed differently — the existing alt text is still accurate, and
+        # WordPressPublisher zips alt_texts to media_paths by position, so
+        # the list has to grow in step with the reordered paths above.
+        alt_texts = [alt_texts[0]] * len(featured_paths) + alt_texts
 
     asset = Asset(
         id=output_id,

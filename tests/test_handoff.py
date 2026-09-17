@@ -112,6 +112,69 @@ def test_attached_export_files_become_a_licensed_output(tmp_path):
     assert out["payload"]["metadata"]["alt_texts"] == ["Un paciente revisando sus pies"]
 
 
+# ── the website featured-image crop, separate from the portrait export ──────
+
+
+def test_a_featured_image_file_becomes_the_first_media_path(tmp_path):
+    """WordPressPublisher uses media_paths[0] as featured_media (see
+    pcip/connectors/wordpress.py) — the website's article-card grid needs a
+    properly-cropped landscape image there, not the portrait design squeezed
+    into that shape."""
+    cfg, g, runner, brief = setup(data_dir=tmp_path)
+    portrait = tmp_path / "portrait.png"
+    portrait.write_bytes(b"portrait")
+    landscape = tmp_path / "landscape.png"
+    landscape.write_bytes(b"landscape")
+    ctx = {"cfg": cfg, "graph": g, "brief": brief,
+           "run": type("R", (), {"id": "run_x"})(),
+           "design_id": "DAH999",
+           "export_files": [str(portrait)],
+           "featured_image_files": [str(landscape)],
+           "copy_fields": {"alt_texts": ["El equipo de PassQual Health"]}}
+    export_deliverable(ctx)
+
+    out = g.get_node(ctx["output_id"])
+    pages = out["payload"]["metadata"]["pages"]
+    assert pages == [str(landscape), str(portrait)]
+    assert out["payload"]["local_path"] == str(landscape)
+    # The alt text describes the same subject either way, and the list has
+    # to grow with the reordered paths so WordPressPublisher's zip() doesn't
+    # pair the portrait's caption with the landscape crop.
+    assert out["payload"]["metadata"]["alt_texts"] == [
+        "El equipo de PassQual Health", "El equipo de PassQual Health",
+    ]
+
+
+def test_without_a_featured_image_nothing_about_export_changes(tmp_path):
+    """The feature is purely additive — a run that never attaches a featured
+    image behaves exactly as it did before this existed."""
+    cfg, g, runner, brief = setup(data_dir=tmp_path)
+    f = tmp_path / "page1.png"
+    f.write_bytes(b"fake")
+    ctx = {"cfg": cfg, "graph": g, "brief": brief,
+           "run": type("R", (), {"id": "run_x"})(),
+           "design_id": "DAH999",
+           "export_files": [str(f)],
+           "copy_fields": {"alt_texts": ["Alt original"]}}
+    export_deliverable(ctx)
+
+    out = g.get_node(ctx["output_id"])
+    assert out["payload"]["metadata"]["pages"] == [str(f)]
+    assert out["payload"]["metadata"]["alt_texts"] == ["Alt original"]
+
+
+def test_the_export_handoff_offers_the_optional_featured_image_step():
+    cfg, g, runner, brief = setup()
+    ctx = {"cfg": cfg, "graph": g, "brief": brief,
+           "run": type("R", (), {"id": "run_x"})(),
+           "design_id": "DAH999"}
+    with pytest.raises(HandoffRequired) as exc:
+        export_deliverable(ctx)
+    how = exc.value.spec["how"]
+    assert "--featured-image-file" in how
+    assert "optional" in how.lower()
+
+
 def test_connect_mode_without_autofill_fields_says_what_to_do():
     """The exact situation on this Canva account: templates have no dataset."""
     cfg, g, runner, brief = setup(mode="connect")

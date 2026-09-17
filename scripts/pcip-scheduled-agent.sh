@@ -101,6 +101,16 @@ Do this, in order:
      reach export-download.canva.com, which it can) or, if that ever
      fails, download the file yourself and use \`--export-file <path>\`
      instead.
+   - Also make a landscape crop for the website (do this every run, it is
+     what fixes the article-card thumbnail): the design's canvas is a
+     1080x1920 portrait built for social, and the website's article grid
+     crops that hard into a landscape thumbnail. \`copy-design\` the
+     assembled design, \`resize-design\` the copy to a landscape size
+     (type: custom, e.g. 1200x750), \`export-design\` that copy too, then:
+     \`.venv/bin/python -m pcip.cli attach <run_id> --featured-image-url '<signed_url>'\`
+     (or \`--featured-image-file <path>\` under the same reachability rule
+     as export above). This becomes the WordPress featured image instead
+     of the portrait export.
    Repeat attach/resume until status is \`done\`.
 
 4. Once \`done\`, run \`.venv/bin/python -m pcip.cli outputs\`, take the

@@ -364,12 +364,17 @@ def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
             run.context["export_files"] = list(args.export_file)
         if args.export_url:
             run.context["_export_urls"] = list(args.export_url)
+        if args.featured_image_file:
+            run.context["featured_image_files"] = list(args.featured_image_file)
+        if args.featured_image_url:
+            run.context["_featured_image_urls"] = list(args.featured_image_url)
         if args.copy_file:
             fields = json.loads(pathlib.Path(args.copy_file).read_text(encoding="utf-8"))
             run.context["copy_fields"] = fields
             run.context["copy"] = fields.get("body_html", "") or run.context.get("copy", "")
         if not any(supplied.values()) and not (
             args.export_file or args.export_url or args.copy_file
+            or args.featured_image_file or args.featured_image_url
         ):
             print("error: nothing to attach — pass --copy-file, --design-id, "
                   "--export-url and/or --export-file",
@@ -835,6 +840,16 @@ def build_parser() -> argparse.ArgumentParser:
                     help="signed Canva export URL to download (repeatable); use "
                          "instead of --export-file when this machine can reach "
                          "export-download.canva.com")
+    sp.add_argument("--featured-image-file", action="append", default=[],
+                    help="path to a separately-exported landscape crop of the "
+                         "same design, for the website's article-card thumbnail "
+                         "(repeatable). Becomes the WordPress featured image, "
+                         "ahead of --export-file/--export-url, which still carry "
+                         "the design's native (portrait) export.")
+    sp.add_argument("--featured-image-url", action="append", default=[],
+                    help="signed Canva export URL for the landscape crop above; "
+                         "use instead of --featured-image-file when this machine "
+                         "can reach export-download.canva.com")
 
     sp = sub.add_parser(
         "prepare",
