@@ -95,22 +95,26 @@ Do this, in order:
      call-to-action after the arrow -> any cta field) — commit the
      transaction, then:
      \`.venv/bin/python -m pcip.cli attach <run_id> --design-id <id> --design-url <view_url>\`
-   - Export: \`export-design\` (format png), then:
-     \`.venv/bin/python -m pcip.cli attach <run_id> --export-url '<signed_url>'\`
-     (try this first — it works as long as this machine's network can
-     reach export-download.canva.com, which it can) or, if that ever
-     fails, download the file yourself and use \`--export-file <path>\`
-     instead.
-   - Also make a landscape crop for the website (do this every run, it is
-     what fixes the article-card thumbnail): the design's canvas is a
+   - Export the assembled (portrait) design: \`export-design\` (format png).
+   - Also make a landscape version for the website (do this every run, it
+     is what fixes the article-card thumbnail): the design's canvas is a
      1080x1920 portrait built for social, and the website's article grid
      crops that hard into a landscape thumbnail. \`copy-design\` the
-     assembled design, \`resize-design\` the copy to a landscape size
-     (type: custom, e.g. 1200x750), \`export-design\` that copy too, then:
-     \`.venv/bin/python -m pcip.cli attach <run_id> --featured-image-url '<signed_url>'\`
-     (or \`--featured-image-file <path>\` under the same reachability rule
-     as export above). This becomes the WordPress featured image instead
-     of the portrait export.
+     assembled design, then rebuild the copy as a landscape layout —
+     full-bleed photo cropped to fill the new frame, the logo kept, the
+     navy band and copy re-laid to fit. Do NOT just \`resize-design\` it
+     and export that: resize-design does not reflow the design onto its
+     new dimensions, it letterboxes with white margins and leaves the CTA
+     outside the visible frame. Treat this as a small redesign for a new
+     aspect ratio, not a resize. \`export-design\` the rebuilt version too.
+   - Attach BOTH exports in the SAME call — this is required, not a
+     preference: attaching \`--featured-image-url\`/\`--featured-image-file\`
+     in a later, separate \`attach\` call is accepted with no error and
+     silently does nothing, because nothing reads the run's context again
+     once the export step has already completed:
+     \`.venv/bin/python -m pcip.cli attach <run_id> --export-url '<signed_url>' --featured-image-url '<signed_url_2>'\`
+     (or \`--export-file\`/\`--featured-image-file\`, same reachability rule
+     as before — try the URL form first, it works on this machine).
    Repeat attach/resume until status is \`done\`.
 
 4. Once \`done\`, run \`.venv/bin/python -m pcip.cli outputs\`, take the

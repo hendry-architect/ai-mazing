@@ -2,6 +2,8 @@
 every governance gate still applies once the work comes back.
 """
 
+import argparse
+
 import pytest
 
 from pcip.config import PCIPConfig
@@ -315,6 +317,92 @@ def test_the_account_default_template_is_used_when_a_brief_names_none():
     brief = Brief(id="b", title="T", references=[])
     assert _template_id_from({"cfg": cfg, "brief": brief}) == cfg.canva_brand_template_id
     assert cfg.canva_brand_template_id      # a real id, not empty
+
+
+# ── attaching the featured image separately from the export ────────────────
+
+
+def _attach_args(run_id, **overrides):
+    """cmd_attach's argparse.Namespace, defaulted to "attach nothing"."""
+    fields = dict(
+        run_id=run_id, design_id="", design_url="", design_title="",
+        template_id="", copy_file="", export_file=[], export_url=[],
+        featured_image_file=[], featured_image_url=[],
+    )
+    fields.update(overrides)
+    return argparse.Namespace(**fields)
+
+
+def _run_to_export_handoff(cfg, g):
+    """A real, persisted run sitting at the export handoff, the way one
+    would after the assembly handoff was already fulfilled."""
+    runner = PipelineRunner(cfg, g)
+    brief = Brief(id="brief_1", title="Diabetes at Home", language="es")
+    g.upsert_node(brief.id, NodeKind.BRIEF, brief.title, brief.to_dict())
+    pipe = Pipeline("t", "test",
+                     [Step("assemble", assemble_in_canva), Step("export", export_deliverable)])
+    run = runner.start(pipe, brief)
+    # fulfil_handoff, not a direct context mutation + resume() — it also
+    # pops the stale "handoff" key, which resume() alone does not, and
+    # without that pop pending_handoff would keep reporting the assembly
+    # handoff even once the run has moved past it.
+    run = runner.fulfil_handoff(
+        pipe, run, brief,
+        design_id="DAH999", design_url="https://www.canva.com/d/xyz",
+        brand_template_id="EAHNKdycEE8",
+    )
+    assert run.pending_handoff["needs"] == "export", run.pending_handoff
+    return run, pipe
+
+
+def test_attach_refuses_a_featured_image_without_the_export_it_belongs_with(tmp_path, monkeypatch):
+    """Regression test for a real silent-data-loss bug: attaching
+    --export-url now and --featured-image-url later, in a separate call,
+    used to be accepted with no error and just... do nothing the second
+    time, because the export step had already finished and nothing reads
+    the run's context again."""
+    from pcip.cli import cmd_attach
+
+    cfg = PCIPConfig(data_dir=tmp_path, canva_mode="mcp")
+    with KnowledgeGraph(cfg.graph_db_path) as g:
+        run, pipe = _run_to_export_handoff(cfg, g)
+        monkeypatch.setattr("pcip.pipelines.library.get_pipeline", lambda name: pipe)
+
+        rc = cmd_attach(cfg, _attach_args(
+            run.id, featured_image_url=["https://export-download.canva.com/x.png"],
+        ))
+        assert rc == 1
+
+        runner = PipelineRunner(cfg, g)
+        reloaded = runner.load_run(run.id)
+        # Refused before touching anything — still sitting at the same
+        # handoff, not silently advanced with half the data.
+        assert reloaded.status == "awaiting_handoff"
+        assert "_featured_image_urls" not in reloaded.context
+
+
+def test_attach_allows_both_together_in_one_call(tmp_path, monkeypatch):
+    from pcip.cli import cmd_attach
+
+    cfg = PCIPConfig(data_dir=tmp_path, canva_mode="mcp")
+    with KnowledgeGraph(cfg.graph_db_path) as g:
+        run, pipe = _run_to_export_handoff(cfg, g)
+        monkeypatch.setattr("pcip.pipelines.library.get_pipeline", lambda name: pipe)
+
+        f = tmp_path / "portrait.png"
+        f.write_bytes(b"x")
+        featured = tmp_path / "landscape.png"
+        featured.write_bytes(b"y")
+        rc = cmd_attach(cfg, _attach_args(
+            run.id, export_file=[str(f)], featured_image_file=[str(featured)],
+        ))
+        assert rc == 0
+
+        runner = PipelineRunner(cfg, g)
+        reloaded = runner.load_run(run.id)
+        assert reloaded.status == "done"
+        out = g.get_node(reloaded.steps[-1].outputs[0])
+        assert out["payload"]["metadata"]["pages"][0] == str(featured)
 
 
 def test_a_brief_reference_still_wins():

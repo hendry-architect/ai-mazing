@@ -360,6 +360,24 @@ def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
         for key, value in supplied.items():
             if value:
                 run.context[key] = value
+        # Found live: an agent attached --export-url, which completed the
+        # export step, then attached --featured-image-url in a *separate*
+        # call — accepted with no error, and silently dropped, because
+        # nothing reads the run's context again once that step is done.
+        # The two only ever mean anything read together, in the same call.
+        if (args.featured_image_file or args.featured_image_url) and not (
+            args.export_file or args.export_url
+        ):
+            print(
+                "error: --featured-image-file/--featured-image-url must be "
+                "given together with --export-file/--export-url, in this "
+                "same attach call. The export step consumes both at once; "
+                "attaching the featured image on its own after export has "
+                "already completed does nothing — silently, with no error "
+                "— because nothing reads the run's context again.",
+                file=sys.stderr,
+            )
+            return 1
         if args.export_file:
             run.context["export_files"] = list(args.export_file)
         if args.export_url:
