@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 class PH:
@@ -299,7 +299,9 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
 
     ``article`` carries the shape PCIP's copy step produces: per-language
     ``body_html``/``title``, plus ``meta_title``, ``meta_description``,
-    ``faq``, ``alt_texts``, ``featured_image`` and ``keywords``.
+    ``faq``, ``alt_texts``, ``featured_image`` and ``keywords``. Optional
+    ``verified_amounts`` lists dollar figures the brief itself states, so a
+    cited outside statistic is not mistaken for an invented membership price.
 
     ``stage`` is "draft" while the copy exists but the design has not been
     exported yet, and "publish" once everything is assembled. At the draft
@@ -461,7 +463,7 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
             ))
     for violation in _membership_violations(lowered):
         add(violation)
-    for violation in _membership_facts(joined):
+    for violation in _membership_facts(joined, article.get("verified_amounts")):
         add(violation)
     drug_terms = _drug_term_hits(lowered)
     if drug_terms:
@@ -486,12 +488,15 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
     return out
 
 
-def _membership_facts(text: str) -> List[Violation]:
+def _membership_facts(
+    text: str,
+    verified_amounts: Optional[Iterable[int]] = None,
+) -> List[Violation]:
     """Imported late: membership.py imports PH, so the reverse cannot be
     a module-level import."""
     from pcip.standards.membership import check_membership_facts
 
-    return check_membership_facts(text)
+    return check_membership_facts(text, verified_amounts)
 
 
 def _membership_violations(lowered: str) -> List[Violation]:

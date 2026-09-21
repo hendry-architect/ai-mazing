@@ -96,3 +96,35 @@ def test_an_invented_price_blocks_a_social_caption_too():
         "channel": "instagram", "media": ["h.png"], "language": "es",
     })
     assert any(v.rule == "unverified_price" for v in check.blockers)
+
+
+def test_a_figure_the_brief_vouches_for_is_not_an_invented_price():
+    """A cited outside statistic is not a price the practice charges.
+
+    The membership brief requires quoting KFF's post-subsidy premium average
+    ($888 → $1,904/yr). Graded as a membership price it looks invented, and
+    the run that produced this article was blocked for citing the very figure
+    its own brief demanded.
+    """
+    text = COMPLETE + " KFF estima un aumento de $888 a $1,904 al año (kff.org)."
+    assert rules(text)["unverified_price"] == "blocker"
+    assert "unverified_price" not in {
+        v.rule for v in check_membership_facts(text, verified_amounts=[888, 1904])
+    }
+
+
+def test_vouching_does_not_excuse_a_price_the_brief_never_stated():
+    text = COMPLETE.replace("$79", "$49")
+    assert any(
+        v.rule == "unverified_price"
+        for v in check_membership_facts(text, verified_amounts=[888, 1904])
+    )
+
+
+def test_brief_verified_amounts_reads_key_messages_and_constraints():
+    from pcip.standards.membership import brief_verified_amounts
+
+    assert brief_verified_amounts(
+        ["primas de $888 al año"], ["citar el alza a $1,904"],
+    ) == [888, 1904]
+    assert brief_verified_amounts([], []) == []
