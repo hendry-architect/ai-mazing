@@ -13,7 +13,7 @@
   "topics": ["telesalud", "acceso", "membresía"],
   "language": "bilingual",
   "tone": "práctico, directo",
-  "references": ["canva:brand_template:EAHUkk84ubc"],
+  "references": ["canva:brand_template:EAHVfLK__FM"],
   "constraints": [
     "Aclarar que telesalud no es para emergencias -- para emergencias, llamar al 911.",
     "No es un seguro de salud si se menciona la membresía.",

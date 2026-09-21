@@ -141,8 +141,15 @@ class PCIPConfig:
     # Until 2026-09-08 the account had no autofill-capable template at all —
     # every one had its headline baked into the artwork, which is why the
     # dataset came back empty and why unattended assembly was impossible.
-    # EAHUkk84ubc is the first with real fields: hero_image, headline, body, cta.
-    canva_brand_template_id: str = "EAHUkk84ubc"
+    # EAHUkk84ubc was the first with real fields: hero_image, headline,
+    # body, cta — but its hero_image default was a photo with an unrelated
+    # headline ("¿Tu presión está alta?") baked into the pixels, wrong on
+    # every article regardless of topic. Canva's "Publish template" does
+    # not update a template in place — it creates a new one — so the fixed
+    # version (real photo, real logo element, same autofill fields) lives
+    # at a new id, EAHVfLK__FM (2026-09-20). EAHUkk84ubc still exists,
+    # still broken, and must not be pointed back to.
+    canva_brand_template_id: str = "EAHVfLK__FM"
 
     # ── Behavior ─────────────────────────────────────────────────────────
     default_brand: str = "PassQual"
@@ -424,7 +431,7 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         gbp_language=(_env("GBP_LANGUAGE", "es").lower() or "es"),
         canva_mode=(_env("PCIP_CANVA_MODE", "mcp").lower() or "mcp"),
         env_file=str(dotenv_path() or ""),
-        canva_brand_template_id=_env("CANVA_BRAND_TEMPLATE_ID", "EAHUkk84ubc"),
+        canva_brand_template_id=_env("CANVA_BRAND_TEMPLATE_ID", "EAHVfLK__FM"),
         default_brand=_env("PCIP_DEFAULT_BRAND", "PassQual"),
         auto_approve_gates=[
             g.strip()
