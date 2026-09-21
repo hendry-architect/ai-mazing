@@ -570,9 +570,22 @@ def ph_standard_check(ctx: Dict[str, Any]) -> str:
         elif fields.get("body_html"):
             fields["body_html"] = next(iter(bodies.values()), fields["body_html"])
 
+    brief = ctx["brief"]
+    # Figures the brief itself states are already human-verified — the price
+    # guard exists to catch numbers a model invented, not a cited outside
+    # statistic the brief requires quoting (see check_membership_facts).
+    from pcip.standards.membership import brief_verified_amounts
+
+    verified_amounts = brief_verified_amounts(
+        brief.key_messages, brief.constraints)
+    # Persisted so the publish gate grades this article against the same
+    # vouched-for figures the draft check used.
+    ctx["verified_amounts"] = verified_amounts
+
     article = {
         "bodies": bodies,
         "titles": titles,
+        "verified_amounts": verified_amounts,
         "meta_title": fields.get("meta_title", ""),
         "meta_description": fields.get("meta_description", ""),
         "faq": fields.get("faq") or [],

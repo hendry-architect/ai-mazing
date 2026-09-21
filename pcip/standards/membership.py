@@ -14,7 +14,7 @@ practice did not make.
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from pcip.standards.ph import PH, Violation
 
@@ -125,22 +125,50 @@ def stated_amounts(text: str) -> List[int]:
     return out
 
 
-def check_membership_facts(text: str) -> List[Violation]:
+def brief_verified_amounts(*sources: Iterable[str]) -> List[int]:
+    """Dollar figures a human wrote into the brief, for ``verified_amounts``.
+
+    The brief's key messages and constraints are authored and source-checked
+    by the practice, so a figure quoted there — a KFF premium average, say —
+    is evidence of citation, not of invention. Deriving it from the brief in
+    one place keeps the pipeline's draft check and the publish gate agreeing
+    about which numbers are vouched for; when they disagreed, a run could pass
+    review and then be refused at publish for the very figure its brief
+    required.
+    """
+    return sorted({
+        amount
+        for source in sources
+        for text in (source or ())
+        for amount in stated_amounts(text)
+    })
+
+
+def check_membership_facts(
+    text: str,
+    verified_amounts: Optional[Iterable[int]] = None,
+) -> List[Violation]:
     """Refuse membership copy that states a figure the agreement does not.
 
     The single most likely failure when a model writes about a priced product
     is a confident, invented number. This does not try to judge whether the
     copy is *persuasive* — only whether every price in it is one the practice
     actually charges.
+
+    ``verified_amounts`` carries figures a human already vouched for in the
+    brief — a cited third-party statistic such as a KFF premium average is not
+    a price the practice charges, and flagging it as an invented price would
+    block the very citation the brief requires. A figure can only arrive here
+    by having been written into the brief, so it is not something the model
+    made up, which is the whole of what this guard exists to catch.
     """
     lowered = (text or "").lower()
     if not any(t in lowered for t in PH.MEMBERSHIP_TERMS):
         return []
 
+    allowed = set(MEMBERSHIP.STATED_AMOUNTS) | set(verified_amounts or ())
     violations: List[Violation] = []
-    unverified = sorted(
-        {a for a in stated_amounts(text) if a not in MEMBERSHIP.STATED_AMOUNTS}
-    )
+    unverified = sorted({a for a in stated_amounts(text) if a not in allowed})
     if unverified:
         listed = ", ".join(f"${a}" for a in unverified)
         violations.append(Violation(
