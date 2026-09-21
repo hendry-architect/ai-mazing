@@ -360,7 +360,8 @@ class PublishRouter:
         from pcip.standards import check_article
 
         run = self._producing_run(output_id)
-        fields = (run.get("context") or {}).get("copy_fields") or {}
+        ctx = run.get("context") or {}
+        fields = ctx.get("copy_fields") or {}
         bodies = fields.get("bodies") or {}
         titles = fields.get("titles") or {}
         if not bodies:
@@ -377,6 +378,7 @@ class PublishRouter:
             "faq": fields.get("faq") or [],
             "featured_image": media[0] if media else "",
             "alt_texts": fields.get("alt_texts_by_language") or {},
+            "verified_amounts": self._verified_amounts(run, ctx),
         }, stage="publish")
 
         if not check.passed:
@@ -387,6 +389,28 @@ class PublishRouter:
                 "publish body copy you have written and taken responsibility "
                 "for."
             )
+
+    def _verified_amounts(
+        self, run: Dict[str, Any], ctx: Dict[str, Any]
+    ) -> List[int]:
+        """Figures the producing run's brief vouched for.
+
+        Read back from the run context when the pipeline recorded it, and
+        recovered from the brief node otherwise, so articles produced before
+        the context carried this are still graded against their own brief
+        rather than refused for a figure that brief required citing.
+        """
+        from pcip.standards.membership import brief_verified_amounts
+
+        recorded = ctx.get("verified_amounts")
+        if recorded:
+            return [int(a) for a in recorded]
+        node = self.graph.get_node(run.get("brief_id") or "")
+        if not node:
+            return []
+        brief = node.get("payload") or {}
+        return brief_verified_amounts(
+            brief.get("key_messages") or [], brief.get("constraints") or [])
 
     def _check_license(self, output: Asset) -> None:
         used: List[Asset] = [output]
