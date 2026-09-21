@@ -203,7 +203,7 @@ def test_connect_mode_autofill_maps_named_fields_not_prose_lines():
     and handed them out in field order, with no idea "cta" wanted a phone
     number rather than the third sentence of the article."""
     cfg, g, runner, brief = setup(mode="connect")
-    brief.references = ["canva:brand_template:EAHUkk84ubc"]
+    brief.references = ["canva:brand_template:EAHVfLK__FM"]
     brief.language = "bilingual"
 
     captured = {}
