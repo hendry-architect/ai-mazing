@@ -202,6 +202,7 @@ class PublishRouter:
         fields: Dict[str, Any],
         bodies: Dict[str, str],
         payload: Dict[str, Any],
+        output: Asset,
         *,
         live: bool,
         schedule_at: str,
@@ -238,6 +239,7 @@ class PublishRouter:
             faq=fields.get("faq") or [],
             alt_texts=fields.get("alt_texts_by_language") or {},
             media_paths=payload.get("media_paths") or [],
+            media_paths_by_language=self._media_paths_by_language(output),
             status="publish" if live else "draft",
             excerpt=payload.get("excerpt", ""),
         )
@@ -251,6 +253,22 @@ class PublishRouter:
             for lang, p in pubs.items()
         }
         return primary
+
+    @staticmethod
+    def _media_paths_by_language(output: Asset) -> Dict[str, List[str]]:
+        """A language-specific hero image, when the export step produced one.
+
+        Found live: a Canva design's headline text is baked into the pixels,
+        so one shared featured image is a Spanish headline on the English
+        post too, no matter how correct the article text is. export_deliverable
+        records a per-language export at ``metadata["featured_media_by_language"]``
+        when the handoff attached one; absent that key (every run before this
+        existed, and any run where only the shared crop was attached), this
+        returns {} and WordPressPublisher falls back to the one shared image,
+        unchanged from before.
+        """
+        by_lang = output.metadata.get("featured_media_by_language") or {}
+        return {lang: [path] for lang, path in by_lang.items() if path}
 
     def _promote_drafts(
         self, wp: Any, output_id: str, *, live: bool
@@ -479,7 +497,7 @@ class PublishRouter:
             bodies = {k: v for k, v in (fields.get("bodies") or {}).items() if v}
             if len(bodies) > 1 and not text:
                 return self._publish_bilingual(
-                    wp, output_id, fields, bodies, payload,
+                    wp, output_id, fields, bodies, payload, output,
                     live=live, schedule_at=schedule_at,
                 )
             if not payload["body_html"].strip():

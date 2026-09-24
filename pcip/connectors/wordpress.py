@@ -601,13 +601,23 @@ class WordPressPublisher:
         faq: Optional[List[Dict[str, str]]] = None,
         alt_texts: Optional[Dict[str, str]] = None,
         media_paths: Optional[List[str]] = None,
+        media_paths_by_language: Optional[Dict[str, List[str]]] = None,
         status: str = "draft",
         excerpt: str = "",
     ) -> Dict[str, Publication]:
         """Publish an ES/EN pair and link them to each other.
 
-        Order matters. Media is uploaded once and shared, because two copies of
-        the same hero in the library is a mess someone has to clean up later.
+        Order matters. Media is uploaded once and shared by default, because
+        two copies of the same *language-agnostic* hero in the library is a
+        mess someone has to clean up later. That default stops being right
+        the moment the image itself carries baked-in text: a Spanish headline
+        image on the English post is wrong regardless of how tidy the media
+        library is. ``media_paths_by_language`` is the escape hatch — a
+        language present there gets its own upload and its own featured
+        image; a language absent from it falls back to the shared
+        ``media_paths``, so a caller that never learned about this still gets
+        exactly the old behavior.
+
         Both posts are then created, and only afterwards patched with the
         cross-link and schema — the JSON-LD must carry each post's real URL,
         and neither URL exists until WordPress has assigned it.
@@ -615,15 +625,32 @@ class WordPressPublisher:
         from pcip.publish import seo
 
         alt_texts = alt_texts or {}
-        media_ids: List[int] = []
-        media_url = ""
-        for i, path in enumerate(media_paths or []):
-            uploaded = self.upload_media(
-                path, alt_text=alt_texts.get(PH_PRIMARY, "") or ""
-            )
-            media_ids.append(uploaded["id"])
-            if i == 0:
-                media_url = uploaded.get("source_url", "")
+        media_paths_by_language = media_paths_by_language or {}
+
+        def _upload_all(paths: List[str], alt_lang: str) -> tuple[List[int], str]:
+            ids: List[int] = []
+            url = ""
+            for i, path in enumerate(paths or []):
+                uploaded = self.upload_media(
+                    path, alt_text=alt_texts.get(alt_lang, "") or ""
+                )
+                ids.append(uploaded["id"])
+                if i == 0:
+                    url = uploaded.get("source_url", "")
+            return ids, url
+
+        shared_media_ids, shared_media_url = _upload_all(media_paths or [], PH_PRIMARY)
+        media_ids_by_lang: Dict[str, List[int]] = {}
+        media_url_by_lang: Dict[str, str] = {}
+        for lang, paths in media_paths_by_language.items():
+            if paths:
+                media_ids_by_lang[lang], media_url_by_lang[lang] = _upload_all(paths, lang)
+
+        def media_ids(lang: str) -> List[int]:
+            return media_ids_by_lang.get(lang) or shared_media_ids
+
+        def media_url(lang: str) -> str:
+            return media_url_by_lang.get(lang) or shared_media_url
 
         created: Dict[str, Dict[str, Any]] = {}
         for lang in ("es", "en"):
@@ -642,8 +669,8 @@ class WordPressPublisher:
             }
             if slugs.get(lang):
                 payload["slug"] = slugs[lang]
-            if media_ids:
-                payload["featured_media"] = media_ids[0]
+            if media_ids(lang):
+                payload["featured_media"] = media_ids(lang)[0]
             meta = seo.seo_meta_fields(meta_title, meta_description)
             if meta:
                 payload["meta"] = meta
@@ -672,7 +699,7 @@ class WordPressPublisher:
                 meta_title=meta_title,
                 meta_description=meta_description,
                 url=public_url,
-                image_url=media_url,
+                image_url=media_url(lang),
                 translation_url=other_public,
             )
             updated = self.update_post(str(post["id"]), content=full_body)
@@ -680,7 +707,7 @@ class WordPressPublisher:
             meta_out: Dict[str, Any] = {
                 "wp_status": updated.get("status", post.get("status", status)),
                 "wp_link": updated.get("link", post.get("link", "")),
-                "media_ids": media_ids,
+                "media_ids": media_ids(lang),
                 "language": lang,
                 "transport": "rest",
                 "translation_of": (created.get(other) or {}).get("id", ""),

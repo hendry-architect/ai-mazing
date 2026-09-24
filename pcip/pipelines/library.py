@@ -371,6 +371,30 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
             dest = Path(cfg.exports_dir) / f"{output_id}_featured_{n}.{fmt}"
             download_export_url(url, dest, timeout=cfg.request_timeout)
             featured_paths.append(str(dest))
+    # A hero image's headline text is baked into its pixels — one shared
+    # featured image is correct for a Spanish reader and wrong for an
+    # English one on the very same article, no matter how good the crop is.
+    # These are optional, additive, per-language overrides of the featured
+    # image above; a run that never attaches one behaves exactly as before.
+    featured_by_lang: Dict[str, str] = {}
+    for lang in ("es", "en"):
+        lang_file = (ctx.get("featured_image_files_by_language") or {}).get(lang)
+        lang_url = (ctx.get("_featured_image_urls_by_language") or {}).get(lang)
+        if lang_file:
+            featured_by_lang[lang] = str(lang_file)
+        elif lang_url:
+            from pcip.connectors.canva import download_export_url
+
+            dest = Path(cfg.exports_dir) / f"{output_id}_featured_{lang}.{fmt}"
+            download_export_url(lang_url, dest, timeout=cfg.request_timeout)
+            featured_by_lang[lang] = str(dest)
+    if not featured_paths and featured_by_lang.get("es"):
+        # No single shared crop was attached, but a per-language one was —
+        # Spanish is this brand's primary language, so it is the sensible
+        # single image for anything that isn't the bilingual publish path
+        # (a dry run, a single-language publish, `paths[0]`/local_path).
+        featured_paths = [featured_by_lang["es"]]
+
     if featured_paths:
         paths = featured_paths + [p for p in paths if p not in featured_paths]
 
@@ -392,7 +416,9 @@ def export_deliverable(ctx: Dict[str, Any]) -> str:
         local_path=paths[0] if paths else "",
         license=LicensePolicy.canva_export_license(pro=True),
         metadata={"via_export": True, "format": fmt, "pages": paths,
-                  "alt_texts": alt_texts},
+                  "alt_texts": alt_texts,
+                  **({"featured_media_by_language": featured_by_lang}
+                     if featured_by_lang else {})},
     )
     graph.upsert_node(output_id, NodeKind.OUTPUT, asset.name, asset.to_dict())
     if ctx.get("design_node"):

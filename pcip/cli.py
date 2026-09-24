@@ -365,16 +365,22 @@ def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
         # call — accepted with no error, and silently dropped, because
         # nothing reads the run's context again once that step is done.
         # The two only ever mean anything read together, in the same call.
-        if (args.featured_image_file or args.featured_image_url) and not (
-            args.export_file or args.export_url
-        ):
+        # Applies equally to the per-language featured-image flags below —
+        # same step, same one-shot consumption.
+        any_featured = (
+            args.featured_image_file or args.featured_image_url
+            or args.featured_image_file_es or args.featured_image_url_es
+            or args.featured_image_file_en or args.featured_image_url_en
+        )
+        if any_featured and not (args.export_file or args.export_url):
             print(
-                "error: --featured-image-file/--featured-image-url must be "
-                "given together with --export-file/--export-url, in this "
-                "same attach call. The export step consumes both at once; "
-                "attaching the featured image on its own after export has "
-                "already completed does nothing — silently, with no error "
-                "— because nothing reads the run's context again.",
+                "error: --featured-image-file/--featured-image-url (or their "
+                "-es/-en language-tagged forms) must be given together with "
+                "--export-file/--export-url, in this same attach call. The "
+                "export step consumes both at once; attaching the featured "
+                "image on its own after export has already completed does "
+                "nothing — silently, with no error — because nothing reads "
+                "the run's context again.",
                 file=sys.stderr,
             )
             return 1
@@ -386,13 +392,27 @@ def cmd_attach(cfg: PCIPConfig, args: argparse.Namespace) -> int:
             run.context["featured_image_files"] = list(args.featured_image_file)
         if args.featured_image_url:
             run.context["_featured_image_urls"] = list(args.featured_image_url)
+        featured_by_lang_file = {
+            lang: path for lang, path in
+            (("es", args.featured_image_file_es), ("en", args.featured_image_file_en))
+            if path
+        }
+        if featured_by_lang_file:
+            run.context["featured_image_files_by_language"] = featured_by_lang_file
+        featured_by_lang_url = {
+            lang: url for lang, url in
+            (("es", args.featured_image_url_es), ("en", args.featured_image_url_en))
+            if url
+        }
+        if featured_by_lang_url:
+            run.context["_featured_image_urls_by_language"] = featured_by_lang_url
         if args.copy_file:
             fields = json.loads(pathlib.Path(args.copy_file).read_text(encoding="utf-8"))
             run.context["copy_fields"] = fields
             run.context["copy"] = fields.get("body_html", "") or run.context.get("copy", "")
         if not any(supplied.values()) and not (
             args.export_file or args.export_url or args.copy_file
-            or args.featured_image_file or args.featured_image_url
+            or any_featured
         ):
             print("error: nothing to attach — pass --copy-file, --design-id, "
                   "--export-url and/or --export-file",
@@ -868,6 +888,19 @@ def build_parser() -> argparse.ArgumentParser:
                     help="signed Canva export URL for the landscape crop above; "
                          "use instead of --featured-image-file when this machine "
                          "can reach export-download.canva.com")
+    sp.add_argument("--featured-image-file-es", default="",
+                    help="like --featured-image-file, but only for the Spanish "
+                         "post of a bilingual pair — a hero image's text is "
+                         "baked into its pixels, so a bilingual run needs one "
+                         "featured image per language, not one shared image "
+                         "for both. Falls back to --featured-image-file (or "
+                         "the portrait export) for any language not given here.")
+    sp.add_argument("--featured-image-file-en", default="",
+                    help="the English counterpart to --featured-image-file-es.")
+    sp.add_argument("--featured-image-url-es", default="",
+                    help="signed Canva export URL form of --featured-image-file-es.")
+    sp.add_argument("--featured-image-url-en", default="",
+                    help="signed Canva export URL form of --featured-image-file-en.")
 
     sp = sub.add_parser(
         "prepare",

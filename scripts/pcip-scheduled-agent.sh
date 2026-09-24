@@ -107,14 +107,28 @@ Do this, in order:
      new dimensions, it letterboxes with white margins and leaves the CTA
      outside the visible frame. Treat this as a small redesign for a new
      aspect ratio, not a resize. \`export-design\` the rebuilt version too.
-   - Attach BOTH exports in the SAME call — this is required, not a
-     preference: attaching \`--featured-image-url\`/\`--featured-image-file\`
-     in a later, separate \`attach\` call is accepted with no error and
-     silently does nothing, because nothing reads the run's context again
-     once the export step has already completed:
+   - If this brief is bilingual (the handoff's copy_fields.bodies has both
+     es and en — most briefs are), the assembled design's headline/body/cta
+     text is in only ONE language, so that one landscape image is wrong on
+     whichever WordPress post is the OTHER language: a Spanish headline
+     image on the English post looks unprofessional and confuses an
+     English reader. Build the landscape version TWICE instead of once —
+     duplicate the design again, replace its headline/body/cta text with
+     the OTHER language's copy_fields (same replace_text approach as
+     assembly, step 3 above), rebuild/export that as its own landscape
+     layout, then attach BOTH, tagged by language, in the SAME call as the
+     export above:
+     \`.venv/bin/python -m pcip.cli attach <run_id> --export-url '<signed_url>' --featured-image-url-es '<es_signed_url>' --featured-image-url-en '<en_signed_url>'\`
+     (or the \`--featured-image-file-es\`/\`-en\` file forms, same
+     reachability rule as before). For a single-language brief, one
+     landscape image is enough — use the plain, non-language-tagged
+     \`--featured-image-url\`/\`--featured-image-file\` instead:
      \`.venv/bin/python -m pcip.cli attach <run_id> --export-url '<signed_url>' --featured-image-url '<signed_url_2>'\`
-     (or \`--export-file\`/\`--featured-image-file\`, same reachability rule
-     as before — try the URL form first, it works on this machine).
+   - Attaching the export and the featured image(s) in the SAME call is
+     required, not a preference, either way: attaching any
+     \`--featured-image-*\` flag in a later, separate \`attach\` call is
+     accepted with no error and silently does nothing, because nothing
+     reads the run's context again once the export step has completed.
    Repeat attach/resume until status is \`done\`.
 
 4. Once \`done\`, run \`.venv/bin/python -m pcip.cli outputs\`, take the
