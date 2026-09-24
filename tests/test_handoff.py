@@ -328,6 +328,8 @@ def _attach_args(run_id, **overrides):
         run_id=run_id, design_id="", design_url="", design_title="",
         template_id="", copy_file="", export_file=[], export_url=[],
         featured_image_file=[], featured_image_url=[],
+        featured_image_file_es="", featured_image_file_en="",
+        featured_image_url_es="", featured_image_url_en="",
     )
     fields.update(overrides)
     return argparse.Namespace(**fields)
@@ -403,6 +405,139 @@ def test_attach_allows_both_together_in_one_call(tmp_path, monkeypatch):
         assert reloaded.status == "done"
         out = g.get_node(reloaded.steps[-1].outputs[0])
         assert out["payload"]["metadata"]["pages"][0] == str(featured)
+
+
+# ── per-language featured images (bilingual posts) ──────────────────────────
+
+
+def test_a_language_specific_featured_image_is_recorded_per_language(tmp_path):
+    """export_deliverable's job here is just to record what the handoff
+    attached, in a shape the publish router can read — the actual routing
+    to the right WordPress post is the router's job (tests/test_bilingual_
+    publish.py), not this step's."""
+    cfg, g, runner, brief = setup(data_dir=tmp_path)
+    portrait = tmp_path / "portrait.png"
+    portrait.write_bytes(b"portrait")
+    es_hero = tmp_path / "hero-es.png"
+    es_hero.write_bytes(b"es")
+    en_hero = tmp_path / "hero-en.png"
+    en_hero.write_bytes(b"en")
+    ctx = {"cfg": cfg, "graph": g, "brief": brief,
+           "run": type("R", (), {"id": "run_x"})(),
+           "design_id": "DAH999",
+           "export_files": [str(portrait)],
+           "featured_image_files_by_language": {
+               "es": str(es_hero), "en": str(en_hero),
+           }}
+    export_deliverable(ctx)
+
+    out = g.get_node(ctx["output_id"])
+    by_lang = out["payload"]["metadata"]["featured_media_by_language"]
+    assert by_lang == {"es": str(es_hero), "en": str(en_hero)}
+
+
+def test_the_spanish_variant_leads_pages_when_no_shared_crop_is_given(tmp_path):
+    """Spanish is this brand's primary language — with no single shared
+    --featured-image-file/url attached, the es-tagged one is the sensible
+    default for anything that isn't the bilingual publish path (a dry run,
+    a single-language publish, local_path)."""
+    cfg, g, runner, brief = setup(data_dir=tmp_path)
+    portrait = tmp_path / "portrait.png"
+    portrait.write_bytes(b"portrait")
+    es_hero = tmp_path / "hero-es.png"
+    es_hero.write_bytes(b"es")
+    en_hero = tmp_path / "hero-en.png"
+    en_hero.write_bytes(b"en")
+    ctx = {"cfg": cfg, "graph": g, "brief": brief,
+           "run": type("R", (), {"id": "run_x"})(),
+           "design_id": "DAH999",
+           "export_files": [str(portrait)],
+           "featured_image_files_by_language": {
+               "es": str(es_hero), "en": str(en_hero),
+           }}
+    export_deliverable(ctx)
+
+    out = g.get_node(ctx["output_id"])
+    assert out["payload"]["metadata"]["pages"][0] == str(es_hero)
+    assert out["payload"]["local_path"] == str(es_hero)
+
+
+def test_an_explicit_shared_featured_image_still_wins_for_pages(tmp_path):
+    """The plain, non-language-tagged --featured-image-file is an explicit
+    choice for the single shared image — it still takes `pages[0]` even
+    when per-language variants were also attached; the per-language map is
+    recorded independently, for the router to use where it applies."""
+    cfg, g, runner, brief = setup(data_dir=tmp_path)
+    portrait = tmp_path / "portrait.png"
+    portrait.write_bytes(b"portrait")
+    shared = tmp_path / "shared.png"
+    shared.write_bytes(b"shared")
+    es_hero = tmp_path / "hero-es.png"
+    es_hero.write_bytes(b"es")
+    ctx = {"cfg": cfg, "graph": g, "brief": brief,
+           "run": type("R", (), {"id": "run_x"})(),
+           "design_id": "DAH999",
+           "export_files": [str(portrait)],
+           "featured_image_files": [str(shared)],
+           "featured_image_files_by_language": {"es": str(es_hero)}}
+    export_deliverable(ctx)
+
+    out = g.get_node(ctx["output_id"])
+    assert out["payload"]["metadata"]["pages"][0] == str(shared)
+    assert out["payload"]["metadata"]["featured_media_by_language"] == {
+        "es": str(es_hero),
+    }
+
+
+def test_cli_attach_builds_per_language_context_from_es_en_flags(tmp_path, monkeypatch):
+    from pcip.cli import cmd_attach
+
+    cfg = PCIPConfig(data_dir=tmp_path, canva_mode="mcp")
+    with KnowledgeGraph(cfg.graph_db_path) as g:
+        run, pipe = _run_to_export_handoff(cfg, g)
+        monkeypatch.setattr("pcip.pipelines.library.get_pipeline", lambda name: pipe)
+
+        portrait = tmp_path / "portrait.png"
+        portrait.write_bytes(b"x")
+        es_hero = tmp_path / "hero-es.png"
+        es_hero.write_bytes(b"es")
+        en_hero = tmp_path / "hero-en.png"
+        en_hero.write_bytes(b"en")
+        rc = cmd_attach(cfg, _attach_args(
+            run.id, export_file=[str(portrait)],
+            featured_image_file_es=str(es_hero),
+            featured_image_file_en=str(en_hero),
+        ))
+        assert rc == 0
+
+        runner = PipelineRunner(cfg, g)
+        reloaded = runner.load_run(run.id)
+        out = g.get_node(reloaded.steps[-1].outputs[0])
+        assert out["payload"]["metadata"]["featured_media_by_language"] == {
+            "es": str(es_hero), "en": str(en_hero),
+        }
+
+
+def test_attach_refuses_a_per_language_featured_image_without_export_too(tmp_path, monkeypatch):
+    """The same silent-data-loss guard as the shared featured-image flags —
+    -es/-en must arrive in the same call as the export."""
+    from pcip.cli import cmd_attach
+
+    cfg = PCIPConfig(data_dir=tmp_path, canva_mode="mcp")
+    with KnowledgeGraph(cfg.graph_db_path) as g:
+        run, pipe = _run_to_export_handoff(cfg, g)
+        monkeypatch.setattr("pcip.pipelines.library.get_pipeline", lambda name: pipe)
+
+        es_hero = tmp_path / "hero-es.png"
+        es_hero.write_bytes(b"es")
+        rc = cmd_attach(cfg, _attach_args(
+            run.id, featured_image_file_es=str(es_hero),
+        ))
+        assert rc == 1
+
+        runner = PipelineRunner(cfg, g)
+        reloaded = runner.load_run(run.id)
+        assert reloaded.status == "awaiting_handoff"
 
 
 def test_a_brief_reference_still_wins():

@@ -129,6 +129,63 @@ def test_the_hero_is_uploaded_once_and_shared(tmp_path):
     assert pubs["en"].metadata["media_ids"] == [55]
 
 
+class PerFileMediaSession(RecordingSession):
+    """Distinguishes uploads by the filename WordPress actually receives
+    (upload_media sends it in Content-Disposition), so a test can tell which
+    of several uploaded files became which post's featured image."""
+
+    def request(self, method, url, **kw):
+        if url.rstrip("/").endswith("/media"):
+            self.calls.append((method, url, kw))
+            disposition = (kw.get("headers") or {}).get("Content-Disposition", "")
+            name = disposition.split('filename="')[-1].rstrip('"') or "unknown"
+            self._next_id += 1
+            return Resp({"id": self._next_id, "source_url": f"https://wp.example/{name}"})
+        return super().request(method, url, **kw)
+
+
+def test_a_language_specific_hero_is_not_shared_with_the_other(tmp_path):
+    """A hero image's headline text is baked into its pixels — sharing one
+    upload across both posts (the historical default, still correct for a
+    language-agnostic image) is wrong once the image itself is Spanish or
+    English. media_paths_by_language overrides the shared upload per
+    language it names."""
+    es_hero = tmp_path / "hero-es.png"
+    es_hero.write_bytes(b"es")
+    en_hero = tmp_path / "hero-en.png"
+    en_hero.write_bytes(b"en")
+    session = PerFileMediaSession()
+
+    pubs = publish(session, media_paths_by_language={
+        "es": [str(es_hero)], "en": [str(en_hero)],
+    })
+
+    uploads = [c for c in session.calls if c[1].rstrip("/").endswith("/media")]
+    assert len(uploads) == 2, "one upload per language, not one shared"
+    assert pubs["es"].metadata["media_ids"] != pubs["en"].metadata["media_ids"]
+
+
+def test_a_language_without_an_override_falls_back_to_the_shared_hero(tmp_path):
+    """Only the Spanish post gets a language-specific image; English keeps
+    using the shared/default media_paths, exactly as it always has — the
+    override is per-language opt-in, not all-or-nothing."""
+    shared = tmp_path / "shared.png"
+    shared.write_bytes(b"shared")
+    es_hero = tmp_path / "hero-es.png"
+    es_hero.write_bytes(b"es")
+    session = PerFileMediaSession()
+
+    pubs = publish(
+        session,
+        media_paths=[str(shared)],
+        media_paths_by_language={"es": [str(es_hero)]},
+    )
+
+    uploads = [c for c in session.calls if c[1].rstrip("/").endswith("/media")]
+    assert len(uploads) == 2  # the shared one, plus the ES-specific one
+    assert pubs["es"].metadata["media_ids"] != pubs["en"].metadata["media_ids"]
+
+
 def test_seo_meta_is_sent_for_both_plugins():
     session = RecordingSession()
     publish(session)
@@ -234,15 +291,78 @@ def test_router_publishes_a_pair_when_the_copy_has_two_languages(monkeypatch, tm
     assert len(router.where_did_it_go("out_1")) == 2
 
 
+def test_router_routes_a_per_language_hero_to_its_own_post(monkeypatch, tmp_path):
+    """export_deliverable records featured_media_by_language on the output
+    asset when the handoff attached one; the router has to actually read it
+    and route each language's image to that language's post, not just the
+    shared one — this is the end-to-end path the CLI-level and
+    WordPressPublisher-level tests above don't individually cover."""
+    from pcip.graph.store import KnowledgeGraph
+    from pcip.licensing import LicensePolicy
+    from pcip.models import Asset, Channel, EdgeKind, NodeKind
+    from pcip.publish.router import PublishRouter
+
+    g = KnowledgeGraph(":memory:")
+    portrait = tmp_path / "portrait.png"
+    portrait.write_bytes(b"portrait")
+    es_hero = tmp_path / "hero-es.png"
+    es_hero.write_bytes(b"es")
+    en_hero = tmp_path / "hero-en.png"
+    en_hero.write_bytes(b"en")
+    asset = Asset(
+        id="out_1", name="Deliverable", kind="image", local_path=str(es_hero),
+        license=LicensePolicy.canva_export_license(pro=True),
+        metadata={
+            "via_export": True, "alt_texts": ["a"],
+            "pages": [str(es_hero), str(portrait)],
+            "featured_media_by_language": {"es": str(es_hero), "en": str(en_hero)},
+        },
+    )
+    g.upsert_node("out_1", NodeKind.OUTPUT, asset.name, asset.to_dict())
+
+    body = ("<h2>A</h2><p>" + ("palabra " * 700) + "</p><h2>B</h2><p>x</p>"
+            "<h2>C</h2><p>y</p>"
+            f"<p>{PH.NAP_NAME} | {PH.NAP_STREET}, {PH.NAP_CITY}, {PH.NAP_STATE} "
+            f"{PH.NAP_ZIP} | {PH.NAP_PHONE_DISPLAY} | {PH.SITE}</p>"
+            f"<p>{PH.PHYSICIAN}, {PH.FL_LICENSE}. {PH.NEAR_ME_ES}.</p>")
+    g.upsert_node("run_1", NodeKind.PIPELINE_RUN, "patient_education", {
+        "id": "run_1", "status": "done", "steps": [],
+        "context": {"copy_fields": {
+            "titles": {"es": "Título", "en": "Title"},
+            "bodies": {"es": body, "en": body},
+            "meta_title": f"Prevención en {PH.GEO_PHRASE}",
+            "meta_description": "Descripción.",
+            "faq": [{"q": "a", "a": "b"}, {"q": "c", "a": "d"}, {"q": "e", "a": "f"}],
+            "alt_texts_by_language": {"es": "alt es", "en": "alt en"},
+        }},
+    })
+    g.add_edge("run_1", EdgeKind.PRODUCED, "out_1")
+
+    router = PublishRouter(cfg(), g)
+    session = PerFileMediaSession()
+    real_init = WordPressPublisher.__init__
+    monkeypatch.setattr(
+        "pcip.connectors.wordpress.WordPressPublisher.__init__",
+        lambda self, config, **kw: real_init(self, config, session=session),
+    )
+    router.publish("out_1", Channel.WORDPRESS, live=True)
+
+    pubs = router.where_did_it_go("out_1")
+    by_lang = {p["metadata"].get("language"): p for p in pubs}
+    assert set(by_lang) == {"es", "en"}
+    assert by_lang["es"]["metadata"]["media_ids"] != by_lang["en"]["metadata"]["media_ids"]
+
+
 def test_scheduling_a_pair_is_refused_rather_than_half_done():
     """A partial schedule would publish one language early."""
     from pcip.graph.store import KnowledgeGraph
+    from pcip.models import Asset
     from pcip.publish.router import PublishError, PublishRouter
 
     router = PublishRouter(cfg(), KnowledgeGraph(":memory:"))
     with pytest.raises(PublishError) as exc:
         router._publish_bilingual(
-            None, "out_1", {}, {"es": "a", "en": "b"}, {},
+            None, "out_1", {}, {"es": "a", "en": "b"}, {}, Asset(id="out_1"),
             live=True, schedule_at="2026-10-01T09:00:00Z",
         )
     assert "one language early" in str(exc.value)
