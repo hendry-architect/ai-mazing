@@ -155,6 +155,29 @@ def cmd_canva_auth(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_gbp_auth(cfg: PCIPConfig, args: argparse.Namespace) -> int:
+    """One-command Google Business Profile OAuth — writes tokens into .env."""
+    from pcip.connectors.gbp_auth import discover_accounts_and_locations, run_flow
+
+    if args.discover:
+        if not cfg.gbp_access_token:
+            print("error: no GBP_ACCESS_TOKEN configured yet — run "
+                  "`pcip gbp-auth` first.", file=sys.stderr)
+            return 1
+        found = discover_accounts_and_locations(cfg)
+        _print(found)
+        return 0
+
+    write_env = None if args.no_write else args.env_file
+    run_flow(
+        cfg,
+        port=args.port,
+        write_env=write_env,
+        open_browser=not args.no_browser,
+    )
+    return 0
+
+
 def cmd_doctor(cfg: PCIPConfig, args: argparse.Namespace) -> int:
     """Diagnose connectors against the bootstrap.yaml manifest."""
     from pcip.connectors.framework import ConnectorManager, load_manifest
@@ -805,6 +828,22 @@ def build_parser() -> argparse.ArgumentParser:
                     help="a file holding the redirected URL, for --finish — "
                          "keeps the code out of shell history")
 
+    sp = sub.add_parser("gbp-auth", help="run the Google Business Profile OAuth flow once")
+    sp.add_argument("--port", type=int, default=8090,
+                    help="local callback port (a 'Desktop app' OAuth client "
+                         "accepts any 127.0.0.1 loopback, unlike Canva)")
+    sp.add_argument("--env-file", default=".env")
+    sp.add_argument("--no-write", action="store_true",
+                    help="print instead of writing tokens to the env file")
+    sp.add_argument("--no-browser", action="store_true")
+    sp.add_argument("--discover", action="store_true",
+                    help="instead of authorizing, list every account/location "
+                         "the current GBP_ACCESS_TOKEN can see — use this to "
+                         "find GBP_ACCOUNT_ID/GBP_LOCATION_ID and tell the "
+                         "real listing apart from the duplicate one. Works "
+                         "before Business Profile API partner approval, "
+                         "since discovery isn't gated the way posting is.")
+
     sp = sub.add_parser("outputs", help="list finished deliverables")
     sp.add_argument("--limit", type=int, default=10)
 
@@ -963,6 +1002,7 @@ COMMANDS = {
     "graph": cmd_graph,
     "pipelines": cmd_pipelines,
     "canva-auth": cmd_canva_auth,
+    "gbp-auth": cmd_gbp_auth,
     "doctor": cmd_doctor,
     "can": cmd_can,
     "media-plan": cmd_media_plan,

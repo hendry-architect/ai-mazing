@@ -20,6 +20,7 @@ instead of silently dropping content.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -485,10 +486,59 @@ class GBPAdapter(SocialAdapter):
 
     channels = [Channel.GBP]
     API = "https://mybusiness.googleapis.com/v4"
+    TOKEN_URL = "https://oauth2.googleapis.com/token"
 
     CREDENTIALS = ("gbp_access_token", "gbp_account_id", "gbp_location_id")
 
+    def _refresh_access_token(self) -> None:
+        """Exchange the stored refresh token for a fresh access token.
+
+        A no-op when no refresh credentials are configured — that keeps a
+        plain, manually-pasted GBP_ACCESS_TOKEN (a one-off test, or a token
+        obtained some other way) working exactly as before. Unlike Canva,
+        Google does not rotate the refresh token on every use, so there is
+        no rotation to persist here — only the new access token.
+        """
+        if not (self.cfg.gbp_refresh_token and self.cfg.gbp_client_id):
+            return
+        resp = self.http.post(
+            self.TOKEN_URL,
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": self.cfg.gbp_refresh_token,
+                "client_id": self.cfg.gbp_client_id,
+                "client_secret": self.cfg.gbp_client_secret,
+            },
+            timeout=self.cfg.request_timeout,
+        )
+        if resp.status_code != 200:
+            raise ChannelError(
+                f"gbp token refresh → {resp.status_code}: {resp.text[:300]}. "
+                "The stored refresh token was rejected — commonly because it "
+                "was revoked at https://myaccount.google.com/permissions. "
+                "Re-authorise: python -m pcip gbp-auth"
+            )
+        self.cfg.gbp_access_token = resp.json()["access_token"]
+        self._persist_access_token()
+
+    def _persist_access_token(self) -> None:
+        """Best effort: an unwritable .env must not fail a publish that
+        otherwise succeeded — it only means the next process refreshes again.
+        """
+        if not self.cfg.env_file:
+            return
+        try:
+            from pcip.connectors.canva_auth import update_env_file
+
+            update_env_file(
+                Path(self.cfg.env_file),
+                {"GBP_ACCESS_TOKEN": self.cfg.gbp_access_token},
+            )
+        except Exception:                    # noqa: BLE001 — never fatal
+            pass
+
     def _publish(self, channel, text, media_urls=None, schedule_at="") -> Publication:
+        self._refresh_access_token()
         cta_type = (self.cfg.gbp_cta_type or "CALL").upper()
         cta: Dict[str, Any] = {"actionType": cta_type}
         if cta_type != "CALL":
