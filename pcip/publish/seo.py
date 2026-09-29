@@ -112,12 +112,15 @@ def build_jsonld(
     page: Dict[str, Any] = {
         "@type": "MedicalWebPage",
         "name": title,
-        "description": description,
         "inLanguage": language,
         "publisher": {"@type": "MedicalClinic", "name": PH.NAP_NAME},
         "about": {"@type": "MedicalCondition", "name": title},
         "reviewedBy": {"@type": "Physician", "name": PH.PHYSICIAN},
     }
+    # Omitted rather than empty: an empty description is a claim that the page
+    # has none, and a borrowed one is in the wrong language.
+    if description:
+        page["description"] = description
     if url:
         page["url"] = url
         page["mainEntityOfPage"] = url

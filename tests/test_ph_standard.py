@@ -211,3 +211,32 @@ def test_a_near_miss_still_fails_the_floor():
     a["bodies"]["en"] = "<h2>A</h2><p>" + ("word " * 592) + "</p><h2>B</h2><h2>C</h2>"
     check = check_article(a)
     assert any(v.rule == "depth" for v in check.required)
+
+
+# ── SEO in the right language (2026-09-28) ───────────────────────────────────
+
+
+def test_an_article_without_english_seo_is_flagged_but_not_blocked():
+    """Older copy has only the (Spanish) legacy fields. It must still publish —
+    the English post goes out without meta/FAQ rather than with Spanish ones —
+    but the gap is visible at review."""
+    check = check_article(good_article())
+    assert check.passed, check.report()
+    flagged = [v for v in check.violations if v.rule == "seo_language"]
+    assert flagged and flagged[0].severity == "advisory"
+    assert "EN meta title, meta description, FAQ" in flagged[0].detail
+
+
+def test_per_language_seo_clears_the_flag():
+    check = check_article(good_article(
+        meta_titles={"es": f"Glucosa en {PH.GEO_PHRASE}", "en": f"Blood sugar in {PH.GEO_PHRASE}"},
+        meta_descriptions={"es": "Descripción.", "en": "Description."},
+        faqs={"es": [{"q": "a", "a": "b"}], "en": [{"q": "c", "a": "d"}]},
+    ))
+    assert not [v for v in check.violations if v.rule == "seo_language"]
+
+
+def test_an_overlong_english_meta_description_is_rejected():
+    check = check_article(good_article(meta_descriptions={"es": "x", "en": "y" * (PH.META_DESCRIPTION_MAX + 1)}))
+    assert any(v.rule == "meta_description" and "EN meta description" in v.detail
+               for v in check.required)

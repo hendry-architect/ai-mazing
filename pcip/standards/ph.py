@@ -384,6 +384,45 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
             f"{PH.META_DESCRIPTION_MAX}", "it will be truncated",
         ))
 
+    # ── SEO in the right language ────────────────────────────────────────
+    # A bilingual article whose copy has no English meta/FAQ publishes an
+    # English post WITHOUT them (publish_bilingual never borrows the Spanish
+    # ones — see the 2026-09-28 incident in its docstring). Advisory, not
+    # required: the English post is still correct, just thinner, and older
+    # runs generated before per-language fields existed must still publish.
+    if all((bodies.get(l) or "").strip() for l in PH.LANGUAGES):
+        per_lang = {
+            "meta title": article.get("meta_titles") or {},
+            "meta description": article.get("meta_descriptions") or {},
+            "FAQ": article.get("faqs") or {},
+        }
+        for lang in PH.LANGUAGES:
+            if lang == "es":
+                continue      # the legacy fields are Spanish and cover it
+            missing = [name for name, d in per_lang.items() if not d.get(lang)]
+            if missing:
+                add(Violation(
+                    "seo_language", "advisory",
+                    f"no {lang.upper()} " + ", ".join(missing)
+                    + f" — the {lang.upper()} post will publish without them",
+                    f"generate meta_titles/meta_descriptions/faqs with a "
+                    f"'{lang}' entry, written in that language",
+                ))
+        for lang, desc in per_lang["meta description"].items():
+            if len(str(desc)) > PH.META_DESCRIPTION_MAX:
+                add(Violation(
+                    "meta_description", "required",
+                    f"{lang.upper()} meta description is {len(str(desc))} "
+                    f"characters, over {PH.META_DESCRIPTION_MAX}", "it will be truncated",
+                ))
+        for lang, title in per_lang["meta title"].items():
+            if len(str(title)) > PH.META_TITLE_MAX:
+                add(Violation(
+                    "meta_title", "required",
+                    f"{lang.upper()} meta title is {len(str(title))} characters, "
+                    f"over {PH.META_TITLE_MAX}", "it will be truncated in results",
+                ))
+
     faq = article.get("faq") or []
     if len(faq) < PH.MIN_FAQ_ITEMS:
         add(Violation(

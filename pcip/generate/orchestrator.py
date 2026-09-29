@@ -37,9 +37,13 @@ COPY_FIELDS: Dict[str, Any] = {
     # PassQual Health standard: bilingual parity, SEO surface, FAQ block.
     "titles": {},                 # {"es": ..., "en": ...}
     "bodies": {},                 # {"es": "<h2>…", "en": "<h2>…"}
-    "meta_title": "",             # ≤60 characters, carries service + geo
-    "meta_description": "",       # ≤155 characters, ES-primary
-    "faq": [],                    # [{"q": ..., "a": ...}, …] — feeds FAQPage
+    "meta_title": "",             # legacy: one title, Spanish (older runs)
+    "meta_description": "",       # legacy: Spanish only — never sent to EN
+    "faq": [],                    # legacy: Spanish only — never sent to EN
+    # Per language — each post publishes only its own (publish_bilingual).
+    "meta_titles": {},            # {"es": ..., "en": ...} ≤60 chars, service + geo
+    "meta_descriptions": {},      # {"es": ..., "en": ...} ≤155 chars
+    "faqs": {},                   # {"es": [{"q","a"}…], "en": [...]} — feeds FAQPage
     "alt_texts_by_language": {},  # {"es": ..., "en": ...}
     "keywords": [],
 }
@@ -95,6 +99,17 @@ def parse_copy_fields(text: str) -> Dict[str, Any]:
             else:
                 fields[key] = str(value or "")
         break
+
+    # The legacy single fields mean "the Spanish one" to every reader that
+    # still uses them (the PH gate, the media prompt, the review render).
+    # Back-filled from the Spanish per-language value so those readers keep
+    # working unchanged; publishing reads the per-language fields.
+    for legacy, per_lang in (("meta_title", "meta_titles"),
+                             ("meta_description", "meta_descriptions"),
+                             ("faq", "faqs")):
+        es_value = (fields.get(per_lang) or {}).get("es")
+        if not fields.get(legacy) and es_value:
+            fields[legacy] = list(es_value) if isinstance(es_value, list) else str(es_value)
 
     if not fields["body_html"] and not fields.get("bodies"):
         # Nothing usable parsed — the prose itself is the best body we have.
@@ -246,10 +261,13 @@ class GenerationOrchestrator:
             f"English one. At least {PH.MIN_H2_SECTIONS} <h2> sections. Do not "
             "use <h1>; the post title is the H1.\n"
             f"- FAQ. At least {PH.MIN_FAQ_ITEMS} question/answer pairs "
-            "answering what patients actually search.\n"
-            f"- SEO. A meta title of at most {PH.META_TITLE_MAX} characters "
-            f"including '{PH.GEO_PHRASE}', and a meta description of at most "
-            f"{PH.META_DESCRIPTION_MAX} characters, Spanish-primary. Spanish "
+            "answering what patients actually search — in EACH language, "
+            "each set written in that language: the English post shows the "
+            "English FAQ, never the Spanish one.\n"
+            f"- SEO. For EACH language, a meta title of at most "
+            f"{PH.META_TITLE_MAX} characters including '{PH.GEO_PHRASE}', and "
+            f"a meta description of at most {PH.META_DESCRIPTION_MAX} "
+            "characters, written in that language. Spanish "
             f"speakers search '{PH.NEAR_ME_ES}', not city names — use that "
             f"exact phrase '{PH.NEAR_ME_ES}' somewhere in the Spanish body, "
             "in a sentence that reads naturally.\n"
@@ -276,9 +294,12 @@ class GenerationOrchestrator:
             "{\n"
             '  "titles": {"es": "titular en español", "en": "English headline"},\n'
             '  "bodies": {"es": "<p>…</p><h2>…</h2>…", "en": "<p>…</p><h2>…</h2>…"},\n'
-            '  "meta_title": "≤60 chars, includes ' + PH.GEO_PHRASE + '",\n'
-            '  "meta_description": "≤155 chars, Spanish",\n'
-            '  "faq": [{"q": "pregunta", "a": "respuesta"}],\n'
+            '  "meta_titles": {"es": "≤60 caracteres, incluye ' + PH.GEO_PHRASE
+            + '", "en": "≤60 chars, includes ' + PH.GEO_PHRASE + '"},\n'
+            '  "meta_descriptions": {"es": "≤155 caracteres, en español", '
+            '"en": "≤155 chars, in English"},\n'
+            '  "faqs": {"es": [{"q": "pregunta", "a": "respuesta"}], '
+            '"en": [{"q": "question", "a": "answer"}]},\n'
             '  "alt_texts_by_language": {"es": "texto alternativo", '
             '"en": "alt text"},\n'
             '  "keywords": ["término", "near-me phrase"],\n'
@@ -301,9 +322,10 @@ class GenerationOrchestrator:
             parts = []
             for lang, body in bodies.items():
                 parts.append(f"# {titles.get(lang, '')} [{lang.upper()}]\n\n{body}")
-            faq = fields.get("faq") or []
-            if faq:
-                parts.append("\n".join(
+            faqs = {k: v for k, v in (fields.get("faqs") or {}).items() if v} \
+                or ({"es": fields["faq"]} if fields.get("faq") else {})
+            for lang, faq in faqs.items():
+                parts.append(f"FAQ [{lang.upper()}]\n" + "\n".join(
                     f"Q: {f.get('q','')}\nA: {f.get('a','')}" for f in faq
                 ))
             result.text = "\n\n---\n\n".join(parts)
