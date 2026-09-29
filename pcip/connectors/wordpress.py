@@ -599,6 +599,9 @@ class WordPressPublisher:
         meta_title: str = "",
         meta_description: str = "",
         faq: Optional[List[Dict[str, str]]] = None,
+        meta_titles: Optional[Dict[str, str]] = None,
+        meta_descriptions: Optional[Dict[str, str]] = None,
+        faqs: Optional[Dict[str, List[Dict[str, str]]]] = None,
         alt_texts: Optional[Dict[str, str]] = None,
         media_paths: Optional[List[str]] = None,
         media_paths_by_language: Optional[Dict[str, List[str]]] = None,
@@ -621,8 +624,36 @@ class WordPressPublisher:
         Both posts are then created, and only afterwards patched with the
         cross-link and schema — the JSON-LD must carry each post's real URL,
         and neither URL exists until WordPress has assigned it.
+
+        SEO copy is PER LANGUAGE. ``meta_titles`` / ``meta_descriptions`` /
+        ``faqs`` are keyed by language and each post gets only its own. The
+        single ``meta_title`` / ``meta_description`` / ``faq`` are the legacy
+        shape, and the copy contract has always produced them in Spanish
+        ("meta_description: ≤155 chars, Spanish"), so they reach the
+        Spanish post ONLY. Sending them to both is how every English post
+        from 2026-09-07 on carried a Spanish JSON-LD name/description, Spanish
+        Yoast meta and a Spanish FAQ. A language with no copy of its own gets
+        its post title as the schema name and NO description, FAQ or SEO meta
+        — absent, not borrowed from the other language — and what was left
+        out is listed in the publication's ``seo_omitted``.
         """
         from pcip.publish import seo
+
+        meta_titles = meta_titles or {}
+        meta_descriptions = meta_descriptions or {}
+        faqs = faqs or {}
+
+        def own(per_lang: Dict[str, Any], legacy: Any, lang: str) -> Any:
+            if per_lang.get(lang):
+                return per_lang[lang]
+            return legacy if lang == PH_PRIMARY else type(legacy)()
+
+        def seo_for(lang: str) -> Dict[str, Any]:
+            return {
+                "meta_title": own(meta_titles, meta_title or "", lang),
+                "meta_description": own(meta_descriptions, meta_description or "", lang),
+                "faq": own(faqs, list(faq or []), lang),
+            }
 
         alt_texts = alt_texts or {}
         media_paths_by_language = media_paths_by_language or {}
@@ -671,7 +702,8 @@ class WordPressPublisher:
                 payload["slug"] = slugs[lang]
             if media_ids(lang):
                 payload["featured_media"] = media_ids(lang)[0]
-            meta = seo.seo_meta_fields(meta_title, meta_description)
+            lang_seo = seo_for(lang)
+            meta = seo.seo_meta_fields(lang_seo["meta_title"], lang_seo["meta_description"])
             if meta:
                 payload["meta"] = meta
             created[lang] = self._post("/posts", json=payload)
@@ -692,12 +724,15 @@ class WordPressPublisher:
                 wp_link=other_link,
             ) if other_link else ""
 
+            lang_seo = seo_for(lang)
             full_body = self.compose_article(
                 bodies[lang],
                 language=lang,
-                faq=faq,
-                meta_title=meta_title,
-                meta_description=meta_description,
+                faq=lang_seo["faq"],
+                # The schema name falls back to THIS post's title, never to
+                # the other language's meta title.
+                meta_title=lang_seo["meta_title"] or titles.get(lang, ""),
+                meta_description=lang_seo["meta_description"],
                 url=public_url,
                 image_url=media_url(lang),
                 translation_url=other_public,
@@ -712,7 +747,10 @@ class WordPressPublisher:
                 "transport": "rest",
                 "translation_of": (created.get(other) or {}).get("id", ""),
                 "translation_url": other_public,
-                "seo_meta_sent": bool(seo.seo_meta_fields(meta_title, meta_description)),
+                "seo_meta_sent": bool(seo.seo_meta_fields(
+                    lang_seo["meta_title"], lang_seo["meta_description"])),
+                "seo_omitted": [k for k in ("meta_title", "meta_description", "faq")
+                                if not lang_seo[k]],
                 # Read back rather than assume: `lang` is only honoured when
                 # Polylang exposes it over REST, and silently dropped otherwise.
                 "language_assigned": (updated.get("lang") or post.get("lang") or "") == lang,

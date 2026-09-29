@@ -615,6 +615,9 @@ def ph_standard_check(ctx: Dict[str, Any]) -> str:
         "meta_title": fields.get("meta_title", ""),
         "meta_description": fields.get("meta_description", ""),
         "faq": fields.get("faq") or [],
+        "meta_titles": fields.get("meta_titles") or {},
+        "meta_descriptions": fields.get("meta_descriptions") or {},
+        "faqs": fields.get("faqs") or {},
         "featured_image": (ctx.get("export_paths") or [""])[0]
                           or (ctx.get("generated_media") or [""])[0]
                           or fields.get("featured_image", ""),

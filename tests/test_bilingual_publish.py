@@ -366,3 +366,142 @@ def test_scheduling_a_pair_is_refused_rather_than_half_done():
             live=True, schedule_at="2026-10-01T09:00:00Z",
         )
     assert "one language early" in str(exc.value)
+
+
+# ── per-language SEO surface ─────────────────────────────────────────────────
+#
+# Measured on passqual.com 2026-09-28: every English post publish_bilingual had
+# produced since 2026-09-07 (3387 … 3454, ten posts) carried the SPANISH meta
+# title and description — in its JSON-LD name/description AND in its Yoast
+# meta — and the Spanish FAQ, both as FAQPage schema and as the visible FAQ
+# block. One meta_title / meta_description / faq went to both posts.
+
+
+def _ld(body):
+    return json.loads(body.split("ld+json\">", 1)[1].split("</script>", 1)[0])["@graph"]
+
+
+def _by_language(session):
+    """{lang: {"create": payload, "patch": content}} from a recorded publish."""
+    ids, out = {}, {}
+    next_id = 100
+    for method, url, kw in session.calls:
+        body = kw.get("json") or {}
+        if url.rstrip("/").endswith("/posts"):
+            next_id += 1
+            ids[str(next_id)] = body.get("lang")
+            out[body.get("lang")] = {"create": body}
+        elif "/posts/" in url and body.get("content"):
+            lang = ids[url.rstrip("/").rsplit("/", 1)[-1]]
+            out[lang]["patch"] = body["content"]
+    return out
+
+
+def test_english_post_never_carries_spanish_seo_from_the_legacy_fields():
+    """The legacy single fields are Spanish by contract ("meta_description:
+    ≤155 chars, Spanish"). They may reach the Spanish post only; the English
+    post falls back to its own title and omits what it has no English for."""
+    session = RecordingSession()
+    pubs = publish(session)          # legacy: one Spanish meta + Spanish FAQ
+    posts = _by_language(session)
+
+    es_page = _ld(posts["es"]["patch"])[0]
+    assert es_page["name"] == f"Prevención en {PH.GEO_PHRASE}"
+    assert es_page["description"] == "Descripción breve."
+    assert "_yoast_wpseo_metadesc" in posts["es"]["create"]["meta"]
+
+    en_graph = _ld(posts["en"]["patch"])
+    en_page = en_graph[0]
+    assert en_page["name"] == "Title EN"                 # its own title
+    assert "description" not in en_page                   # never the Spanish one
+    assert "FAQPage" not in [n["@type"] for n in en_graph]
+    assert "¿Pregunta?" not in posts["en"]["patch"]        # nor the visible FAQ
+    assert "Descripción breve." not in posts["en"]["patch"]
+    assert "meta" not in posts["en"]["create"]            # no Spanish Yoast meta
+
+    # Degraded, not silent.
+    assert pubs["en"].metadata["seo_omitted"] == ["meta_title", "meta_description", "faq"]
+    assert pubs["es"].metadata["seo_omitted"] == []
+
+
+def test_per_language_seo_reaches_its_own_post_only():
+    session = RecordingSession()
+    pubs = publish(
+        session,
+        meta_titles={"es": "Glucosa en Miami Gardens", "en": "Blood Sugar in Miami Gardens"},
+        meta_descriptions={"es": "Descripción en español.", "en": "English description."},
+        faqs={"es": [{"q": "¿Pregunta ES?", "a": "Respuesta."}],
+              "en": [{"q": "Question EN?", "a": "Answer."}]},
+    )
+    posts = _by_language(session)
+    for lang, name, desc, q, other_q in (
+        ("es", "Glucosa en Miami Gardens", "Descripción en español.", "¿Pregunta ES?", "Question EN?"),
+        ("en", "Blood Sugar in Miami Gardens", "English description.", "Question EN?", "¿Pregunta ES?"),
+    ):
+        graph = _ld(posts[lang]["patch"])
+        assert graph[0]["name"] == name
+        assert graph[0]["description"] == desc
+        assert graph[0]["inLanguage"] == lang
+        faq = next(n for n in graph if n["@type"] == "FAQPage")
+        assert [x["name"] for x in faq["mainEntity"]] == [q]
+        assert q in posts[lang]["patch"] and other_q not in posts[lang]["patch"]
+        meta = posts[lang]["create"]["meta"]
+        assert meta["_yoast_wpseo_title"] == name
+        assert meta["rank_math_description"] == desc
+        assert pubs[lang].metadata["seo_omitted"] == []
+
+
+def test_a_per_language_value_wins_over_the_legacy_one():
+    session = RecordingSession()
+    publish(session, meta_descriptions={"es": "Nueva.", "en": "New."})
+    posts = _by_language(session)
+    assert _ld(posts["es"]["patch"])[0]["description"] == "Nueva."
+    assert _ld(posts["en"]["patch"])[0]["description"] == "New."
+
+
+def test_router_passes_the_per_language_seo_fields(monkeypatch):
+    from pcip.graph.store import KnowledgeGraph
+    from pcip.models import Asset
+    from pcip.publish.router import PublishRouter
+
+    seen = {}
+
+    class FakeWP:
+        def publish_bilingual(self, **kw):
+            seen.update(kw)
+            return {}
+
+    router = PublishRouter(cfg(), KnowledgeGraph(":memory:"))
+    monkeypatch.setattr(router, "_media_paths_by_language", lambda output: {})
+    fields = {
+        "titles": {"es": "T", "en": "T"},
+        "meta_titles": {"es": "mt es", "en": "mt en"},
+        "meta_descriptions": {"es": "md es", "en": "md en"},
+        "faqs": {"es": [{"q": "q es", "a": "a"}], "en": [{"q": "q en", "a": "a"}]},
+    }
+    try:
+        router._publish_bilingual(FakeWP(), "out_1", fields, {"es": "a", "en": "b"},
+                                  {}, Asset(id="out_1"), live=False, schedule_at="")
+    except Exception:
+        pass    # no publications to record is fine; we only need the call
+    assert seen["meta_titles"] == fields["meta_titles"]
+    assert seen["meta_descriptions"] == fields["meta_descriptions"]
+    assert seen["faqs"] == fields["faqs"]
+
+
+def test_the_copy_parser_keeps_per_language_seo_and_backfills_the_spanish_legacy():
+    from pcip.generate.orchestrator import parse_copy_fields
+
+    fields = parse_copy_fields("```json\n" + json.dumps({
+        "titles": {"es": "T", "en": "T"},
+        "bodies": {"es": "<p>a</p>", "en": "<p>b</p>"},
+        "meta_titles": {"es": "mt es", "en": "mt en"},
+        "meta_descriptions": {"es": "md es", "en": "md en"},
+        "faqs": {"es": [{"q": "¿q?", "a": "r"}], "en": [{"q": "q?", "a": "a"}]},
+    }) + "\n```")
+    assert fields["faqs"]["en"] == [{"q": "q?", "a": "a"}]     # objects intact
+    assert fields["meta_descriptions"]["en"] == "md en"
+    # Legacy readers (PH gate, media prompt) keep meaning "the Spanish one".
+    assert fields["meta_title"] == "mt es"
+    assert fields["meta_description"] == "md es"
+    assert fields["faq"] == [{"q": "¿q?", "a": "r"}]
