@@ -285,16 +285,14 @@ python -m pcip route facebook --scheduled  # scheduled → Buffer first
 | **X** | <https://developer.x.com/> → project + app → OAuth2 user token with `tweet.write` | <https://docs.x.com/x-api/introduction> | `X_USER_TOKEN` |
 | **YouTube** | <https://console.cloud.google.com/> → enable YouTube Data API v3 → OAuth consent + token | <https://developers.google.com/youtube/v3/docs/videos/insert> | `YOUTUBE_TOKEN` |
 | **TikTok** | <https://developers.tiktok.com/> → app → Content Posting API (requires app review) | <https://developers.tiktok.com/doc/content-posting-api-get-started> | `TIKTOK_TOKEN` |
-| **Google Business Profile** | <https://console.cloud.google.com/> → OAuth token for the account managing the real listing, **and** apply for Business Profile API access | <https://developers.google.com/my-business/content/basic-setup> | `GBP_ACCESS_TOKEN`, `GBP_ACCOUNT_ID`, `GBP_LOCATION_ID` |
+| **Google Business Profile** | <https://console.cloud.google.com/> → OAuth client for the account managing the real listing, **and** apply for Business Profile API access — full walkthrough below | <https://developers.google.com/my-business/content/basic-setup> | `GBP_CLIENT_ID`, `GBP_CLIENT_SECRET`, `GBP_ACCESS_TOKEN`, `GBP_REFRESH_TOKEN`, `GBP_ACCOUNT_ID`, `GBP_LOCATION_ID` |
 | **Buffer** (scheduler) | <https://buffer.com/developers/api> | same | `BUFFER_TOKEN` |
 
 > **GBP is not "get a token and go."** Google has, since 2020, restricted
-> `localPosts.create` to approved Business Profile API partners — an
-> ordinary OAuth token authenticates fine and still gets a 403 on the one
-> call that matters until Google approves the project. `GBPAdapter` names
-> this explicitly (`GBPAccessDenied`) rather than surfacing it as a generic
-> auth failure. Apply for access before counting on this being unattended;
-> until approved, post to GBP by hand from the account that manages the
+> `localPosts.create` to approved Business Profile API partners, and a plain
+> access token expires in about an hour regardless — see the full "Google
+> Business Profile" walkthrough below for both. Until Business Profile API
+> access is approved, post to GBP by hand from the account that manages the
 > real **"PassQual Health - Miami Gardens"** listing — never the duplicate
 > **"Hendry Perez Pascual, MD"** listing, which sits at the wrong address
 > and is not the one this practice's patients find.
@@ -369,6 +367,81 @@ leave it last.
 (<https://developers.facebook.com/docs/threads>) with scopes
 `threads_basic` + `threads_content_publish`, giving `THREADS_TOKEN` and
 `THREADS_USER_ID`. Same shape, do it after Meta works.
+
+### Google Business Profile: OAuth once, refresh forever
+
+A plain access token from Google's OAuth playground expires in about an
+hour — fine to prove the API works, useless for something meant to post
+unattended 3x/week. `pcip gbp-auth` runs the OAuth dance once and gets a
+refresh token; `GBPAdapter` then refreshes the access token itself before
+every publish, the same pattern already proven for Canva. Two things run in
+parallel here, on different clocks — start both today:
+
+**Track A — Business Profile API partner approval (the long pole, start now)**
+
+1. Confirm which listing you're setting this up for: **"PassQual Health -
+   Miami Gardens"** — never the duplicate **"Hendry Perez Pascual, MD"**
+   listing, which sits at the wrong address.
+2. Apply for access at
+   <https://developers.google.com/my-business/content/basic-setup>. This is
+   what actually gates `localPosts.create` (the one call that posts) — has
+   been since 2020, regardless of how correct your OAuth setup is. This can
+   take days to weeks; nothing below is blocked on it finishing.
+
+**Track B — OAuth client + tokens (do this today, works before approval lands)**
+
+3. In <https://console.cloud.google.com/>, create or pick a project.
+4. **APIs & Services → Library** → enable **My Business Account Management
+   API** and **My Business Business Information API**. (Local Posts itself
+   lives under the older, partner-gated Google My Business API — Track A.)
+5. **APIs & Services → OAuth consent screen** → User type **External** →
+   add scope `https://www.googleapis.com/auth/business.manage` → add the
+   Google account that manages the real listing as a **test user**. Leave
+   the app in "Testing" publishing status — this is single-user internal
+   automation, not something to submit for Google's verification review.
+6. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+   → application type **Desktop app**. Note the Client ID and secret.
+7. Store them without either touching shell history:
+
+   ```bash
+   bash scripts/pcip-set-key.sh GBP_CLIENT_ID
+   bash scripts/pcip-set-key.sh GBP_CLIENT_SECRET
+   ```
+
+8. Run the one-time auth flow, signed in as the account from step 5:
+
+   ```bash
+   python -m pcip gbp-auth
+   ```
+
+   Opens a browser at Google's consent screen, catches the redirect on a
+   local port, and writes `GBP_ACCESS_TOKEN` + `GBP_REFRESH_TOKEN` into
+   `.env`. If Google doesn't hand back a refresh token (happens when this
+   account already granted this app consent before), the command says so —
+   revoke access at <https://myaccount.google.com/permissions> and run it
+   again.
+
+9. Find the real account/location IDs — this works today, since discovery
+   isn't gated the way posting is:
+
+   ```bash
+   python -m pcip gbp-auth --discover
+   ```
+
+   Lists every account and location the token can see, with a note flagging
+   which one looks like the real listing and which looks like the
+   duplicate — confirm by eye against the addresses shown, then:
+
+   ```bash
+   bash scripts/pcip-set-key.sh GBP_ACCOUNT_ID
+   bash scripts/pcip-set-key.sh GBP_LOCATION_ID
+   ```
+
+10. `python -m pcip doctor` should now show GBP configured. That does **not**
+    mean posting will succeed yet — until Track A's approval lands,
+    `GBPAdapter` raises a clear `GBPAccessDenied` naming exactly that,
+    rather than a generic auth failure. Once approved, no further setup is
+    needed: the adapter refreshes its own access token before every publish.
 
 ### Rehearse a post before you have any of those tokens
 
