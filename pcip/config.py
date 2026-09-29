@@ -110,6 +110,13 @@ class PCIPConfig:
     gbp_access_token: str = ""
     gbp_account_id: str = ""
     gbp_location_id: str = ""          # the real listing, never the duplicate
+    #: OAuth client + refresh token, for ``pcip gbp-auth`` and the adapter's
+    #: own auto-refresh before every publish (same pattern as Canva). Without
+    #: these, GBP_ACCESS_TOKEN is a plain Google access token that expires in
+    #: about an hour — fine for a manual test, not for unattended posting.
+    gbp_client_id: str = ""
+    gbp_client_secret: str = ""
+    gbp_refresh_token: str = ""
     #: Call-to-action shown on the post. Defaults to CALL with the practice's
     #: own number — always correct, needs no per-post decision, and matches
     #: how the practice actually converts (phone, not online booking).
@@ -426,6 +433,9 @@ def load_config(data_dir: Optional[str] = None) -> PCIPConfig:
         gbp_access_token=_env("GBP_ACCESS_TOKEN"),
         gbp_account_id=_env("GBP_ACCOUNT_ID"),
         gbp_location_id=_env("GBP_LOCATION_ID"),
+        gbp_client_id=_env("GBP_CLIENT_ID"),
+        gbp_client_secret=_env("GBP_CLIENT_SECRET"),
+        gbp_refresh_token=_env("GBP_REFRESH_TOKEN"),
         gbp_cta_type=(_env("GBP_CTA_TYPE", "CALL").upper() or "CALL"),
         gbp_cta_url=_env("GBP_CTA_URL"),
         gbp_language=(_env("GBP_LANGUAGE", "es").lower() or "es"),
