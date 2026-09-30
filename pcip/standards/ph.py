@@ -332,6 +332,22 @@ def check_article(article: Dict[str, Any], stage: str = "publish") -> ArticleChe
                 f"no {lang.upper()} title", "",
             ))
 
+    # A genuine translation is never byte-identical between languages — real
+    # bilingual copy always differs at least in a word or two. An identical
+    # title in both slots means generation echoed one language into both
+    # (the same failure shape as the pre-#33 meta/FAQ bug, just in `titles`
+    # instead), not a coincidence, so this is flagged as required rather
+    # than advisory: it is unambiguously wrong, never a judgment call.
+    es_title = (titles.get("es") or "").strip()
+    en_title = (titles.get("en") or "").strip()
+    if es_title and en_title and es_title == en_title:
+        add(Violation(
+            "bilingual_parity", "required",
+            f"ES and EN titles are identical ({es_title!r}) — one language's "
+            "title was echoed into both rather than translated",
+            "regenerate the EN title as a real translation, not a copy",
+        ))
+
     # ── Substance ────────────────────────────────────────────────────────
     for lang, body in bodies.items():
         if not body:
