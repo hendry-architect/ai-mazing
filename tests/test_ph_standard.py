@@ -240,3 +240,23 @@ def test_an_overlong_english_meta_description_is_rejected():
     check = check_article(good_article(meta_descriptions={"es": "x", "en": "y" * (PH.META_DESCRIPTION_MAX + 1)}))
     assert any(v.rule == "meta_description" and "EN meta description" in v.detail
                for v in check.required)
+
+
+# ── identical ES/EN title (2026-09-30) ───────────────────────────────────────
+
+
+def test_an_identical_title_in_both_languages_is_rejected():
+    """A real translation is never byte-identical — this is one language's
+    title echoed into both, the same failure shape #33 fixed for meta/FAQ."""
+    a = good_article(titles={"es": "Prevención en Miami Gardens",
+                             "en": "Prevención en Miami Gardens"})
+    check = check_article(a)
+    hit = [v for v in check.required if v.rule == "bilingual_parity"
+           and "identical" in v.detail]
+    assert hit, check.report()
+
+
+def test_distinct_titles_in_each_language_pass():
+    check = check_article(good_article())
+    assert not [v for v in check.violations
+                if v.rule == "bilingual_parity" and "identical" in v.detail]
